@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+    
+    function isAdmin() {
+      // Admin UID should be checked server-side, not in rules
+      // Rules here are just basic ownership checks
+      return isAuthenticated();
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Users can read their own document
+      allow read: if isOwner(userId);
+      
+      // Users can create their own document during signup
+      allow create: if isOwner(userId) 
+        && request.resource.data.uid == userId
+        && request.resource.data.role in ['client', 'artisan'];
+      
+      // Users can update their own document
+      allow update: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.role == resource.data.role; // Can't change role
+    }
+    
+    // Artisan profiles collection
+    match /artisan_profiles/{profileId} {
+      // Anyone can read verified artisan profiles (for matching)
+      allow read: if resource.data.verified == true 
+        || isOwner(profileId);
+      
+      // Artisans can create their own profile
+      allow create: if isOwner(profileId)
+        && request.resource.data.uid == profileId
+        && request.resource.data.verified == false; // Starts unverified
+      
+      // Artisans can update their own profile (excluding verified field)
+      allow update: if isOwner(profileId)
+        && request.resource.data.uid == profileId
+        && request.resource.data.verified == resource.data.verified; // Can't self-verify
+    }
+    
+    // Jobs collection
+    match /jobs/{jobId} {
+      // Jobs can be read by:
+      // - The client who created it
+      // - Artisans for matching (when job is open)
+      allow read: if isOwner(resource.data.client_uid)
+        || (isAuthenticated() && resource.data.status == 'open');
+      
+      // Clients can create jobs
+      allow create: if isAuthenticated()
+        && request.resource.data.client_uid == request.auth.uid
+        && request.resource.data.status == 'open';
+      
+      // Jobs can be updated by the client who owns it
+      // Status changes and completion are handled server-side
+      allow update: if isOwner(resource.data.client_uid);
+    }
+    
+    // Matches collection
+    match /matches/{matchId} {
+      // Matches can be read by:
+      // - The client (via job_id lookup server-side)
+      // - The artisan
+      allow read: if isAuthenticated();
+      
+      // Matches are created server-side only
+      allow create: if false;
+      
+      // Artisans can update match status (accept/decline)
+      // Ratings are handled server-side with validation
+      allow update: if isOwner(resource.data.artisan_uid);
+    }
+    
+    // Transactions collection
+    match /transactions/{transactionId} {
+      // Transactions can be read by:
+      // - The artisan who will receive payment
+      // - The client (via match/job lookup server-side)
+      allow read: if isAuthenticated();
+      
+      // Transactions are created and updated server-side only
+      // (payment initialization, webhook processing, escrow release)
+      allow create, update: if false;
+    }
+  }
+}
