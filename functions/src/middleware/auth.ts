@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import * as admin from 'firebase-admin';
 import { AuthenticatedRequest } from '../types';
+import { recordFailedAuth, auditLog } from './security';
 
 /**
  * Middleware to verify Firebase ID token and attach user to request
@@ -23,9 +24,38 @@ export const authenticate = async (
     try {
       const decodedToken = await admin.auth().verifyIdToken(token);
       req.user = decodedToken;
+      
+      // Audit successful authentication
+      const ip = req.ip || req.socket.remoteAddress || 'unknown';
+      await auditLog({
+        timestamp: new Date().toISOString(),
+        action: 'AUTH_SUCCESS',
+        userId: decodedToken.uid,
+        ip,
+        userAgent: req.headers['user-agent'],
+        resource: req.originalUrl,
+        status: 'success'
+      });
+      
       next();
     } catch (error) {
       console.error('Token verification failed:', error);
+      
+      // Record failed authentication attempt
+      const ip = req.ip || req.socket.remoteAddress || 'unknown';
+      recordFailedAuth(ip);
+      
+      // Audit failed authentication
+      await auditLog({
+        timestamp: new Date().toISOString(),
+        action: 'AUTH_FAILURE',
+        ip,
+        userAgent: req.headers['user-agent'],
+        resource: req.originalUrl,
+        status: 'failure',
+        details: { error: 'Invalid token' }
+      });
+      
       res.status(401).json({ error: 'Unauthorized: Invalid token' });
       return;
     }

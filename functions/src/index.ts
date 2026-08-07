@@ -2,17 +2,35 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import express from 'express';
 import cors from 'cors';
+import { 
+  rateLimit, 
+  sanitizeInput, 
+  securityHeaders, 
+  monitorIP,
+  requestId,
+  validateContentType
+} from './middleware/security';
+import { initializeEncryption } from './utils/encryption';
 
 // Initialize Firebase Admin
 admin.initializeApp();
 
+// Initialize encryption
+initializeEncryption();
+
 // Create Express app
 const app = express();
 
-// Middleware
-app.use(cors({ origin: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Security Middleware (applied in order)
+app.use(requestId); // Add request ID for tracking
+app.use(securityHeaders); // Security headers (XSS, clickjacking, etc.)
+app.use(monitorIP); // IP monitoring and blocking
+app.use(rateLimit(100, 15 * 60 * 1000)); // Rate limit: 100 requests per 15 minutes
+app.use(cors({ origin: true })); // CORS (restrict in production)
+app.use(express.json({ limit: '10mb' })); // JSON body parser with size limit
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL-encoded body parser
+app.use(sanitizeInput); // Sanitize all inputs
+app.use(validateContentType); // Validate Content-Type headers
 
 // Import routes
 import authRoutes from './routes/auth';
