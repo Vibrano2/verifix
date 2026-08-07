@@ -5,28 +5,9 @@
 
 import { BaseRepository } from './base.repository';
 import { COLLECTIONS } from '../constants';
+import { Artisan } from '../models/artisan.model';
 import { Logger } from '../utils/logger';
 import * as admin from 'firebase-admin';
-
-export interface Artisan {
-  uid: string;
-  trade: string;
-  location: {
-    city: string;
-    state: string;
-    lga: string;
-  };
-  tagline: string;
-  id_document_url?: string;
-  work_photos?: string[];
-  is_available: boolean;
-  is_verified: boolean;
-  verification_status: string;
-  rating?: number;
-  total_jobs?: number;
-  completed_jobs?: number;
-  created_at: Date | admin.firestore.Timestamp;
-}
 
 export class ArtisanRepository extends BaseRepository<Artisan> {
   constructor() {

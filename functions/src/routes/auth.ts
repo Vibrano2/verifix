@@ -98,20 +98,20 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
     if (role === ROLES.ARTISAN) {
       await artisanRepo.create(uid, {
         uid,
-        trade: '', // To be set during profile completion
+        trade: 'plumber', // Default trade, to be updated during profile completion
         location: {
           city: '',
           state: '',
           lga: ''
         },
-        tagline: '',
+        tagline: 'Profile setup in progress',
         is_available: false,
         is_verified: false,
         verification_status: VERIFICATION_STATUS.PENDING,
         work_photos: [],
         completed_jobs: 0,
         created_at: new Date()
-      });
+      } as any);
     }
 
     Logger.info('User created successfully', { uid, role });

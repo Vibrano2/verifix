@@ -6,18 +6,9 @@
 import * as admin from 'firebase-admin';
 import { BaseRepository } from './base.repository';
 import { COLLECTIONS } from '../constants';
+import { User } from '../models/user.model';
 import { hashData } from '../utils/encryption';
 import { Logger } from '../utils/logger';
-
-export interface User {
-  uid: string;
-  phone: string;
-  phone_hash?: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-  created_at: Date | admin.firestore.Timestamp;
-}
 
 export class UserRepository extends BaseRepository<User> {
   constructor() {
