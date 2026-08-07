@@ -177,4 +177,23 @@ export class ArtisanRepository extends BaseRepository<Artisan> {
       throw error;
     }
   }
+
+  /**
+   * Update artisan reputation score
+   * @param uid - Artisan UID
+   * @param reputationScore - New reputation score (average of all ratings)
+   * @returns Updated artisan
+   */
+  async updateReputationScore(uid: string, reputationScore: number | null): Promise<Artisan | null> {
+    try {
+      await this.getCollection().doc(uid).update({
+        reputation_score: reputationScore
+      });
+
+      return await this.findById(uid);
+    } catch (error) {
+      Logger.error('Error updating artisan reputation score', error);
+      throw error;
+    }
+  }
 }
