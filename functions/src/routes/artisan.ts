@@ -5,8 +5,10 @@ import { validateTrade } from '../middleware/validation';
 import { uploadFile } from '../utils/fileUpload';
 import { AuthenticatedRequest } from '../types';
 import { getCategoryFromTrade, TradeName } from '../types';
+import { ArtisanController } from '../controllers';
 
 const router = Router();
+const artisanController = new ArtisanController();
 
 /**
  * POST /api/artisans/signup
@@ -101,50 +103,41 @@ router.post('/signup', authenticate, validateTrade, async (req: AuthenticatedReq
  * Toggle artisan availability
  * IDOR protection: Must be the artisan owner
  */
-router.patch('/:uid/availability', authenticate, requireOwnership, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { uid } = req.params;
-    const { available } = req.body;
+router.patch('/:uid/availability', authenticate, requireOwnership, (req, res) => 
+  artisanController.updateAvailability(req, res)
+);
 
-    if (typeof available !== 'boolean') {
-      res.status(400).json({ error: 'Available must be a boolean value' });
-      return;
-    }
+/**
+ * PATCH /api/artisans/:uid/profile
+ * Update artisan profile (location, tagline, etc.)
+ * IDOR protection: Must be the artisan owner
+ */
+router.patch('/:uid/profile', authenticate, requireOwnership, (req, res) => 
+  artisanController.updateProfile(req, res)
+);
 
-    const db = admin.firestore();
-    const artisanRef = db.collection('artisan_profiles').doc(uid);
-    const artisanDoc = await artisanRef.get();
+/**
+ * GET /api/artisans/:uid
+ * Get artisan profile details
+ */
+router.get('/:uid', authenticate, (req, res) => 
+  artisanController.getProfile(req, res)
+);
 
-    if (!artisanDoc.exists) {
-      res.status(404).json({ error: 'Artisan profile not found' });
-      return;
-    }
-
-    // Update availability
-    await artisanRef.update({
-      available,
-      updated_at: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    res.status(200).json({
-      message: 'Availability updated successfully',
-      available
-    });
-
-  } catch (error: any) {
-    console.error('Update availability error:', error);
-    res.status(500).json({ 
-      error: 'Failed to update availability',
-      details: error.message 
-    });
-  }
-});
+/**
+ * GET /api/artisans/:uid/dashboard
+ * Get artisan dashboard data
+ * Returns sum of held and released funds separately (no client-side math needed)
+ * IDOR protection: Must be the artisan owner
+ */
+router.get('/:uid/dashboard', authenticate, requireOwnership, (req, res) => 
+  artisanController.getDashboard(req, res)
+);
 
 /**
  * POST /api/artisans/:uid/photo
  * Upload work photo for artisan
  * IDOR protection: Must be the artisan owner
- * 
  * Security: Validates actual file MIME type/signature, not just extension
  */
 router.post('/:uid/photo', authenticate, requireOwnership, async (req: AuthenticatedRequest, res: Response) => {
@@ -238,186 +231,6 @@ router.post('/:uid/id-document', authenticate, requireOwnership, async (req: Aut
 
     res.status(500).json({ 
       error: 'Failed to upload ID document',
-      details: error.message 
-    });
-  }
-});
-
-/**
- * GET /api/artisans/:uid
- * Get artisan profile details
- */
-router.get('/:uid', authenticate, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { uid } = req.params;
-
-    const db = admin.firestore();
-    const artisanRef = db.collection('artisan_profiles').doc(uid);
-    const artisanDoc = await artisanRef.get();
-
-    if (!artisanDoc.exists) {
-      res.status(404).json({ error: 'Artisan profile not found' });
-      return;
-    }
-
-    const profileData = artisanDoc.data();
-
-    res.status(200).json({
-      profile: profileData
-    });
-
-  } catch (error: any) {
-    console.error('Get artisan profile error:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch artisan profile',
-      details: error.message 
-    });
-  }
-});
-
-/**
- * PATCH /api/artisans/:uid/profile
- * Update artisan profile (location, tagline, etc.)
- * IDOR protection: Must be the artisan owner
- */
-router.patch('/:uid/profile', authenticate, requireOwnership, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { uid } = req.params;
-    const { location, tagline } = req.body;
-
-    const db = admin.firestore();
-    const artisanRef = db.collection('artisan_profiles').doc(uid);
-    const artisanDoc = await artisanRef.get();
-
-    if (!artisanDoc.exists) {
-      res.status(404).json({ error: 'Artisan profile not found' });
-      return;
-    }
-
-    const updates: any = {
-      updated_at: admin.firestore.FieldValue.serverTimestamp()
-    };
-
-    if (location !== undefined) {
-      if (typeof location !== 'string' || location.length > 200) {
-        res.status(400).json({ error: 'Location must be a string with max 200 characters' });
-        return;
-      }
-      updates.location = location;
-    }
-
-    if (tagline !== undefined) {
-      if (typeof tagline !== 'string' || tagline.length > 100) {
-        res.status(400).json({ error: 'Tagline must be a string with max 100 characters' });
-        return;
-      }
-      updates.tagline = tagline;
-    }
-
-    await artisanRef.update(updates);
-
-    res.status(200).json({
-      message: 'Profile updated successfully',
-      updates
-    });
-
-  } catch (error: any) {
-    console.error('Update profile error:', error);
-    res.status(500).json({ 
-      error: 'Failed to update profile',
-      details: error.message 
-    });
-  }
-});
-
-/**
- * GET /api/artisans/:uid/dashboard
- * Get artisan dashboard data
- * Returns sum of held and released funds separately (no client-side math needed)
- * IDOR protection: Must be the artisan owner
- */
-router.get('/:uid/dashboard', authenticate, requireOwnership, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { uid } = req.params;
-
-    const db = admin.firestore();
-
-    // Get artisan profile
-    const artisanRef = db.collection('artisan_profiles').doc(uid);
-    const artisanDoc = await artisanRef.get();
-
-    if (!artisanDoc.exists) {
-      res.status(404).json({ error: 'Artisan profile not found' });
-      return;
-      }
-
-    const artisanData = artisanDoc.data();
-
-    // Query transactions by artisan_uid
-    const transactionsSnapshot = await db.collection('transactions')
-      .where('artisan_uid', '==', uid)
-      .get();
-
-    let heldTotal = 0;
-    let releasedTotal = 0;
-
-    transactionsSnapshot.forEach(doc => {
-      const data = doc.data();
-      const amount = data.locked_job_value || 0;
-      const commission = data.commission_retained || 0;
-      const artisanReceives = amount - commission;
-
-      if (data.status === 'held') {
-        heldTotal += artisanReceives;
-      } else if (data.status === 'released') {
-        releasedTotal += artisanReceives;
-      }
-    });
-
-    // Get matches for this artisan
-    const matchesSnapshot = await db.collection('matches')
-      .where('artisan_uid', '==', uid)
-      .get();
-
-    let pendingMatches = 0;
-    let acceptedMatches = 0;
-    let completedMatches = 0;
-
-    matchesSnapshot.forEach(doc => {
-      const data = doc.data();
-      if (data.status === 'pending') pendingMatches++;
-      if (data.status === 'accepted') acceptedMatches++;
-      if (data.status === 'completed') completedMatches++;
-    });
-
-    res.status(200).json({
-      artisan: {
-        uid: artisanData?.uid,
-        trade: artisanData?.trade,
-        location: artisanData?.location,
-        available: artisanData?.available,
-        verified: artisanData?.verified,
-        completed_jobs: artisanData?.completed_jobs,
-        reputation_score: artisanData?.reputation_score,
-        tagline: artisanData?.tagline
-      },
-      finances: {
-        held: heldTotal,
-        released: releasedTotal,
-        total_earnings: releasedTotal
-      },
-      matches: {
-        pending: pendingMatches,
-        accepted: acceptedMatches,
-        completed: completedMatches,
-        total: matchesSnapshot.size
-      }
-    });
-
-  } catch (error: any) {
-    console.error('Artisan dashboard error:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch artisan dashboard',
       details: error.message 
     });
   }

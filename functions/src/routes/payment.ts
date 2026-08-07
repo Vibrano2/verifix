@@ -1,10 +1,12 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import * as admin from 'firebase-admin';
 import { authenticate } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types';
-import { initializePayment, verifyWebhookSignature } from '../utils/paystack';
+import { initializePayment } from '../utils/paystack';
+import { PaymentController } from '../controllers';
 
 const router = Router();
+const paymentController = new PaymentController();
 
 /**
  * POST /api/payments/initialise
@@ -133,78 +135,9 @@ router.post('/initialise', authenticate, async (req: AuthenticatedRequest, res: 
  * Paystack webhook handler
  * CRITICAL: Verifies webhook signature before processing
  */
-router.post('/webhook', async (req: Request, res: Response) => {
-  try {
-    // Get raw body as string for signature verification
-    const signature = req.headers['x-paystack-signature'] as string;
-
-    if (!signature) {
-      console.error('Webhook: No signature provided');
-      res.status(400).json({ error: 'No signature provided' });
-      return;
-    }
-
-    // Verify signature
-    const payload = JSON.stringify(req.body);
-    const isValid = verifyWebhookSignature(payload, signature);
-
-    if (!isValid) {
-      console.error('Webhook: Invalid signature');
-      res.status(401).json({ error: 'Invalid signature' });
-      return;
-    }
-
-    // Process webhook event
-    const event = req.body;
-
-    if (event.event === 'charge.success') {
-      const { reference, status } = event.data;
-
-      if (status !== 'success') {
-        console.log('Webhook: Payment not successful', status);
-        res.status(200).json({ message: 'Payment not successful' });
-        return;
-      }
-
-      const db = admin.firestore();
-
-      // Find transaction by reference
-      const transactionsSnapshot = await db.collection('transactions')
-        .where('paystack_reference', '==', reference)
-        .limit(1)
-        .get();
-
-      if (transactionsSnapshot.empty) {
-        console.error('Webhook: Transaction not found for reference', reference);
-        res.status(404).json({ error: 'Transaction not found' });
-        return;
-      }
-
-      const transactionDoc = transactionsSnapshot.docs[0];
-
-      // Update transaction status to 'held' (in escrow)
-      await transactionDoc.ref.update({
-        status: 'held',
-        updated_at: admin.firestore.FieldValue.serverTimestamp()
-      });
-
-      console.log('Webhook: Payment successful, transaction updated to held', reference);
-
-      res.status(200).json({ message: 'Webhook processed successfully' });
-    } else {
-      // Other events
-      console.log('Webhook: Unhandled event type', event.event);
-      res.status(200).json({ message: 'Event received' });
-    }
-
-  } catch (error: any) {
-    console.error('Webhook processing error:', error);
-    res.status(500).json({ 
-      error: 'Failed to process webhook',
-      details: error.message 
-    });
-  }
-});
+router.post('/webhook', (req, res) => 
+  paymentController.handleWebhook(req, res)
+);
 
 /**
  * POST /api/jobs/:id/reveal-contact
@@ -322,43 +255,8 @@ router.post('/:id/reveal-contact', authenticate, async (req: AuthenticatedReques
  * GET /api/payments/verify/:reference
  * Verify a payment transaction (helper endpoint)
  */
-router.get('/verify/:reference', authenticate, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    const { reference } = req.params;
-
-    const db = admin.firestore();
-    const transactionsSnapshot = await db.collection('transactions')
-      .where('paystack_reference', '==', reference)
-      .limit(1)
-      .get();
-
-    if (transactionsSnapshot.empty) {
-      res.status(404).json({ error: 'Transaction not found' });
-      return;
-    }
-
-    const transactionDoc = transactionsSnapshot.docs[0];
-    const transactionData = transactionDoc.data();
-
-    res.status(200).json({
-      transaction: {
-        transaction_id: transactionDoc.id,
-        ...transactionData
-      }
-    });
-
-  } catch (error: any) {
-    console.error('Verify payment error:', error);
-    res.status(500).json({ 
-      error: 'Failed to verify payment',
-      details: error.message 
-    });
-  }
-});
+router.get('/verify/:reference', authenticate, (req, res) => 
+  paymentController.verifyPayment(req, res)
+);
 
 export default router;

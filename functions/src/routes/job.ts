@@ -3,101 +3,45 @@ import * as admin from 'firebase-admin';
 import { authenticate } from '../middleware/auth';
 import { validateTrade, validateUrgency, validateLocation, validateRating } from '../middleware/validation';
 import { AuthenticatedRequest } from '../types';
-import { TradeName, Urgency } from '../types';
+import { Urgency } from '../types';
+import { JobController } from '../controllers';
+import { RatingController } from '../controllers';
 
 const router = Router();
+const jobController = new JobController();
+const ratingController = new RatingController();
 
 /**
  * POST /api/jobs
  * Create a new job posting
  * Validates: trade (locked enum), urgency (locked enum), location (max length)
  */
-router.post('/', authenticate, validateTrade, validateUrgency, validateLocation, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    const {
-      trade,
-      location,
-      urgency,
-      budget,
-      description,
-      match_fee
-    } = req.body;
-
-    // Validate required fields
-    if (!description || typeof description !== 'string' || description.trim() === '') {
-      res.status(400).json({ error: 'Description is required and must be non-empty' });
-      return;
-    }
-
-    if (description.length > 1000) {
-      res.status(400).json({ error: 'Description must be 1000 characters or less' });
-      return;
-    }
-
-    // Validate match_fee
-    const matchFee = match_fee || 500; // Default ₦500
-    if (typeof matchFee !== 'number' || matchFee < 0) {
-      res.status(400).json({ error: 'Match fee must be a positive number' });
-      return;
-    }
-
-    // Validate budget (optional)
-    if (budget !== null && budget !== undefined) {
-      if (typeof budget !== 'number' || budget < 0) {
-        res.status(400).json({ error: 'Budget must be a positive number or null' });
-        return;
-      }
-    }
-
-    const db = admin.firestore();
-    const jobsRef = db.collection('jobs');
-
-    // Create job document
-    const newJob = {
-      client_uid: req.user.uid,
-      trade: trade as TradeName,
-      location,
-      urgency: urgency as Urgency,
-      budget: budget || null,
-      description,
-      match_fee: matchFee,
-      status: 'open',
-      created_at: admin.firestore.FieldValue.serverTimestamp(),
-      updated_at: admin.firestore.FieldValue.serverTimestamp()
-    };
-
-    const jobDoc = await jobsRef.add(newJob);
-
-    res.status(201).json({
-      message: 'Job created successfully',
-      job: {
-        job_id: jobDoc.id,
-        ...newJob,
-        created_at: new Date(),
-        updated_at: new Date()
-      }
-    });
-
-  } catch (error: any) {
-    console.error('Create job error:', error);
-    res.status(500).json({ 
-      error: 'Failed to create job',
-      details: error.message 
-    });
-  }
-});
+router.post('/', authenticate, validateTrade, validateUrgency, validateLocation, (req, res) => 
+  jobController.createJob(req, res)
+);
 
 /**
  * GET /api/jobs/:id
  * Get job details
  * Only accessible by job owner or matched artisans
  */
-router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id', authenticate, (req, res) => 
+  jobController.getJob(req, res)
+);
+
+/**
+ * GET /api/jobs
+ * List jobs for authenticated user (client)
+ */
+router.get('/', authenticate, (req, res) => 
+  jobController.listJobs(req, res)
+);
+
+/**
+ * PATCH /api/jobs/:id
+ * Update job details (before matching)
+ */
+router.patch('/:id', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -105,6 +49,8 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
     }
 
     const { id } = req.params;
+    const { description, budget, urgency } = req.body;
+
     const db = admin.firestore();
     const jobRef = db.collection('jobs').doc(id);
     const jobDoc = await jobRef.get();
@@ -116,77 +62,58 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
 
     const jobData = jobDoc.data();
 
-    // Check authorization - only job owner can see full details
+    // Verify ownership
     if (jobData?.client_uid !== req.user.uid) {
-      // Artisans can see open jobs (limited info)
-      if (jobData?.status === 'open') {
-        res.status(200).json({
-          job: {
-            job_id: id,
-            trade: jobData.trade,
-            location: jobData.location,
-            urgency: jobData.urgency,
-            budget: jobData.budget,
-            description: jobData.description,
-            match_fee: jobData.match_fee,
-            status: jobData.status,
-            created_at: jobData.created_at
-          }
-        });
+      res.status(403).json({ error: 'Forbidden: You do not own this job' });
+      return;
+    }
+
+    // Can only update open jobs
+    if (jobData?.status !== 'open') {
+      res.status(400).json({ error: 'Cannot update job that is not open' });
+      return;
+    }
+
+    const updates: any = {
+      updated_at: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (description !== undefined) {
+      if (typeof description !== 'string' || description.length > 1000) {
+        res.status(400).json({ error: 'Description must be a string with max 1000 characters' });
         return;
       }
-      
-      res.status(403).json({ error: 'Forbidden: You do not have access to this job' });
-      return;
+      updates.description = description;
     }
 
-    res.status(200).json({
-      job: {
-        job_id: id,
-        ...jobData
+    if (budget !== undefined) {
+      if (budget !== null && (typeof budget !== 'number' || budget < 0)) {
+        res.status(400).json({ error: 'Budget must be a positive number or null' });
+        return;
       }
-    });
-
-  } catch (error: any) {
-    console.error('Get job error:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch job',
-      details: error.message 
-    });
-  }
-});
-
-/**
- * GET /api/jobs
- * List jobs for authenticated user (client)
- */
-router.get('/', authenticate, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      updates.budget = budget;
     }
 
-    const db = admin.firestore();
-    const jobsSnapshot = await db.collection('jobs')
-      .where('client_uid', '==', req.user.uid)
-      .orderBy('created_at', 'desc')
-      .get();
+    if (urgency !== undefined) {
+      const validUrgencies: Urgency[] = ['Today', 'This Week', 'Flexible'];
+      if (!validUrgencies.includes(urgency)) {
+        res.status(400).json({ error: 'Invalid urgency value' });
+        return;
+      }
+      updates.urgency = urgency;
+    }
 
-    const jobs = jobsSnapshot.docs.map(doc => ({
-      job_id: doc.id,
-      ...doc.data()
-    }));
+    await jobRef.update(updates);
 
     res.status(200).json({
-      jobs,
-      count: jobs.length
+      message: 'Job updated successfully',
+      updates
     });
 
   } catch (error: any) {
-    console.error('List jobs error:', error);
+    console.error('Update job error:', error);
     res.status(500).json({ 
-      error: 'Failed to fetch jobs',
+      error: 'Failed to update job',
       details: error.message 
     });
   }
@@ -475,127 +402,9 @@ router.patch('/:id', authenticate, async (req: AuthenticatedRequest, res: Respon
  * - Check for duplicate rating (return 409 if already exists)
  * - Recalculate artisan reputation_score as average of all ratings
  */
-router.post('/:id/rating', authenticate, validateRating, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    const { id } = req.params;
-    const { rating, match_id } = req.body;
-
-    if (!match_id) {
-      res.status(400).json({ error: 'Match ID is required' });
-      return;
-    }
-
-    const db = admin.firestore();
-
-    // Get job details
-    const jobRef = db.collection('jobs').doc(id);
-    const jobDoc = await jobRef.get();
-
-    if (!jobDoc.exists) {
-      res.status(404).json({ error: 'Job not found' });
-      return;
-    }
-
-    const jobData = jobDoc.data();
-
-    // Verify the authenticated user is the client who owns the job
-    if (jobData?.client_uid !== req.user.uid) {
-      res.status(403).json({ 
-        error: 'Forbidden: Only the client who posted this job can rate' 
-      });
-      return;
-    }
-
-    // Verify job is complete
-    if (jobData?.status !== 'complete') {
-      res.status(400).json({ error: 'Cannot rate a job that is not complete' });
-      return;
-    }
-
-    // Get match details
-    const matchRef = db.collection('matches').doc(match_id);
-    const matchDoc = await matchRef.get();
-
-    if (!matchDoc.exists) {
-      res.status(404).json({ error: 'Match not found' });
-      return;
-    }
-
-    const matchData = matchDoc.data();
-
-    // Verify match belongs to this job
-    if (matchData?.job_id !== id) {
-      res.status(400).json({ error: 'Match does not belong to this job' });
-      return;
-    }
-
-    // DUPLICATE CHECK: Return 409 Conflict if rating already exists
-    if (matchData?.rating !== null && matchData?.rating !== undefined) {
-      res.status(409).json({ 
-        error: 'Conflict: Rating already exists for this match',
-        existing_rating: matchData.rating
-      });
-      return;
-    }
-
-    const artisanUid = matchData!.artisan_uid;
-
-    // Save rating to match
-    await matchRef.update({
-      rating: Number(rating),
-      updated_at: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    // Recalculate artisan reputation_score
-    // Get all completed matches for this artisan that have ratings
-    const artisanMatchesSnapshot = await db.collection('matches')
-      .where('artisan_uid', '==', artisanUid)
-      .where('status', '==', 'completed')
-      .get();
-
-    // Calculate average rating
-    let totalRatings = 0;
-    let ratingCount = 0;
-
-    artisanMatchesSnapshot.forEach((doc) => {
-      const data = doc.data();
-      if (data.rating !== null && data.rating !== undefined) {
-        totalRatings += data.rating;
-        ratingCount++;
-      }
-    });
-
-    const newReputationScore = ratingCount > 0 ? totalRatings / ratingCount : null;
-
-    // Update artisan profile with new reputation score
-    const artisanRef = db.collection('artisan_profiles').doc(artisanUid);
-    await artisanRef.update({
-      reputation_score: newReputationScore,
-      updated_at: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    res.status(200).json({
-      message: 'Rating submitted successfully',
-      rating: Number(rating),
-      artisan_reputation_updated: {
-        new_reputation_score: newReputationScore,
-        total_ratings: ratingCount
-      }
-    });
-
-  } catch (error: any) {
-    console.error('Submit rating error:', error);
-    res.status(500).json({ 
-      error: 'Failed to submit rating',
-      details: error.message 
-    });
-  }
-});
+router.post('/:id/rating', authenticate, validateRating, (req, res) => 
+  ratingController.submitRating(req, res)
+);
 
 /**
  * POST /api/jobs/:id/complete
