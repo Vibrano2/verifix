@@ -4,7 +4,10 @@
  */
 
 import * as admin from 'firebase-admin';
-import { Location, TradeName } from './artisan.model';
+import { Location } from './artisan.model';
+import { Trade } from '../constants/trades';
+
+export type TradeName = Trade;
 
 export type JobStatus = 
   | 'open' 
@@ -13,7 +16,7 @@ export type JobStatus =
   | 'completed' 
   | 'cancelled';
 
-export type Urgency = 'low' | 'medium' | 'high' | 'emergency';
+export type Urgency = 'Today' | 'This Week' | 'Flexible'; // Locked enum per PRD
 
 export interface Job {
   id: string;

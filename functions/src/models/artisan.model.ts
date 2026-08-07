@@ -4,16 +4,9 @@
  */
 
 import * as admin from 'firebase-admin';
+import { Trade, TradeCategory } from '../constants/trades';
 
-export type TradeName = 
-  | 'plumber' 
-  | 'electrician' 
-  | 'carpenter' 
-  | 'painter' 
-  | 'mechanic'
-  | 'tiler'
-  | 'welder'
-  | 'mason';
+export type TradeName = Trade;
 
 export type VerificationStatus = 'pending' | 'approved' | 'rejected';
 
@@ -27,6 +20,7 @@ export interface Location {
 export interface Artisan {
   uid: string;
   trade: TradeName;
+  category: TradeCategory; // Derived from trade
   location: Location;
   tagline: string;
   bio?: string;
@@ -38,6 +32,7 @@ export interface Artisan {
   is_verified: boolean;
   verification_status: VerificationStatus;
   rating?: number;
+  reputation_score?: number; // Average of all ratings (replaces rating)
   total_jobs?: number;
   completed_jobs?: number;
   rejection_reason?: string;
