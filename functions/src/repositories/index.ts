@@ -7,3 +7,4 @@ export * from './base.repository';
 export * from './user.repository';
 export * from './artisan.repository';
 export * from './rating.repository';
+export * from './analytics.repository';

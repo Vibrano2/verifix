@@ -10,10 +10,11 @@ const userRepo = new UserRepository();
 const artisanRepo = new ArtisanRepository();
 
 /**
- * POST /api/auth/send-otp
+ * POST /api/auth/phone/send-otp
  * Send OTP to phone number using Firebase Auth
+ * Updated path per PRD reconciliation
  */
-router.post('/send-otp', async (req: Request, res: Response) => {
+router.post('/phone/send-otp', async (req: Request, res: Response) => {
   try {
     const { phone } = req.body;
 
@@ -45,13 +46,14 @@ router.post('/send-otp', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/auth/verify-otp
+ * POST /api/auth/phone/verify-otp
  * Verify OTP and create/update user
+ * Updated path per PRD reconciliation
  * 
  * In production, the frontend uses Firebase Client SDK to verify OTP
  * and gets an ID token, which is then sent to this endpoint to create user profile
  */
-router.post('/verify-otp', async (req: Request, res: Response) => {
+router.post('/phone/verify-otp', async (req: Request, res: Response) => {
   try {
     const { 
       phone, 

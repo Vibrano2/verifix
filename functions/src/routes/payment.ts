@@ -7,11 +7,12 @@ import { initializePayment, verifyWebhookSignature } from '../utils/paystack';
 const router = Router();
 
 /**
- * POST /api/payments/initialize
+ * POST /api/payments/initialise
  * Initialize Paystack payment for match fee
+ * Updated to British spelling per PRD specification
  * Captures locked_job_value at this moment (immutable for commission calculation)
  */
-router.post('/initialize', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/initialise', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });

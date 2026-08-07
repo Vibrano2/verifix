@@ -5,6 +5,7 @@ import { AuthenticatedRequest } from '../types';
 import { ArtisanRepository, UserRepository } from '../repositories';
 import { ResponseUtil } from '../utils/response';
 import { Logger } from '../utils/logger';
+import { COLLECTIONS } from '../constants';
 
 const router = Router();
 const artisanRepo = new ArtisanRepository();
@@ -217,6 +218,143 @@ router.get('/stats', authenticate, requireAdmin, async (req: AuthenticatedReques
   } catch (error: any) {
     Logger.error('Admin stats error', error);
     return ResponseUtil.serverError(res, 'Failed to fetch admin statistics');
+  }
+});
+
+/**
+ * GET /api/admin/analytics
+ * Get comprehensive analytics data (PRD requirement)
+ * Returns: { users, jobs, matches, revenue }
+ * CRITICAL: Only accessible by admin
+ */
+router.get('/analytics', authenticate, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const db = admin.firestore();
+
+    // Get users analytics
+    const usersSnapshot = await db.collection(COLLECTIONS.USERS).get();
+    let clientCount = 0;
+    let artisanCount = 0;
+    
+    usersSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.role === 'client') clientCount++;
+      if (data.role === 'artisan') artisanCount++;
+    });
+
+    // Get artisans with verification status
+    const artisansSnapshot = await db.collection(COLLECTIONS.ARTISANS).get();
+    let verifiedArtisans = 0;
+    
+    artisansSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.is_verified) verifiedArtisans++;
+    });
+
+    // Get jobs analytics
+    const jobsSnapshot = await db.collection(COLLECTIONS.JOBS).get();
+    let openJobs = 0;
+    let matchedJobs = 0;
+    let completedJobs = 0;
+    let cancelledJobs = 0;
+
+    jobsSnapshot.forEach(doc => {
+      const data = doc.data();
+      switch (data.status) {
+        case 'open':
+          openJobs++;
+          break;
+        case 'matched':
+        case 'in_progress':
+          matchedJobs++;
+          break;
+        case 'completed':
+          completedJobs++;
+          break;
+        case 'cancelled':
+          cancelledJobs++;
+          break;
+      }
+    });
+
+    // Get matches analytics
+    const matchesSnapshot = await db.collection(COLLECTIONS.MATCHES).get();
+    let pendingMatches = 0;
+    let acceptedMatches = 0;
+    let completedMatches = 0;
+
+    matchesSnapshot.forEach(doc => {
+      const data = doc.data();
+      switch (data.status) {
+        case 'pending':
+          pendingMatches++;
+          break;
+        case 'accepted':
+          acceptedMatches++;
+          break;
+        case 'completed':
+          completedMatches++;
+          break;
+      }
+    });
+
+    // Get revenue analytics
+    const transactionsSnapshot = await db.collection(COLLECTIONS.TRANSACTIONS).get();
+    let totalHeld = 0;
+    let totalReleased = 0;
+    let totalCommission = 0;
+
+    transactionsSnapshot.forEach(doc => {
+      const data = doc.data();
+      const amount = data.amount || 0;
+      const commission = data.commission_retained || 0;
+
+      if (data.status === 'held') {
+        totalHeld += amount;
+      } else if (data.status === 'released') {
+        totalReleased += amount;
+        totalCommission += commission;
+      }
+    });
+
+    const analytics = {
+      users: {
+        total: usersSnapshot.size,
+        clients: clientCount,
+        artisans: artisanCount,
+        verified_artisans: verifiedArtisans
+      },
+      jobs: {
+        total: jobsSnapshot.size,
+        open: openJobs,
+        matched: matchedJobs,
+        completed: completedJobs,
+        cancelled: cancelledJobs
+      },
+      matches: {
+        total: matchesSnapshot.size,
+        pending: pendingMatches,
+        accepted: acceptedMatches,
+        completed: completedMatches
+      },
+      revenue: {
+        total_held: totalHeld,
+        total_released: totalReleased,
+        total_commission: totalCommission
+      }
+    };
+
+    Logger.info('Admin analytics fetched', { 
+      totalUsers: usersSnapshot.size, 
+      totalJobs: jobsSnapshot.size,
+      totalRevenue: totalReleased
+    });
+
+    return ResponseUtil.success(res, 'Analytics data fetched successfully', analytics);
+
+  } catch (error: any) {
+    Logger.error('Admin analytics error', error);
+    return ResponseUtil.serverError(res, 'Failed to fetch analytics data');
   }
 });
 
