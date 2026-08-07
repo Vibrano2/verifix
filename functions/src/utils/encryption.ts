@@ -1,4 +1,5 @@
 import * as crypto from 'crypto';
+import { Logger } from './logger';
 
 /**
  * Encryption utility for sensitive data (PII)
@@ -35,7 +36,7 @@ export function encrypt(text: string): string {
     // Return format: iv:authTag:encryptedData
     return `${iv.toString('hex')}:${authTag}:${encrypted}`;
   } catch (error) {
-    console.error('Encryption error:', error);
+    Logger.error('Encryption error', error);
     throw new Error('Failed to encrypt data');
   }
 }
@@ -69,7 +70,7 @@ export function decrypt(encryptedText: string): string {
     
     return decrypted;
   } catch (error) {
-    console.error('Decryption error:', error);
+    Logger.error('Decryption error', error);
     throw new Error('Failed to decrypt data');
   }
 }
@@ -173,7 +174,7 @@ export function decryptUserData(user: any): any {
     try {
       decrypted.phone = decryptPhone(user.phone_encrypted);
     } catch (error) {
-      console.error('Failed to decrypt phone:', error);
+      Logger.error('Failed to decrypt phone', error);
       decrypted.phone = null;
     }
   }
@@ -182,7 +183,7 @@ export function decryptUserData(user: any): any {
     try {
       decrypted.email = decrypt(user.email_encrypted);
     } catch (error) {
-      console.error('Failed to decrypt email:', error);
+      Logger.error('Failed to decrypt email', error);
       decrypted.email = null;
     }
   }
@@ -205,12 +206,12 @@ export function generateSecureToken(length: number = 32): string {
  */
 export function validateEncryptionKey(): boolean {
   if (!process.env.ENCRYPTION_KEY) {
-    console.warn('⚠️  ENCRYPTION_KEY not set in environment variables. Using default key (NOT SECURE)');
+    Logger.warn('⚠️  ENCRYPTION_KEY not set in environment variables. Using default key (NOT SECURE)');
     return false;
   }
   
   if (process.env.ENCRYPTION_KEY.length < 32) {
-    console.warn('⚠️  ENCRYPTION_KEY is too short. Should be at least 32 characters');
+    Logger.warn('⚠️  ENCRYPTION_KEY is too short. Should be at least 32 characters');
     return false;
   }
   
@@ -222,5 +223,5 @@ export function validateEncryptionKey(): boolean {
  */
 export function initializeEncryption(): void {
   validateEncryptionKey();
-  console.log('🔐 Encryption module initialized');
+  Logger.info('🔐 Encryption module initialized');
 }

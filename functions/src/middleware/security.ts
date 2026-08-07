@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as admin from 'firebase-admin';
+import { Logger } from '../utils/logger';
 
 /**
  * Rate Limiting Configuration
@@ -45,7 +46,7 @@ export const rateLimit = (maxRequests: number = 100, windowMs: number = 15 * 60 
       });
       
       // Log suspicious activity
-      console.warn(`Rate limit exceeded for IP: ${ip}`);
+      Logger.warn(`Rate limit exceeded for IP: ${ip}`);
       return;
     }
     
@@ -71,7 +72,7 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
     
     next();
   } catch (error) {
-    console.error('Input sanitization error:', error);
+    Logger.error('Input sanitization error', error);
     res.status(400).json({ error: 'Invalid input format' });
   }
 };
@@ -213,7 +214,7 @@ export const recordFailedAuth = (ip: string): void => {
     const blockDuration = 15 * 60 * 1000; // 15 minutes
     ipMonitoring[ip].blockedUntil = Date.now() + blockDuration;
     
-    console.warn(`IP ${ip} blocked for 15 minutes after ${ipMonitoring[ip].failedAttempts} failed attempts`);
+    Logger.warn(`IP ${ip} blocked for 15 minutes after ${ipMonitoring[ip].failedAttempts} failed attempts`);
   }
 };
 
@@ -243,7 +244,7 @@ export const auditLog = async (log: AuditLog): Promise<void> => {
       timestamp: admin.firestore.FieldValue.serverTimestamp()
     });
   } catch (error) {
-    console.error('Failed to write audit log:', error);
+    Logger.error('Failed to write audit log', error);
     // Don't fail the request if logging fails
   }
 };
@@ -272,7 +273,7 @@ export const auditMiddleware = (action: string) => {
         resource: req.originalUrl,
         status,
         details: status === 'failure' ? body : undefined
-      }).catch(err => console.error('Audit log error:', err));
+      }).catch(err => Logger.error('Audit log error', err));
       
       return originalJson(body);
     };

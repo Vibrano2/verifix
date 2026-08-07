@@ -2,8 +2,13 @@ import { Router, Response } from 'express';
 import * as admin from 'firebase-admin';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types';
+import { ArtisanRepository, UserRepository } from '../repositories';
+import { ResponseUtil } from '../utils/response';
+import { Logger } from '../utils/logger';
 
 const router = Router();
+const artisanRepo = new ArtisanRepository();
+const userRepo = new UserRepository();
 
 /**
  * GET /api/admin/verification-queue
@@ -12,53 +17,40 @@ const router = Router();
  */
 router.get('/verification-queue', authenticate, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const db = admin.firestore();
-
-    // Query artisans with verified = false
-    const unverifiedSnapshot = await db.collection('artisan_profiles')
-      .where('verified', '==', false)
-      .orderBy('updated_at', 'desc')
-      .get();
+    // Get all artisans pending verification using repository
+    const unverifiedArtisans = await artisanRepo.findPendingVerification();
 
     // Fetch user details for each artisan
     const artisansWithDetails = await Promise.all(
-      unverifiedSnapshot.docs.map(async (doc) => {
-        const artisanData = doc.data();
+      unverifiedArtisans.map(async (artisan) => {
+        const user = await userRepo.findById(artisan.uid);
         
-        // Get user details
-        const userDoc = await db.collection('users').doc(artisanData.uid).get();
-        const userData = userDoc.data();
-
         return {
-          uid: doc.id,
-          first_name: userData?.first_name,
-          last_name: userData?.last_name,
-          phone: userData?.phone,
-          trade: artisanData.trade,
-          category: artisanData.category,
-          location: artisanData.location,
-          tagline: artisanData.tagline,
-          id_document_url: artisanData.id_document_url,
-          work_photos: artisanData.work_photos,
-          verified: artisanData.verified,
-          created_at: userData?.created_at,
-          updated_at: artisanData.updated_at
+          uid: artisan.uid,
+          first_name: user?.first_name,
+          last_name: user?.last_name,
+          phone: user?.phone,
+          trade: artisan.trade,
+          location: artisan.location,
+          tagline: artisan.tagline,
+          id_document_url: artisan.id_document_url,
+          work_photos: artisan.work_photos,
+          verification_status: artisan.verification_status,
+          created_at: artisan.created_at
         };
       })
     );
 
-    res.status(200).json({
-      message: 'Verification queue fetched successfully',
+    Logger.info('Verification queue fetched', { count: artisansWithDetails.length });
+
+    return ResponseUtil.success(res, 'Verification queue fetched successfully', {
       artisans: artisansWithDetails,
       count: artisansWithDetails.length
     });
 
   } catch (error: any) {
-    console.error('Verification queue error:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch verification queue',
-      details: error.message 
-    });
+    Logger.error('Verification queue error', error);
+    return ResponseUtil.serverError(res, 'Failed to fetch verification queue');
   }
 });
 
@@ -73,56 +65,44 @@ router.post('/verify/:uid', authenticate, requireAdmin, async (req: Authenticate
     const { uid } = req.params;
 
     if (!uid) {
-      res.status(400).json({ error: 'Artisan UID is required' });
-      return;
+      return ResponseUtil.badRequest(res, 'Artisan UID is required');
     }
 
-    const db = admin.firestore();
-    const artisanRef = db.collection('artisan_profiles').doc(uid);
-    const artisanDoc = await artisanRef.get();
-
-    if (!artisanDoc.exists) {
-      res.status(404).json({ error: 'Artisan profile not found' });
-      return;
+    // Check if artisan exists
+    const artisan = await artisanRepo.findById(uid);
+    if (!artisan) {
+      return ResponseUtil.notFound(res, 'Artisan profile not found');
     }
-
-    const artisanData = artisanDoc.data();
 
     // Check if already verified
-    if (artisanData?.verified === true) {
-      res.status(200).json({
-        message: 'Artisan already verified',
+    if (artisan.is_verified) {
+      Logger.info('Artisan already verified', { uid });
+      return ResponseUtil.success(res, 'Artisan already verified', {
         already_verified: true,
         artisan: {
-          uid: artisanData.uid,
-          trade: artisanData.trade,
-          verified: true
+          uid: artisan.uid,
+          trade: artisan.trade,
+          is_verified: true
         }
       });
-      return;
     }
 
-    // Set verified to true
-    await artisanRef.update({
-      verified: true,
-      updated_at: admin.firestore.FieldValue.serverTimestamp()
-    });
+    // Verify using repository
+    const verifiedArtisan = await artisanRepo.verify(uid);
 
-    res.status(200).json({
-      message: 'Artisan verified successfully',
+    Logger.info('Artisan verified successfully', { uid, trade: verifiedArtisan?.trade });
+
+    return ResponseUtil.success(res, 'Artisan verified successfully', {
       artisan: {
         uid,
-        trade: artisanData?.trade,
-        verified: true
+        trade: verifiedArtisan?.trade,
+        is_verified: true
       }
     });
 
   } catch (error: any) {
-    console.error('Verify artisan error:', error);
-    res.status(500).json({ 
-      error: 'Failed to verify artisan',
-      details: error.message 
-    });
+    Logger.error('Verify artisan error', error);
+    return ResponseUtil.serverError(res, 'Failed to verify artisan');
   }
 });
 
@@ -137,38 +117,27 @@ router.post('/reject/:uid', authenticate, requireAdmin, async (req: Authenticate
     const { reason } = req.body;
 
     if (!uid) {
-      res.status(400).json({ error: 'Artisan UID is required' });
-      return;
+      return ResponseUtil.badRequest(res, 'Artisan UID is required');
     }
 
-    const db = admin.firestore();
-    const artisanRef = db.collection('artisan_profiles').doc(uid);
-    const artisanDoc = await artisanRef.get();
-
-    if (!artisanDoc.exists) {
-      res.status(404).json({ error: 'Artisan profile not found' });
-      return;
+    // Check if artisan exists
+    const artisan = await artisanRepo.findById(uid);
+    if (!artisan) {
+      return ResponseUtil.notFound(res, 'Artisan profile not found');
     }
 
-    // Optional: Store rejection reason in a separate collection or field
-    // For now, just keep verified = false
-    await artisanRef.update({
-      verified: false,
-      rejection_reason: reason || 'Not specified',
-      updated_at: admin.firestore.FieldValue.serverTimestamp()
-    });
+    // Reject using repository
+    await artisanRepo.reject(uid, reason);
 
-    res.status(200).json({
-      message: 'Artisan verification rejected',
+    Logger.info('Artisan verification rejected', { uid, reason: reason || 'Not specified' });
+
+    return ResponseUtil.success(res, 'Artisan verification rejected', {
       reason: reason || 'Not specified'
     });
 
   } catch (error: any) {
-    console.error('Reject artisan error:', error);
-    res.status(500).json({ 
-      error: 'Failed to reject artisan',
-      details: error.message 
-    });
+    Logger.error('Reject artisan error', error);
+    return ResponseUtil.serverError(res, 'Failed to reject artisan');
   }
 });
 
@@ -179,25 +148,19 @@ router.post('/reject/:uid', authenticate, requireAdmin, async (req: Authenticate
  */
 router.get('/stats', authenticate, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const db = admin.firestore();
-
+    // Use repositories for cleaner queries
+    const allUsers = await userRepo.findAll();
+    const allArtisans = await artisanRepo.findAll();
+    
     // Count users by role
-    const usersSnapshot = await db.collection('users').get();
-    let clientCount = 0;
-    let artisanCount = 0;
-
-    usersSnapshot.forEach(doc => {
-      const data = doc.data();
-      if (data.role === 'client') clientCount++;
-      if (data.role === 'artisan') artisanCount++;
-    });
+    const clientCount = allUsers.filter(u => u.role === 'client').length;
+    const artisanCount = allUsers.filter(u => u.role === 'artisan').length;
 
     // Count verified artisans
-    const verifiedArtisansSnapshot = await db.collection('artisan_profiles')
-      .where('verified', '==', true)
-      .get();
+    const verifiedCount = allArtisans.filter(a => a.is_verified).length;
 
-    // Count jobs by status
+    // Count jobs by status (still need direct Firestore for this)
+    const db = admin.firestore();
     const jobsSnapshot = await db.collection('jobs').get();
     let openJobs = 0;
     let matchedJobs = 0;
@@ -206,8 +169,8 @@ router.get('/stats', authenticate, requireAdmin, async (req: AuthenticatedReques
     jobsSnapshot.forEach(doc => {
       const data = doc.data();
       if (data.status === 'open') openJobs++;
-      if (data.status === 'matched') matchedJobs++;
-      if (data.status === 'complete') completedJobs++;
+      if (data.status === 'matched' || data.status === 'in_progress') matchedJobs++;
+      if (data.status === 'completed') completedJobs++;
     });
 
     // Calculate total transactions
@@ -223,15 +186,16 @@ router.get('/stats', authenticate, requireAdmin, async (req: AuthenticatedReques
       }
     });
 
-    res.status(200).json({
+    const stats = {
       users: {
-        total: usersSnapshot.size,
+        total: allUsers.length,
         clients: clientCount,
         artisans: artisanCount
       },
       artisans: {
-        verified: verifiedArtisansSnapshot.size,
-        unverified: artisanCount - verifiedArtisansSnapshot.size
+        total: allArtisans.length,
+        verified: verifiedCount,
+        unverified: allArtisans.length - verifiedCount
       },
       jobs: {
         total: jobsSnapshot.size,
@@ -244,14 +208,15 @@ router.get('/stats', authenticate, requireAdmin, async (req: AuthenticatedReques
         total_revenue: totalRevenue,
         total_commission: totalCommission
       }
-    });
+    };
+
+    Logger.info('Admin stats fetched', { userCount: allUsers.length, jobCount: jobsSnapshot.size });
+
+    return ResponseUtil.success(res, 'Statistics fetched successfully', stats);
 
   } catch (error: any) {
-    console.error('Admin stats error:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch admin statistics',
-      details: error.message 
-    });
+    Logger.error('Admin stats error', error);
+    return ResponseUtil.serverError(res, 'Failed to fetch admin statistics');
   }
 });
 

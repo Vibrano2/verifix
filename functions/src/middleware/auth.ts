@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import * as admin from 'firebase-admin';
 import { AuthenticatedRequest } from '../types';
 import { recordFailedAuth, auditLog } from './security';
+import { Logger } from '../utils/logger';
 
 /**
  * Middleware to verify Firebase ID token and attach user to request
@@ -39,7 +40,7 @@ export const authenticate = async (
       
       next();
     } catch (error) {
-      console.error('Token verification failed:', error);
+      Logger.error('Token verification failed', error);
       
       // Record failed authentication attempt
       const ip = req.ip || req.socket.remoteAddress || 'unknown';
@@ -60,7 +61,7 @@ export const authenticate = async (
       return;
     }
   } catch (error) {
-    console.error('Authentication error:', error);
+    Logger.error('Authentication error', error);
     res.status(500).json({ error: 'Internal server error during authentication' });
     return;
   }
@@ -84,7 +85,7 @@ export const requireAdmin = async (
     const adminUid = process.env.ADMIN_UID;
     
     if (!adminUid) {
-      console.error('ADMIN_UID environment variable not set');
+      Logger.error('ADMIN_UID environment variable not set');
       res.status(500).json({ error: 'Server configuration error' });
       return;
     }
@@ -96,7 +97,7 @@ export const requireAdmin = async (
 
     next();
   } catch (error) {
-    console.error('Admin check error:', error);
+    Logger.error('Admin check error', error);
     res.status(500).json({ error: 'Internal server error during authorization' });
     return;
   }
@@ -131,7 +132,7 @@ export const requireOwnership = (
 
     next();
   } catch (error) {
-    console.error('Ownership check error:', error);
+    Logger.error('Ownership check error', error);
     res.status(500).json({ error: 'Internal server error during authorization' });
     return;
   }
