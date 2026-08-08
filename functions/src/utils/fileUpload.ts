@@ -2,6 +2,7 @@ import { Request } from 'express';
 import Busboy from 'busboy';
 import * as admin from 'firebase-admin';
 import * as path from 'path';
+import { Logger } from './logger';
 
 // Allowed MIME types for images
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -114,7 +115,7 @@ export async function uploadFile(
 
         resolve({ url: publicUrl, filename: uniqueFilename });
       } catch (error) {
-        console.error('File upload error:', error);
+        Logger.error('File upload error:', error);
         reject(new Error('Failed to upload file'));
       }
     });

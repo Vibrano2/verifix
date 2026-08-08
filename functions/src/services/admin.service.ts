@@ -36,14 +36,27 @@ export class AdminService extends BaseService {
 
   /**
    * Get verification queue (unverified artisans)
+   * Now supports pagination with limit and offset
    */
-  async getVerificationQueue(): Promise<Array<Artisan & { user: any }>> {
+  async getVerificationQueue(limit: number = 50, offset: number = 0): Promise<Array<Artisan & { user: any }>> {
     try {
-      const unverifiedArtisans = await this.artisanRepo.findPendingVerification();
+      // Limit pagination to prevent excessive queries
+      const safeLimit = Math.min(Math.max(limit, 1), 100); // Between 1 and 100
+      const safeOffset = Math.max(offset, 0);
+
+      // Get paginated unverified artisans directly from Firestore
+      const snapshot = await this.db.collection(COLLECTIONS.ARTISANS)
+        .where('verification_status', '==', 'pending')
+        .orderBy('created_at', 'desc')
+        .limit(safeLimit)
+        .offset(safeOffset)
+        .get();
+
+      const artisans = snapshot.docs.map(doc => doc.data() as Artisan);
 
       // Fetch user details for each artisan
       const artisansWithDetails = await Promise.all(
-        unverifiedArtisans.map(async (artisan) => {
+        artisans.map(async (artisan) => {
           const user = await this.userRepo.findById(artisan.uid);
           return {
             ...artisan,
@@ -57,7 +70,9 @@ export class AdminService extends BaseService {
       );
 
       this.logOperation('verification-queue-fetched', {
-        count: artisansWithDetails.length
+        count: artisansWithDetails.length,
+        limit: safeLimit,
+        offset: safeOffset
       });
 
       return artisansWithDetails;

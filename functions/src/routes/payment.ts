@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types';
 import { initializePayment } from '../utils/paystack';
 import { PaymentController } from '../controllers';
+import { Logger } from '../utils/logger';
 
 const router = Router();
 const paymentController = new PaymentController();
@@ -122,10 +123,9 @@ router.post('/initialise', authenticate, async (req: AuthenticatedRequest, res: 
     });
 
   } catch (error: any) {
-    console.error('Payment initialization error:', error);
+    Logger.error('Payment initialization error:', error);
     res.status(500).json({ 
-      error: 'Failed to initialize payment',
-      details: error.message 
+      error: 'Failed to initialize payment'
     });
   }
 });
@@ -243,10 +243,9 @@ router.post('/:id/reveal-contact', authenticate, async (req: AuthenticatedReques
     });
 
   } catch (error: any) {
-    console.error('Reveal contact error:', error);
+    Logger.error('Reveal contact error:', error);
     res.status(500).json({ 
-      error: 'Failed to reveal contact details',
-      details: error.message 
+      error: 'Failed to reveal contact details'
     });
   }
 });

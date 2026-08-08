@@ -6,6 +6,7 @@ import { uploadFile } from '../utils/fileUpload';
 import { AuthenticatedRequest } from '../types';
 import { getCategoryFromTrade, TradeName } from '../types';
 import { ArtisanController } from '../controllers';
+import { Logger } from '../utils/logger';
 
 const router = Router();
 const artisanController = new ArtisanController();
@@ -90,10 +91,9 @@ router.post('/signup', authenticate, validateTrade, async (req: AuthenticatedReq
     });
 
   } catch (error: any) {
-    console.error('Artisan signup error:', error);
+    Logger.error('Artisan signup error:', error);
     res.status(500).json({ 
-      error: 'Failed to create artisan profile',
-      details: error.message 
+      error: 'Failed to create artisan profile'
     });
   }
 });
@@ -169,7 +169,7 @@ router.post('/:uid/photo', authenticate, requireOwnership, async (req: Authentic
     });
 
   } catch (error: any) {
-    console.error('Photo upload error:', error);
+    Logger.error('Photo upload error:', error);
     
     // Return specific error messages from file validation
     if (error.message.includes('Invalid file type') || 
@@ -180,8 +180,7 @@ router.post('/:uid/photo', authenticate, requireOwnership, async (req: Authentic
     }
 
     res.status(500).json({ 
-      error: 'Failed to upload photo',
-      details: error.message 
+      error: 'Failed to upload photo'
     });
   }
 });
@@ -220,7 +219,7 @@ router.post('/:uid/id-document', authenticate, requireOwnership, async (req: Aut
     });
 
   } catch (error: any) {
-    console.error('ID document upload error:', error);
+    Logger.error('ID document upload error:', error);
     
     if (error.message.includes('Invalid file type') || 
         error.message.includes('File too large') ||
@@ -230,8 +229,7 @@ router.post('/:uid/id-document', authenticate, requireOwnership, async (req: Aut
     }
 
     res.status(500).json({ 
-      error: 'Failed to upload ID document',
-      details: error.message 
+      error: 'Failed to upload ID document'
     });
   }
 });

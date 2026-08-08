@@ -217,12 +217,15 @@ export class JobService extends BaseService {
 
   /**
    * Search jobs with filters
+   * Now supports pagination with limit and offset
    */
   async searchJobs(filters: {
     trade?: string;
     location?: string;
     status?: string;
     urgency?: string;
+    limit?: number;
+    offset?: number;
   }): Promise<Job[]> {
     try {
       let query: admin.firestore.Query = this.db.collection(COLLECTIONS.JOBS);
@@ -242,7 +245,19 @@ export class JobService extends BaseService {
         query = query.where('urgency', '==', filters.urgency);
       }
 
-      const snapshot = await query.orderBy('created_at', 'desc').get();
+      // Apply ordering
+      query = query.orderBy('created_at', 'desc');
+
+      // Apply pagination
+      const limit = filters.limit && filters.limit > 0 ? Math.min(filters.limit, 100) : 50; // Default 50, max 100
+      const offset = filters.offset || 0;
+
+      query = query.limit(limit);
+      if (offset > 0) {
+        query = query.offset(offset);
+      }
+
+      const snapshot = await query.get();
 
       let jobs = snapshot.docs.map(doc => ({
         job_id: doc.id,

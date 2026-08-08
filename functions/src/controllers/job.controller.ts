@@ -76,16 +76,23 @@ export class JobController extends BaseController {
         return this.sendUnauthorized(res, 'Authentication required');
       }
 
-      const { trade, location, status, urgency } = req.query;
+      const { trade, location, status, urgency, limit, offset } = req.query;
 
       const jobs = await this.jobService.searchJobs({
         trade: trade as string,
         location: location as string,
         status: status as string,
-        urgency: urgency as string
+        urgency: urgency as string,
+        limit: limit ? parseInt(limit as string, 10) : undefined,
+        offset: offset ? parseInt(offset as string, 10) : undefined
       });
 
-      this.sendSuccess(res, 'Jobs fetched successfully', { jobs, count: jobs.length });
+      this.sendSuccess(res, 'Jobs fetched successfully', { 
+        jobs, 
+        count: jobs.length,
+        limit: limit ? parseInt(limit as string, 10) : 50,
+        offset: offset ? parseInt(offset as string, 10) : 0
+      });
     } catch (error) {
       this.handleError(error, res, 'List jobs');
     }

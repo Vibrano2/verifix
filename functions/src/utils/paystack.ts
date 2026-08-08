@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as crypto from 'crypto';
+import { Logger } from './logger';
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || '';
 const PAYSTACK_BASE_URL = 'https://api.paystack.co';
@@ -26,7 +27,7 @@ export async function initializePayment(params: {
     );
     return response.data;
   } catch (error: any) {
-    console.error('Paystack initialization error:', error.response?.data || error.message);
+    Logger.error('Paystack initialization error:', error.response?.data || error.message);
     throw new Error('Failed to initialize payment');
   }
 }
@@ -61,7 +62,7 @@ export async function verifyTransaction(reference: string): Promise<any> {
     );
     return response.data;
   } catch (error: any) {
-    console.error('Paystack verification error:', error.response?.data || error.message);
+    Logger.error('Paystack verification error:', error.response?.data || error.message);
     throw new Error('Failed to verify transaction');
   }
 }

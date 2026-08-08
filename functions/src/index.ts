@@ -26,7 +26,29 @@ app.use(requestId); // Add request ID for tracking
 app.use(securityHeaders); // Security headers (XSS, clickjacking, etc.)
 app.use(monitorIP); // IP monitoring and blocking
 app.use(rateLimit(100, 15 * 60 * 1000)); // Rate limit: 100 requests per 15 minutes
-app.use(cors({ origin: true })); // CORS (restrict in production)
+
+// CORS Configuration - Whitelist allowed origins
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'https://verifix.app',
+  'https://www.verifix.app',
+  // Add your production domains here
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' })); // JSON body parser with size limit
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL-encoded body parser
 app.use(sanitizeInput); // Sanitize all inputs

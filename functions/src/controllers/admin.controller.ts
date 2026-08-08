@@ -21,11 +21,18 @@ export class AdminController extends BaseController {
    */
   async getVerificationQueue(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const queue = await this.adminService.getVerificationQueue();
+      const { limit, offset } = req.query;
+
+      const parsedLimit = limit ? parseInt(limit as string, 10) : 50;
+      const parsedOffset = offset ? parseInt(offset as string, 10) : 0;
+
+      const queue = await this.adminService.getVerificationQueue(parsedLimit, parsedOffset);
 
       this.sendSuccess(res, 'Verification queue fetched successfully', {
         artisans: queue,
-        count: queue.length
+        count: queue.length,
+        limit: parsedLimit,
+        offset: parsedOffset
       });
     } catch (error) {
       this.handleError(error, res, 'Get verification queue');
