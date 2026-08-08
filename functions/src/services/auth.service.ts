@@ -10,6 +10,12 @@ import { ROLES, VERIFICATION_STATUS } from '../constants';
 import { checkOTPRateLimit, recordOTPAttempt } from '../utils/rateLimit';
 import { User } from '../models/user.model';
 import { Trade } from '../constants/trades';
+import * as crypto from 'crypto';
+
+function hashPII(data: string): string {
+  if (!data) return '';
+  return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16);
+}
 
 export class AuthService extends BaseService {
   private userRepo: UserRepository;
@@ -45,7 +51,7 @@ export class AuthService extends BaseService {
       // In production, integrate with SMS provider (Twilio, etc.)
       // For now, Firebase Client SDK handles OTP on frontend
       
-      this.logOperation('send-otp', { phone });
+      this.logOperation('send-otp', { phone: hashPII(phone) });
 
       return {
         success: true,
@@ -172,7 +178,7 @@ export class AuthService extends BaseService {
         created_at: new Date()
       });
 
-      this.logOperation('admin-registered', { uid: userRecord.uid, email });
+      this.logOperation('admin-registered', { uid: userRecord.uid, email: hashPII(email) });
 
       return {
         uid: userRecord.uid,
@@ -192,7 +198,7 @@ export class AuthService extends BaseService {
       await admin.auth().generatePasswordResetLink(email);
 
       // In production, send email via SendGrid, Mailgun, etc.
-      this.logOperation('password-reset-requested', { email });
+      this.logOperation('password-reset-requested', { email: hashPII(email) });
 
       // Always return success to avoid email enumeration
       return {
@@ -200,7 +206,7 @@ export class AuthService extends BaseService {
       };
     } catch (error) {
       // Still return success message for security
-      this.logger.warn('Password reset attempted for non-existent email', { email });
+      this.logger.warn('Password reset attempted for non-existent email', { email: hashPII(email) });
       return {
         message: 'If this email exists, a reset link has been sent'
       };

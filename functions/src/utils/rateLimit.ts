@@ -6,7 +6,13 @@
  */
 
 import * as admin from 'firebase-admin';
+import * as crypto from 'crypto';
 import { Logger } from './logger';
+
+function hashPII(data: string): string {
+  if (!data) return '';
+  return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16);
+}
 
 interface OTPAttempt {
   phone: string;
@@ -86,7 +92,7 @@ export async function checkOTPRateLimit(phone: string): Promise<{
 
     return { allowed: true };
   } catch (error) {
-    Logger.error('Error checking OTP rate limit', { phone, error });
+    Logger.error('Error checking OTP rate limit', { phone: hashPII(phone), error });
     // Fail open - allow the request if there's a database error
     return { allowed: true };
   }
@@ -142,7 +148,7 @@ export async function recordOTPAttempt(phone: string, success: boolean): Promise
         });
         
         Logger.warn('Phone number locked due to failed OTP attempts', { 
-          phone, 
+          phone: hashPII(phone), 
           failedAttempts: failedAttempts.length,
           lockedUntil 
         });
@@ -155,7 +161,7 @@ export async function recordOTPAttempt(phone: string, success: boolean): Promise
       attempts: recentAttempts
     });
   } catch (error) {
-    Logger.error('Error recording OTP attempt', { phone, success, error });
+    Logger.error('Error recording OTP attempt', { phone: hashPII(phone), success, error });
     // Don't throw - this is a non-critical operation
   }
 }
@@ -167,9 +173,9 @@ export async function resetOTPRateLimit(phone: string): Promise<void> {
   try {
     const docRef = db.collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
     await docRef.delete();
-    Logger.info('OTP rate limit reset', { phone });
+    Logger.info('OTP rate limit reset', { phone: hashPII(phone) });
   } catch (error) {
-    Logger.error('Error resetting OTP rate limit', { phone, error });
+    Logger.error('Error resetting OTP rate limit', { phone: hashPII(phone), error });
     throw error;
   }
 }
@@ -238,7 +244,7 @@ export async function getOTPRateLimitStatus(phone: string): Promise<{
       lockedUntil
     };
   } catch (error) {
-    Logger.error('Error getting OTP rate limit status', { phone, error });
+    Logger.error('Error getting OTP rate limit status', { phone: hashPII(phone), error });
     throw error;
   }
 }

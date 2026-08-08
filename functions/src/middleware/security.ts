@@ -2,123 +2,55 @@ import { Request, Response, NextFunction } from 'express';
 import * as admin from 'firebase-admin';
 import { Logger } from '../utils/logger';
 
-/**
- * Rate Limiting Configuration
- * Stores request counts in memory (use Redis for production)
- */
-interface RateLimitStore {
-  [key: string]: {
-    count: number;
-    resetTime: number;
-  };
-}
 
-const rateLimitStore: RateLimitStore = {};
 
 /**
- * Simple rate limiting middleware
+ * Firestore-backed rate limiting middleware
  * Limits requests per IP address
  */
 export const rateLimit = (maxRequests: number = 100, windowMs: number = 15 * 60 * 1000) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
-    
-    // Initialize or get existing rate limit data
-    if (!rateLimitStore[ip] || now > rateLimitStore[ip].resetTime) {
-      rateLimitStore[ip] = {
-        count: 1,
-        resetTime: now + windowMs
-      };
-      next();
-      return;
-    }
-    
-    // Increment request count
-    rateLimitStore[ip].count++;
-    
-    // Check if limit exceeded
-    if (rateLimitStore[ip].count > maxRequests) {
-      res.status(429).json({
-        error: 'Too many requests',
-        message: 'Rate limit exceeded. Please try again later.',
-        retryAfter: Math.ceil((rateLimitStore[ip].resetTime - now) / 1000)
+    const db = admin.firestore();
+    const docRef = db.collection('rate_limits').doc(ip.replace(/:/g, '_'));
+
+    try {
+      await db.runTransaction(async (transaction) => {
+        const doc = await transaction.get(docRef);
+        if (!doc.exists || now > doc.data()!.resetTime) {
+          transaction.set(docRef, { count: 1, resetTime: now + windowMs });
+          return { allowed: true };
+        }
+
+        const data = doc.data()!;
+        if (data.count > maxRequests) {
+          return { allowed: false, resetTime: data.resetTime };
+        }
+
+        transaction.update(docRef, { count: admin.firestore.FieldValue.increment(1) });
+        return { allowed: true };
+      }).then(result => {
+        if (!result.allowed) {
+          res.status(429).json({
+            error: 'Too many requests',
+            message: 'Rate limit exceeded. Please try again later.',
+            retryAfter: Math.ceil((result.resetTime! - now) / 1000)
+          });
+          Logger.warn(`Rate limit exceeded for IP: ${ip}`);
+        } else {
+          next();
+        }
       });
-      
-      // Log suspicious activity
-      Logger.warn(`Rate limit exceeded for IP: ${ip}`);
-      return;
+    } catch (error) {
+      // Fail open if Firestore has issues so we don't break the app
+      Logger.error('Rate limiting error', error);
+      next();
     }
-    
-    next();
   };
 };
 
-/**
- * Sanitize user input to prevent XSS and injection attacks
- * Removes/escapes potentially dangerous characters
- */
-export const sanitizeInput = (req: Request, res: Response, next: NextFunction): void => {
-  try {
-    // Sanitize body
-    if (req.body && typeof req.body === 'object') {
-      req.body = sanitizeObject(req.body);
-    }
-    
-    // Sanitize query params
-    if (req.query && typeof req.query === 'object') {
-      req.query = sanitizeObject(req.query);
-    }
-    
-    next();
-  } catch (error) {
-    Logger.error('Input sanitization error', error);
-    res.status(400).json({ error: 'Invalid input format' });
-  }
-};
 
-/**
- * Recursively sanitize object properties
- */
-function sanitizeObject(obj: any): any {
-  if (typeof obj === 'string') {
-    return sanitizeString(obj);
-  }
-  
-  if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeObject(item));
-  }
-  
-  if (obj !== null && typeof obj === 'object') {
-    const sanitized: any = {};
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        // Sanitize key name
-        const sanitizedKey = sanitizeString(key);
-        sanitized[sanitizedKey] = sanitizeObject(obj[key]);
-      }
-    }
-    return sanitized;
-  }
-  
-  return obj;
-}
-
-/**
- * Sanitize string to prevent XSS and injection
- */
-function sanitizeString(str: string): string {
-  if (typeof str !== 'string') return str;
-  
-  return str
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;')
-    .replace(/`/g, '&#96;')
-    .replace(/=/g, '&#61;');
-}
 
 /**
  * Security headers middleware
@@ -146,75 +78,80 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
 };
 
 /**
- * IP Blocking/Monitoring
- * Tracks suspicious IPs and blocks them
+ * Monitor and block suspicious IP addresses using Firestore
  */
-interface IPMonitoring {
-  [ip: string]: {
-    failedAttempts: number;
-    blockedUntil?: number;
-    suspiciousActivity: string[];
-  };
-}
-
-const ipMonitoring: IPMonitoring = {};
-
-/**
- * Monitor and block suspicious IP addresses
- */
-export const monitorIP = (req: Request, res: Response, next: NextFunction): void => {
+export const monitorIP = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
   const now = Date.now();
+  const db = admin.firestore();
+  const docRef = db.collection('ip_monitoring').doc(ip.replace(/:/g, '_'));
   
-  // Initialize IP monitoring
-  if (!ipMonitoring[ip]) {
-    ipMonitoring[ip] = {
-      failedAttempts: 0,
-      suspiciousActivity: []
-    };
+  try {
+    const doc = await docRef.get();
+    if (doc.exists) {
+      const data = doc.data()!;
+      if (data.blockedUntil && now < data.blockedUntil) {
+        const remainingTime = Math.ceil((data.blockedUntil - now) / 1000);
+        res.status(403).json({
+          error: 'IP address temporarily blocked',
+          message: 'Your IP has been blocked due to suspicious activity',
+          unblockIn: remainingTime
+        });
+        return;
+      }
+      
+      // Reset block if time expired
+      if (data.blockedUntil && now >= data.blockedUntil) {
+        await docRef.update({ blockedUntil: null, failedAttempts: 0 });
+      }
+    }
+    next();
+  } catch (error) {
+    Logger.error('IP monitoring error', error);
+    next();
   }
-  
-  // Check if IP is currently blocked
-  if (ipMonitoring[ip].blockedUntil && now < ipMonitoring[ip].blockedUntil!) {
-    const remainingTime = Math.ceil((ipMonitoring[ip].blockedUntil! - now) / 1000);
-    res.status(403).json({
-      error: 'IP address temporarily blocked',
-      message: 'Your IP has been blocked due to suspicious activity',
-      unblockIn: remainingTime
-    });
-    return;
-  }
-  
-  // Reset block if time expired
-  if (ipMonitoring[ip].blockedUntil && now >= ipMonitoring[ip].blockedUntil!) {
-    ipMonitoring[ip].blockedUntil = undefined;
-    ipMonitoring[ip].failedAttempts = 0;
-  }
-  
-  next();
 };
 
 /**
- * Record failed authentication attempt
+ * Record failed authentication attempt using Firestore
  * Call this when authentication fails
  */
-export const recordFailedAuth = (ip: string): void => {
-  if (!ipMonitoring[ip]) {
-    ipMonitoring[ip] = {
-      failedAttempts: 0,
-      suspiciousActivity: []
-    };
-  }
-  
-  ipMonitoring[ip].failedAttempts++;
-  ipMonitoring[ip].suspiciousActivity.push(`Failed auth at ${new Date().toISOString()}`);
-  
-  // Block IP after 5 failed attempts (15 minutes)
-  if (ipMonitoring[ip].failedAttempts >= 5) {
-    const blockDuration = 15 * 60 * 1000; // 15 minutes
-    ipMonitoring[ip].blockedUntil = Date.now() + blockDuration;
+export const recordFailedAuth = async (ip: string): Promise<void> => {
+  try {
+    const db = admin.firestore();
+    const docRef = db.collection('ip_monitoring').doc(ip.replace(/:/g, '_'));
+    const now = Date.now();
     
-    Logger.warn(`IP ${ip} blocked for 15 minutes after ${ipMonitoring[ip].failedAttempts} failed attempts`);
+    await db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(docRef);
+      const activity = `Failed auth at ${new Date().toISOString()}`;
+      
+      if (!doc.exists) {
+        transaction.set(docRef, {
+          failedAttempts: 1,
+          suspiciousActivity: [activity]
+        });
+        return;
+      }
+      
+      const data = doc.data()!;
+      const attempts = (data.failedAttempts || 0) + 1;
+      
+      const updateData: any = {
+        failedAttempts: attempts,
+        suspiciousActivity: admin.firestore.FieldValue.arrayUnion(activity)
+      };
+      
+      if (attempts >= 5) {
+        const blockDuration = 15 * 60 * 1000; // 15 minutes
+        updateData.blockedUntil = now + blockDuration;
+        Logger.warn(`IP ${ip} blocked for 15 minutes after ${attempts} failed attempts`);
+      }
+      
+      transaction.update(docRef, updateData);
+    });
+  } catch (error) {
+    Logger.error('Failed to record auth failure', error);
   }
 };
 
@@ -311,17 +248,4 @@ export const validateContentType = (req: Request, res: Response, next: NextFunct
   next();
 };
 
-/**
- * Clean up old rate limit entries (run periodically)
- */
-export const cleanupRateLimitStore = (): void => {
-  const now = Date.now();
-  for (const ip in rateLimitStore) {
-    if (now > rateLimitStore[ip].resetTime) {
-      delete rateLimitStore[ip];
-    }
-  }
-};
 
-// Cleanup every 10 minutes
-setInterval(cleanupRateLimitStore, 10 * 60 * 1000);

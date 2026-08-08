@@ -18,33 +18,6 @@ export class PaymentController extends BaseController {
     this.escrowService = new EscrowService();
   }
 
-  /**
-   * POST /api/payments/initialise
-   */
-  async initializePayment(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, 'Authentication required');
-      }
-
-      const { email, amount, jobId, matchId, artisanUid, type, metadata } = req.body;
-
-      const result = await this.paymentService.initializePayment({
-        email,
-        amount,
-        jobId,
-        matchId,
-        clientUid: req.user.uid,
-        artisanUid,
-        type,
-        metadata
-      });
-
-      this.sendSuccess(res, 'Payment initialized successfully', result);
-    } catch (error) {
-      this.handleError(error, res, 'Initialize payment');
-    }
-  }
 
   /**
    * POST /api/payments/webhook

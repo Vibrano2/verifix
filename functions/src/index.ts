@@ -4,13 +4,26 @@ import express from 'express';
 import cors from 'cors';
 import { 
   rateLimit, 
-  sanitizeInput, 
   securityHeaders, 
   monitorIP,
   requestId,
   validateContentType
 } from './middleware/security';
 import { initializeEncryption } from './utils/encryption';
+import { Logger } from './utils/logger';
+
+// Validate environment variables on startup
+function validateEnvironment() {
+  const required = ['PAYSTACK_SECRET_KEY', 'ENCRYPTION_KEY', 'ADMIN_UID'];
+  const missing = required.filter(key => !process.env[key] || process.env[key] === 'default-dev-key-change-in-production-32char');
+  if (missing.length > 0) {
+    const msg = `FATAL ERROR: Missing required env vars: ${missing.join(', ')}`;
+    Logger.error(msg);
+    throw new Error(msg);
+  }
+}
+
+validateEnvironment();
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -51,7 +64,6 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' })); // JSON body parser with size limit
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // URL-encoded body parser
-app.use(sanitizeInput); // Sanitize all inputs
 app.use(validateContentType); // Validate Content-Type headers
 
 // Import routes
