@@ -157,9 +157,14 @@ export class JobService extends BaseService {
   }
 
   /**
-   * Mark job as complete
+   * Mark job as complete and release escrow
+   * CRITICAL REQUIREMENTS:
+   * - Only the client who owns the job can mark it complete
+   * - Commission calculated from locked_job_value (never from current job value)
+   * - Idempotent - calling twice doesn't double-release
+   * - Handles edge cases: zero job value, fractional kobo
    */
-  async markComplete(jobId: string, clientUid: string): Promise<void> {
+  async markComplete(jobId: string, clientUid: string, matchId: string): Promise<any> {
     try {
       const job = await this.getJobById(jobId);
       if (!job) {
@@ -168,22 +173,106 @@ export class JobService extends BaseService {
 
       // Verify ownership
       if (job.client_uid !== clientUid) {
-        throw new Error('Unauthorized: You can only complete your own jobs');
+        throw new Error('Forbidden: Only the client who posted this job can mark it complete');
       }
 
-      // Check if already completed
-      if (job.status === 'completed') {
-        this.logger.warn('Job already completed', { jobId });
-        return;
+      const matchRef = this.db.collection('matches').doc(matchId);
+      const matchDoc = await matchRef.get();
+
+      if (!matchDoc.exists) {
+        throw new Error('Match not found');
       }
 
-      await this.db.collection(COLLECTIONS.JOBS).doc(jobId).update({
-        status: 'completed',
-        completed_at: admin.firestore.FieldValue.serverTimestamp(),
-        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      const matchData = matchDoc.data();
+
+      // Verify match belongs to this job
+      if (matchData?.job_id !== jobId) {
+        throw new Error('Match does not belong to this job');
+      }
+
+      // Get transaction for this match
+      const transactionsSnapshot = await this.db.collection('transactions')
+        .where('match_id', '==', matchId)
+        .where('status', '==', 'held')
+        .limit(1)
+        .get();
+
+      if (transactionsSnapshot.empty) {
+        throw new Error('No held transaction found for this match. Payment may not have been completed.');
+      }
+
+      const transactionDoc = transactionsSnapshot.docs[0];
+      const transactionData = transactionDoc.data();
+
+      // IDEMPOTENCY CHECK: If transaction already released, return success without re-processing
+      if (transactionData?.status === 'released') {
+        return {
+          message: 'Job already marked complete (idempotent)',
+          already_completed: true,
+          transaction: {
+            transaction_id: transactionDoc.id,
+            status: 'released',
+            commission_retained: transactionData.commission_retained,
+            released_at: transactionData.released_at
+          }
+        };
+      }
+
+      // Calculate commission from locked_job_value (immutable, set at payment initialization)
+      const lockedJobValue = transactionData?.locked_job_value || 0;
+      
+      // Handle edge case: zero job value
+      if (lockedJobValue === 0) {
+        this.logger.warn(`Job ${jobId} has zero locked_job_value, no commission to retain`);
+      }
+
+      // Calculate 10% commission, rounding to handle fractional kobo
+      const commissionRetained = Math.round(lockedJobValue * 0.10);
+
+      // CRITICAL: Use Firestore transaction to ensure atomicity
+      // All 4 updates succeed or all fail - prevents partial completion
+      await this.db.runTransaction(async (transaction) => {
+        // 1. Update transaction: status → released, set commission and released_at
+        transaction.update(transactionDoc.ref, {
+          status: 'released',
+          commission_retained: commissionRetained,
+          released_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 2. Update job status to complete
+        const jobRef = this.db.collection('jobs').doc(jobId);
+        transaction.update(jobRef, {
+          status: 'completed', // PRD uses 'completed', code used 'complete'
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 3. Update match status to completed
+        transaction.update(matchRef, {
+          status: 'completed',
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 4. Increment artisan's completed_jobs count
+        const artisanRef = this.db.collection('artisan_profiles').doc(matchData!.artisan_uid);
+        transaction.update(artisanRef, {
+          completed_jobs: admin.firestore.FieldValue.increment(1),
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
       });
 
       this.logOperation('job-completed', { jobId, clientUid });
+
+      return {
+        message: 'Job marked complete and escrow released successfully',
+        transaction: {
+          transaction_id: transactionDoc.id,
+          status: 'released',
+          locked_job_value: lockedJobValue,
+          commission_retained: commissionRetained,
+          artisan_receives: lockedJobValue - commissionRetained,
+          released_at: new Date()
+        }
+      };
     } catch (error) {
       this.handleError(error, 'Mark job complete');
     }

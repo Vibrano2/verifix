@@ -66,20 +66,28 @@ export class AuthService extends BaseService {
    * Verify OTP and create/update user
    */
   async verifyOTPAndCreateUser(data: {
-    phone: string;
+    idToken: string;
     first_name: string;
     last_name: string;
     role: 'client' | 'artisan';
-    uid: string;
   }): Promise<User> {
     try {
-      this.validateRequired(data, ['phone', 'first_name', 'last_name', 'role', 'uid']);
+      this.validateRequired(data, ['idToken', 'first_name', 'last_name', 'role']);
 
-      const { phone, first_name, last_name, role, uid } = data;
+      const { idToken, first_name, last_name, role } = data;
 
       // Validate role
       if (role !== ROLES.CLIENT && role !== ROLES.ARTISAN) {
         throw new Error(`Invalid role. Must be "${ROLES.CLIENT}" or "${ROLES.ARTISAN}"`);
+      }
+
+      // Verify the ID token using Firebase Admin SDK
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const uid = decodedToken.uid;
+      const phone = decodedToken.phone_number;
+
+      if (!phone) {
+        throw new Error('Phone number is missing from the verified ID token. Please authenticate using a phone number.');
       }
 
       // Check if user already exists
@@ -117,8 +125,6 @@ export class AuthService extends BaseService {
 
       return newUser!;
     } catch (error) {
-      // Record failed OTP attempt
-      await recordOTPAttempt(data.phone, false);
       this.handleError(error, 'Verify OTP');
     }
   }

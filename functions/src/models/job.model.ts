@@ -1,11 +1,7 @@
-/**
- * Job Model
- * Defines the Job data structure
- */
-
 import * as admin from 'firebase-admin';
+import { z } from 'zod';
 import { Location } from './artisan.model';
-import { Trade } from '../constants/trades';
+import { Trade, VALID_TRADES } from '../constants/trades';
 
 export type TradeName = Trade;
 
@@ -16,7 +12,44 @@ export type JobStatus =
   | 'completed' 
   | 'cancelled';
 
-export type Urgency = 'Today' | 'This Week' | 'Flexible'; // Locked enum per PRD
+export type Urgency = 'Today' | 'This Week' | 'Flexible';
+
+// Zod Schemas for Validation
+export const LocationSchema = z.object({
+  city: z.string().min(1),
+  state: z.string().min(1),
+  lga: z.string().min(1),
+  address: z.string().optional(),
+  coordinates: z.object({
+    lat: z.number(),
+    lng: z.number()
+  }).optional()
+});
+
+export const CreateJobSchema = z.object({
+  body: z.object({
+    trade_needed: z.enum(VALID_TRADES as [string, ...string[]]),
+    title: z.string().min(5).max(100),
+    description: z.string().min(10).max(1000),
+    location: LocationSchema,
+    urgency: z.enum(['Today', 'This Week', 'Flexible']),
+    budget: z.number().positive().optional(),
+    budget_min: z.number().positive().optional(),
+    budget_max: z.number().positive().optional(),
+    match_fee: z.number().positive().optional()
+  })
+});
+
+export const UpdateJobSchema = z.object({
+  body: z.object({
+    title: z.string().min(5).max(100).optional(),
+    description: z.string().min(10).max(1000).optional(),
+    location: LocationSchema.optional(),
+    urgency: z.enum(['Today', 'This Week', 'Flexible']).optional(),
+    budget: z.number().positive().optional(),
+    status: z.enum(['open', 'matched', 'in_progress', 'completed', 'cancelled']).optional()
+  })
+});
 
 export interface Job {
   id: string;
@@ -38,27 +71,8 @@ export interface Job {
   completed_at?: Date | admin.firestore.Timestamp;
 }
 
-export interface CreateJobDTO {
-  client_uid: string;
-  trade_needed: TradeName;
-  title: string;
-  description: string;
-  location: Location;
-  urgency: Urgency;
-  budget?: number;
-  budget_min?: number;
-  budget_max?: number;
-  match_fee?: number;
-}
-
-export interface UpdateJobDTO {
-  title?: string;
-  description?: string;
-  location?: Location;
-  urgency?: Urgency;
-  budget?: number;
-  status?: JobStatus;
-}
+export type CreateJobDTO = z.infer<typeof CreateJobSchema>['body'] & { client_uid: string };
+export type UpdateJobDTO = z.infer<typeof UpdateJobSchema>['body'];
 
 export interface JobMatch {
   artisan_uid: string;

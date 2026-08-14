@@ -39,14 +39,13 @@ export class AuthController extends BaseController {
    */
   async verifyOTP(req: Request, res: Response): Promise<void> {
     try {
-      const { phone, first_name, last_name, role, uid } = req.body;
+      const { idToken, first_name, last_name, role } = req.body;
 
       const user = await this.authService.verifyOTPAndCreateUser({
-        phone,
+        idToken,
         first_name,
         last_name,
-        role,
-        uid
+        role
       });
 
       this.sendCreated(res, 'User created successfully', user);

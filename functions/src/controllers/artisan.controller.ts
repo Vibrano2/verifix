@@ -7,6 +7,7 @@ import { Response } from 'express';
 import { BaseController } from './base.controller';
 import { ArtisanService } from '../services';
 import { AuthenticatedRequest } from '../types';
+import { uploadFile } from '../utils/fileUpload';
 
 export class ArtisanController extends BaseController {
   private artisanService: ArtisanService;
@@ -25,7 +26,7 @@ export class ArtisanController extends BaseController {
         return this.sendUnauthorized(res, 'Authentication required');
       }
 
-      const { trade, location, tagline, bio, experience_years, hourly_rate } = req.body;
+      const { trade, location, tagline, bio, experience_years, hourly_rate, skills, portfolio } = req.body;
 
       const artisan = await this.artisanService.completeProfile(req.user.uid, {
         trade,
@@ -33,7 +34,9 @@ export class ArtisanController extends BaseController {
         tagline,
         bio,
         experience_years,
-        hourly_rate
+        hourly_rate,
+        skills,
+        portfolio
       });
 
       this.sendCreated(res, 'Artisan profile created successfully', { profile: artisan });
@@ -80,12 +83,19 @@ export class ArtisanController extends BaseController {
   async addWorkPhoto(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { uid } = req.params;
-      const { url } = req.body;
+      
+      const { url, filename } = await uploadFile(req, `artisan_photos/${uid}`, 5 * 1024 * 1024);
 
       await this.artisanService.addWorkPhoto(uid, url);
 
-      this.sendSuccess(res, 'Photo uploaded successfully', { url });
-    } catch (error) {
+      this.sendSuccess(res, 'Photo uploaded successfully', { url, filename });
+    } catch (error: any) {
+      if (error.message.includes('Invalid file type') || 
+          error.message.includes('File too large') ||
+          error.message.includes('File signature')) {
+        this.sendBadRequest(res, error.message);
+        return;
+      }
       this.handleError(error, res, 'Add work photo');
     }
   }
@@ -96,12 +106,19 @@ export class ArtisanController extends BaseController {
   async uploadIDDocument(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { uid } = req.params;
-      const { url } = req.body;
+      
+      const { url, filename } = await uploadFile(req, `id_documents/${uid}`, 10 * 1024 * 1024);
 
       await this.artisanService.uploadIDDocument(uid, url);
 
-      this.sendSuccess(res, 'ID document uploaded successfully', { url });
-    } catch (error) {
+      this.sendSuccess(res, 'ID document uploaded successfully', { url, filename });
+    } catch (error: any) {
+      if (error.message.includes('Invalid file type') || 
+          error.message.includes('File too large') ||
+          error.message.includes('File signature')) {
+        this.sendBadRequest(res, error.message);
+        return;
+      }
       this.handleError(error, res, 'Upload ID document');
     }
   }

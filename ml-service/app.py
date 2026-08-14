@@ -1,8 +1,10 @@
 import os
 from flask import Flask, request, jsonify
+# pyrefly: ignore [missing-import]
 import joblib
 import pandas as pd
 import logging
+from google.cloud import storage
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -14,6 +16,29 @@ CUSTOMER_MODEL_PATH = 'customer_premium_model.pkl'
 artisan_pkg = None
 customer_pkg = None
 
+def download_model(model_name):
+    bucket_name = os.environ.get('MODEL_BUCKET_NAME')
+    if not bucket_name:
+        return False
+    try:
+        app.logger.info(f"Attempting to download {model_name} from GCS bucket {bucket_name}")
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(model_name)
+        if blob.exists():
+            blob.download_to_filename(model_name)
+            app.logger.info(f"Successfully downloaded {model_name}")
+            return True
+        else:
+            app.logger.warning(f"Blob {model_name} does not exist in bucket {bucket_name}")
+            return False
+    except Exception as e:
+        app.logger.error(f"Failed to download {model_name} from GCS: {e}")
+        return False
+
+if not os.path.exists(ARTISAN_MODEL_PATH):
+    download_model(ARTISAN_MODEL_PATH)
+
 if os.path.exists(ARTISAN_MODEL_PATH):
     try:
         artisan_pkg = joblib.load(ARTISAN_MODEL_PATH)
@@ -22,6 +47,9 @@ if os.path.exists(ARTISAN_MODEL_PATH):
         app.logger.error(f"Error loading {ARTISAN_MODEL_PATH}: {e}")
 else:
     app.logger.warning(f"Model file {ARTISAN_MODEL_PATH} not found. Artisan predictions will fail.")
+
+if not os.path.exists(CUSTOMER_MODEL_PATH):
+    download_model(CUSTOMER_MODEL_PATH)
 
 if os.path.exists(CUSTOMER_MODEL_PATH):
     try:

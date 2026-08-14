@@ -10,10 +10,31 @@ const router = Router();
 const paymentController = new PaymentController();
 
 /**
- * POST /api/payments/initialise
- * Initialize Paystack payment for match fee
- * Updated to British spelling per PRD specification
- * Captures locked_job_value at this moment (immutable for commission calculation)
+ * @swagger
+ * /api/payments/initialise:
+ *   post:
+ *     summary: Initialize Paystack payment for match fee
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - match_id
+ *             properties:
+ *               match_id:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Payment initialized successfully
+ *       400:
+ *         description: Bad request
+ *       403:
+ *         description: Forbidden
  */
 router.post('/initialise', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -131,18 +152,49 @@ router.post('/initialise', authenticate, async (req: AuthenticatedRequest, res: 
 });
 
 /**
- * POST /api/payments/webhook
- * Paystack webhook handler
- * CRITICAL: Verifies webhook signature before processing
+ * @swagger
+ * /api/payments/webhook:
+ *   post:
+ *     summary: Paystack webhook handler
+ *     tags: [Payments]
+ *     responses:
+ *       200:
+ *         description: Webhook processed
  */
 router.post('/webhook', (req, res) => 
   paymentController.handleWebhook(req, res)
 );
 
 /**
- * POST /api/jobs/:id/reveal-contact
- * Reveal artisan contact details after payment
- * CRITICAL: Payment gate - checks for 'held' transaction before revealing
+ * @swagger
+ * /api/jobs/{id}/reveal-contact:
+ *   post:
+ *     summary: Reveal artisan contact details after payment
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - match_id
+ *             properties:
+ *               match_id:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Contact details revealed
+ *       402:
+ *         description: Payment required
  */
 router.post('/:id/reveal-contact', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -251,8 +303,22 @@ router.post('/:id/reveal-contact', authenticate, async (req: AuthenticatedReques
 });
 
 /**
- * GET /api/payments/verify/:reference
- * Verify a payment transaction (helper endpoint)
+ * @swagger
+ * /api/payments/verify/{reference}:
+ *   get:
+ *     summary: Verify a payment transaction
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: reference
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment verification status
  */
 router.get('/verify/:reference', authenticate, (req, res) => 
   paymentController.verifyPayment(req, res)

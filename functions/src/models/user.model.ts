@@ -1,9 +1,24 @@
-/**
- * User Model
- * Defines the User data structure
- */
-
 import * as admin from 'firebase-admin';
+import { z } from 'zod';
+
+export const CreateUserSchema = z.object({
+  body: z.object({
+    idToken: z.string().min(10),
+    first_name: z.string().min(1).max(50),
+    last_name: z.string().min(1).max(50),
+    role: z.enum(['client', 'artisan', 'admin']),
+    email: z.string().email().optional()
+  })
+});
+
+export const UpdateUserSchema = z.object({
+  body: z.object({
+    first_name: z.string().min(1).max(50).optional(),
+    last_name: z.string().min(1).max(50).optional(),
+    email: z.string().email().optional(),
+    phone: z.string().min(10).max(15).optional()
+  })
+});
 
 export interface User {
   uid: string;
@@ -20,18 +35,5 @@ export interface User {
   updated_at?: Date | admin.firestore.Timestamp;
 }
 
-export interface CreateUserDTO {
-  uid: string;
-  phone: string;
-  first_name: string;
-  last_name: string;
-  role: 'client' | 'artisan' | 'admin';
-  email?: string;
-}
-
-export interface UpdateUserDTO {
-  first_name?: string;
-  last_name?: string;
-  email?: string;
-  phone?: string;
-}
+export type CreateUserDTO = z.infer<typeof CreateUserSchema>['body'];
+export type UpdateUserDTO = z.infer<typeof UpdateUserSchema>['body'];

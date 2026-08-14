@@ -8,16 +8,15 @@ on:
       - 'ml-service/**'
       - '.github/workflows/ml-service-deploy.yml'
 
-env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: us-central1
-  SERVICE_NAME: artisan-hub-ml-service
-  GAR_LOCATION: us-central1
-  REPOSITORY: ml-repo
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      REGION: us-central1
+      SERVICE_NAME: artisan-hub-ml-service
+      GAR_LOCATION: us-central1
+      REPOSITORY: ml-repo
 
     steps:
       - name: Checkout Repository

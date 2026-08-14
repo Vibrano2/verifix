@@ -5,7 +5,7 @@
 
 import { BaseService } from './base.service';
 import { ArtisanRepository, UserRepository } from '../repositories';
-import { Artisan, UpdateArtisanProfileDTO } from '../models/artisan.model';
+import { Artisan, UpdateArtisanProfileDTO, PortfolioProject } from '../models/artisan.model';
 import { getCategoryForTrade, isValidTrade, Trade } from '../constants/trades';
 
 export class ArtisanService extends BaseService {
@@ -33,6 +33,8 @@ export class ArtisanService extends BaseService {
     bio?: string;
     experience_years?: number;
     hourly_rate?: number;
+    skills?: string[];
+    portfolio?: PortfolioProject[];
   }): Promise<Artisan> {
     try {
       this.validateRequired(data, ['trade', 'location', 'tagline']);
@@ -65,6 +67,8 @@ export class ArtisanService extends BaseService {
         bio: data.bio,
         experience_years: data.experience_years,
         hourly_rate: data.hourly_rate,
+        skills: data.skills || [],
+        portfolio: data.portfolio || [],
         is_available: false,
         is_verified: false,
         verification_status: 'pending',
@@ -122,7 +126,7 @@ export class ArtisanService extends BaseService {
         if (!isValidTrade(updates.trade as string)) {
           throw new Error('Invalid trade');
         }
-        updateData.category = getCategoryForTrade(updates.trade);
+        updateData.category = getCategoryForTrade(updates.trade as Trade);
       }
 
       const updatedArtisan = await this.artisanRepo.update(uid, updateData);

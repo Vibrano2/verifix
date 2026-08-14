@@ -36,10 +36,13 @@ jobs:
       #   working-directory: functions
       #   run: npm test
 
-      - name: Deploy to Firebase
-        uses: w9jds/firebase-action@master
+      - name: Google Auth
+        id: auth
+        uses: 'google-github-actions/auth@v2'
         with:
-          args: deploy --only functions
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          # To use GCP Workload Identity Federation instead, remove FIREBASE_TOKEN and configure google-github-actions/auth
+          workload_identity_provider: '${{ secrets.WIF_PROVIDER }}'
+          service_account: '${{ secrets.WIF_SERVICE_ACCOUNT }}'
+
+      - name: Deploy to Firebase
+        working-directory: functions
+        run: npx firebase-tools deploy --only functions --project ${{ secrets.GCP_PROJECT_ID }}

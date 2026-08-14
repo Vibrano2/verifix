@@ -1,9 +1,14 @@
-/**
- * Rating Model
- * Defines the Rating data structure (separate collection per PRD v1.1)
- */
-
 import * as admin from 'firebase-admin';
+import { z } from 'zod';
+
+export const RatingSchema = z.object({
+  body: z.object({
+    job_id: z.string().min(1),
+    match_id: z.string().optional(),
+    rating: z.number().int().min(1).max(5),
+    review: z.string().max(1000).optional()
+  })
+});
 
 export interface Rating {
   rating_id: string; // doc ID
@@ -23,9 +28,4 @@ export interface CreateRatingDTO {
   review?: string;
 }
 
-export interface RatingDTO {
-  match_id?: string; // For backward compatibility
-  job_id: string;
-  rating: number;
-  review?: string;
-}
+export type RatingDTO = z.infer<typeof RatingSchema>['body'];

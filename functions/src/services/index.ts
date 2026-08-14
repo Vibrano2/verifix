@@ -12,3 +12,4 @@ export * from './escrow.service';
 export * from './rating.service';
 export * from './admin.service';
 export * from './analytics.service';
+export * from './matching.service';
