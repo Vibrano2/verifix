@@ -48,6 +48,7 @@ app.use(rateLimit(100, 15 * 60 * 1000)); // 100 requests per 15 minutes
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5000',
+  'http://localhost:5173',
   'https://verifix.app',
   'https://www.verifix.app',
 ];
