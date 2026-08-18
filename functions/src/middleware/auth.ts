@@ -1,12 +1,11 @@
 import { Response, NextFunction } from 'express';
 import * as admin from 'firebase-admin';
-import * as jwt from 'jsonwebtoken';
-import { AuthenticatedRequest, CustomJwtPayload } from '../types';
+import { AuthenticatedRequest } from '../types';
 import { recordFailedAuth, auditLog } from './security';
 import { Logger } from '../utils/logger';
 
 /**
- * Middleware to verify custom JWT or Firebase ID token and attach user to request
+ * Middleware to verify Firebase ID token and attach user to request
  */
 export const authenticate = async (
   req: AuthenticatedRequest,
@@ -23,59 +22,47 @@ export const authenticate = async (
 
     const token = authHeader.split('Bearer ')[1];
     
-    let decodedUser: any;
-    let authSource: 'jwt' | 'firebase' = 'jwt';
-
     try {
-      // First try our custom JWT
-      const secret = process.env.JWT_SECRET;
-      if (!secret) throw new Error('JWT_SECRET not set');
-      decodedUser = jwt.verify(token, secret) as CustomJwtPayload;
-    } catch (jwtError) {
-      // If custom JWT fails, try Firebase Auth (for backward compatibility / admins)
-      try {
-        decodedUser = await admin.auth().verifyIdToken(token);
-        authSource = 'firebase';
-      } catch (firebaseError) {
-        throw new Error('Invalid token');
-      }
-    }
-
-    req.user = decodedUser;
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      req.user = decodedToken;
       
-    // Audit successful authentication
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    await auditLog({
-      timestamp: new Date().toISOString(),
-      action: 'AUTH_SUCCESS',
-      userId: decodedUser.uid,
-      ip,
-      userAgent: req.headers['user-agent'],
-      resource: req.originalUrl,
-      status: 'success',
-      details: { authSource }
-    });
-    
-    next();
+      // Audit successful authentication
+      const ip = req.ip || req.socket.remoteAddress || 'unknown';
+      await auditLog({
+        timestamp: new Date().toISOString(),
+        action: 'AUTH_SUCCESS',
+        userId: decodedToken.uid,
+        ip,
+        userAgent: req.headers['user-agent'],
+        resource: req.originalUrl,
+        status: 'success'
+      });
+      
+      next();
+    } catch (error) {
+      Logger.error('Token verification failed', error);
+      
+      // Record failed authentication attempt
+      const ip = req.ip || req.socket.remoteAddress || 'unknown';
+      recordFailedAuth(ip);
+      
+      // Audit failed authentication
+      await auditLog({
+        timestamp: new Date().toISOString(),
+        action: 'AUTH_FAILURE',
+        ip,
+        userAgent: req.headers['user-agent'],
+        resource: req.originalUrl,
+        status: 'failure',
+        details: { error: 'Invalid token' }
+      });
+      
+      res.status(401).json({ error: 'Unauthorized: Invalid token' });
+      return;
+    }
   } catch (error) {
-    Logger.error('Token verification failed', error);
-    
-    // Record failed authentication attempt
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    recordFailedAuth(ip);
-    
-    // Audit failed authentication
-    await auditLog({
-      timestamp: new Date().toISOString(),
-      action: 'AUTH_FAILURE',
-      ip,
-      userAgent: req.headers['user-agent'],
-      resource: req.originalUrl,
-      status: 'failure',
-      details: { error: 'Invalid token' }
-    });
-    
-    res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    Logger.error('Authentication error', error);
+    res.status(500).json({ error: 'Internal server error during authentication' });
     return;
   }
 };

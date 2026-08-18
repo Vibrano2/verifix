@@ -1,17 +1,9 @@
 import { Request } from 'express';
 import { DecodedIdToken } from 'firebase-admin/auth';
 
-export interface CustomJwtPayload {
-  uid: string;
-  role: string;
-  email: string;
-  iat?: number;
-  exp?: number;
-}
-
-// Extend Express Request to include Firebase user or custom JWT
+// Extend Express Request to include Firebase user
 export interface AuthenticatedRequest extends Request {
-  user?: DecodedIdToken | CustomJwtPayload;
+  user?: DecodedIdToken;
 }
 
 // User types
