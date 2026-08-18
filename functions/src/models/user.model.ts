@@ -7,7 +7,7 @@ export const CreateUserSchema = z.object({
     first_name: z.string().min(1).max(50),
     last_name: z.string().min(1).max(50),
     role: z.enum(['client', 'artisan', 'admin']),
-    email: z.string().email().optional()
+    email: z.string().email()
   })
 });
 
@@ -22,13 +22,13 @@ export const UpdateUserSchema = z.object({
 
 export interface User {
   uid: string;
-  phone: string;
+  phone?: string;
   phone_hash?: string;
   phone_encrypted?: string;
   first_name: string;
   last_name: string;
   role: 'client' | 'artisan' | 'admin';
-  email?: string;
+  email: string;
   email_encrypted?: string;
   email_hash?: string;
   created_at: Date | admin.firestore.Timestamp;

@@ -5,6 +5,7 @@
  */
 
 import * as admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 import { Logger } from '../utils/logger';
 
 export abstract class BaseRepository<T extends { [key: string]: any }> {
@@ -12,7 +13,7 @@ export abstract class BaseRepository<T extends { [key: string]: any }> {
   protected collectionName: string;
 
   constructor(collectionName: string) {
-    this.db = admin.firestore();
+    this.db = getFirestore('default');
     this.collectionName = collectionName;
   }
 

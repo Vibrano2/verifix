@@ -28,11 +28,13 @@ export const LocationSchema = z.object({
 
 export const CreateJobSchema = z.object({
   body: z.object({
-    trade_needed: z.enum(VALID_TRADES as [string, ...string[]]),
+    trade_needed: z.enum(VALID_TRADES as [string, ...string[]]).optional(),
+    trade: z.enum(VALID_TRADES as [string, ...string[]]).optional(),
     title: z.string().min(5).max(100),
     description: z.string().min(10).max(1000),
-    location: LocationSchema,
-    urgency: z.enum(['Today', 'This Week', 'Flexible']),
+    location: z.union([LocationSchema, z.string()]),
+    urgency: z.enum(['Today', 'This Week', 'Flexible']).optional(),
+    timing: z.string().optional(),
     budget: z.number().positive().optional(),
     budget_min: z.number().positive().optional(),
     budget_max: z.number().positive().optional(),
@@ -66,6 +68,7 @@ export interface Job {
   matched_artisan_uid?: string;
   locked_job_value?: number;
   match_fee?: number;
+  tracking_state?: 'en_route' | 'arrived';
   created_at: Date | admin.firestore.Timestamp;
   updated_at?: Date | admin.firestore.Timestamp;
   completed_at?: Date | admin.firestore.Timestamp;

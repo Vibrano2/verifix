@@ -1,8 +1,3 @@
-/**
- * Escrow Service
- * Business logic for escrow and fund release operations
- */
-
 import * as admin from 'firebase-admin';
 import { BaseService } from './base.service';
 import { COLLECTIONS } from '../constants';
@@ -15,29 +10,21 @@ export class EscrowService extends BaseService {
     this.db = admin.firestore();
   }
 
-  /**
-   * Release escrow funds (Mark Complete)
-   * Idempotent - calling twice doesn't double-release
-   */
   async releaseFunds(jobId: string, clientUid: string): Promise<{
     artisanReceives: number;
     commissionRetained: number;
   }> {
     try {
-      // Get job
       const jobDoc = await this.db.collection(COLLECTIONS.JOBS).doc(jobId).get();
       if (!jobDoc.exists) {
         throw new Error('Job not found');
       }
 
       const job = jobDoc.data();
-
-      // Verify ownership
       if (job?.client_uid !== clientUid) {
         throw new Error('Unauthorized: Only the job owner can release funds');
       }
 
-      // Find transaction for this job
       const transactionSnapshot = await this.db
         .collection(COLLECTIONS.TRANSACTIONS)
         .where('job_id', '==', jobId)
@@ -53,7 +40,6 @@ export class EscrowService extends BaseService {
       const transactionDoc = transactionSnapshot.docs[0];
       const transaction = transactionDoc.data();
 
-      // Check if already released (idempotency)
       if (transaction.status === 'released') {
         this.logger.warn('Funds already released', { jobId });
         return {
@@ -62,12 +48,10 @@ export class EscrowService extends BaseService {
         };
       }
 
-      // Calculate amounts
       const lockedJobValue = transaction.locked_job_value || 0;
       const commissionRetained = lockedJobValue * 0.10;
       const artisanReceives = lockedJobValue - commissionRetained;
 
-      // Update transaction status to released
       await transactionDoc.ref.update({
         status: 'released',
         commission_retained: commissionRetained,
@@ -75,7 +59,6 @@ export class EscrowService extends BaseService {
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      // Update job status to completed
       await jobDoc.ref.update({
         status: 'completed',
         completed_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -98,9 +81,6 @@ export class EscrowService extends BaseService {
     }
   }
 
-  /**
-   * Check if payment has been made for contact reveal
-   */
   async checkContactRevealPayment(matchId: string): Promise<boolean> {
     try {
       const snapshot = await this.db
@@ -117,9 +97,6 @@ export class EscrowService extends BaseService {
     }
   }
 
-  /**
-   * Get artisan earnings summary
-   */
   async getArtisanEarnings(artisanUid: string): Promise<{
     held: number;
     released: number;
@@ -162,9 +139,6 @@ export class EscrowService extends BaseService {
     }
   }
 
-  /**
-   * Get platform revenue summary
-   */
   async getPlatformRevenue(): Promise<{
     totalHeld: number;
     totalReleased: number;
@@ -203,9 +177,6 @@ export class EscrowService extends BaseService {
     }
   }
 
-  /**
-   * Refund escrow (admin action)
-   */
   async refundEscrow(transactionId: string, reason: string): Promise<void> {
     try {
       const transactionDoc = await this.db
@@ -218,7 +189,6 @@ export class EscrowService extends BaseService {
       }
 
       const transaction = transactionDoc.data();
-
       if (transaction?.status !== 'held') {
         throw new Error('Can only refund held transactions');
       }

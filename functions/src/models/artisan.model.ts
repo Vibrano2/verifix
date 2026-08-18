@@ -58,6 +58,12 @@ export interface Location {
   address?: string;
 }
 
+export interface BankDetails {
+  account_number: string;
+  bank_code: string;
+  account_name: string;
+}
+
 export interface Artisan {
   uid: string;
   trade: TradeName;
@@ -79,6 +85,8 @@ export interface Artisan {
   total_jobs?: number;
   completed_jobs?: number;
   rejection_reason?: string;
+  bank_details?: BankDetails;
+  paystack_recipient_code?: string;
   created_at: Date | admin.firestore.Timestamp;
   updated_at?: Date | admin.firestore.Timestamp;
 }

@@ -68,18 +68,56 @@ export class UserRepository extends BaseRepository<User> {
   }
 
   /**
-   * Create user with phone hash
+   * Find user by email
+   * @param email - User email address
+   * @returns User or null if not found
+   */
+  async findByEmail(email: string): Promise<User | null> {
+    try {
+      const emailHash = hashData(email);
+      const snapshot = await this.getCollection()
+        .where('email_hash', '==', emailHash)
+        .limit(1)
+        .get();
+      
+      if (snapshot.empty) {
+        return null;
+      }
+      
+      return snapshot.docs[0].data() as User;
+    } catch (error) {
+      Logger.error('Error finding user by email', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if email already exists
+   * @param email - User email
+   * @returns true if email exists
+   */
+  async emailExists(email: string): Promise<boolean> {
+    const user = await this.findByEmail(email);
+    return user !== null;
+  }
+
+  /**
+   * Create user with email hash
    * @param user - User data
    * @returns Created user
    */
   async createUser(user: User): Promise<User | null> {
     try {
-      // Add phone hash for lookup
-      const userData = {
+      // Add email hash for lookup (and phone hash if phone is provided)
+      const userData: any = {
         ...user,
-        phone_hash: hashData(user.phone),
+        email_hash: hashData(user.email),
         created_at: admin.firestore.FieldValue.serverTimestamp()
       };
+      
+      if (user.phone) {
+        userData.phone_hash = hashData(user.phone);
+      }
       
       await this.getCollection().doc(user.uid).set(userData);
       return await this.findById(user.uid);

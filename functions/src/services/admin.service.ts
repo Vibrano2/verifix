@@ -1,8 +1,3 @@
-/**
- * Admin Service
- * Business logic for admin operations
- */
-
 import * as admin from 'firebase-admin';
 import { BaseService } from './base.service';
 import { ArtisanRepository, UserRepository } from '../repositories';
@@ -22,9 +17,6 @@ export class AdminService extends BaseService {
     this.db = admin.firestore();
   }
 
-  /**
-   * Verify admin access
-   */
   isAdmin(uid: string): boolean {
     const adminUid = process.env.ADMIN_UID;
     if (!adminUid) {
@@ -34,17 +26,11 @@ export class AdminService extends BaseService {
     return uid === adminUid;
   }
 
-  /**
-   * Get verification queue (unverified artisans)
-   * Now supports pagination with limit and offset
-   */
   async getVerificationQueue(limit: number = 50, offset: number = 0): Promise<Array<Artisan & { user: any }>> {
     try {
-      // Limit pagination to prevent excessive queries
-      const safeLimit = Math.min(Math.max(limit, 1), 100); // Between 1 and 100
+      const safeLimit = Math.min(Math.max(limit, 1), 100);
       const safeOffset = Math.max(offset, 0);
 
-      // Get paginated unverified artisans directly from Firestore
       const snapshot = await this.db.collection(COLLECTIONS.ARTISANS)
         .where('verification_status', '==', 'pending')
         .orderBy('created_at', 'desc')
@@ -54,7 +40,6 @@ export class AdminService extends BaseService {
 
       const artisans = snapshot.docs.map(doc => doc.data() as Artisan);
 
-      // Fetch user details for each artisan
       const artisansWithDetails = await Promise.all(
         artisans.map(async (artisan) => {
           const user = await this.userRepo.findById(artisan.uid);
@@ -81,15 +66,10 @@ export class AdminService extends BaseService {
     }
   }
 
-  /**
-   * Verify artisan
-   */
   async verifyArtisan(uid: string): Promise<void> {
     try {
       const artisan = await this.artisanRepo.findById(uid);
-      if (!artisan) {
-        throw new Error('Artisan profile not found');
-      }
+      if (!artisan) throw new Error('Artisan profile not found');
 
       if (artisan.is_verified) {
         this.logger.info('Artisan already verified', { uid });
@@ -97,25 +77,18 @@ export class AdminService extends BaseService {
       }
 
       await this.artisanRepo.verify(uid);
-
       this.logOperation('artisan-verified', { uid, trade: artisan.trade });
     } catch (error) {
       this.handleError(error, 'Verify artisan');
     }
   }
 
-  /**
-   * Reject artisan verification
-   */
   async rejectArtisan(uid: string, reason?: string): Promise<void> {
     try {
       const artisan = await this.artisanRepo.findById(uid);
-      if (!artisan) {
-        throw new Error('Artisan profile not found');
-      }
+      if (!artisan) throw new Error('Artisan profile not found');
 
       await this.artisanRepo.reject(uid, reason);
-
       this.logOperation('artisan-rejected', {
         uid,
         reason: reason || 'Not specified'
@@ -125,47 +98,22 @@ export class AdminService extends BaseService {
     }
   }
 
-  /**
-   * Get platform statistics
-   */
   async getStatistics(): Promise<{
-    users: {
-      total: number;
-      clients: number;
-      artisans: number;
-    };
-    artisans: {
-      total: number;
-      verified: number;
-      unverified: number;
-    };
-    jobs: {
-      total: number;
-      open: number;
-      matched: number;
-      completed: number;
-    };
-    transactions: {
-      total: number;
-      totalRevenue: number;
-      totalCommission: number;
-    };
+    users: { total: number; clients: number; artisans: number };
+    artisans: { total: number; verified: number; unverified: number };
+    jobs: { total: number; open: number; matched: number; completed: number };
+    transactions: { total: number; totalRevenue: number; totalCommission: number };
   }> {
     try {
-      // Get user stats
       const allUsers = await this.userRepo.findAll();
       const clientCount = allUsers.filter(u => u.role === 'client').length;
       const artisanCount = allUsers.filter(u => u.role === 'artisan').length;
 
-      // Get artisan stats
       const allArtisans = await this.artisanRepo.findAll();
       const verifiedCount = allArtisans.filter(a => a.is_verified).length;
 
-      // Get job stats
       const jobsSnapshot = await this.db.collection(COLLECTIONS.JOBS).get();
-      let openJobs = 0;
-      let matchedJobs = 0;
-      let completedJobs = 0;
+      let openJobs = 0, matchedJobs = 0, completedJobs = 0;
 
       jobsSnapshot.forEach(doc => {
         const data = doc.data();
@@ -174,10 +122,8 @@ export class AdminService extends BaseService {
         if (data.status === 'completed') completedJobs++;
       });
 
-      // Get transaction stats
       const transactionsSnapshot = await this.db.collection(COLLECTIONS.TRANSACTIONS).get();
-      let totalRevenue = 0;
-      let totalCommission = 0;
+      let totalRevenue = 0, totalCommission = 0;
 
       transactionsSnapshot.forEach(doc => {
         const data = doc.data();
@@ -215,15 +161,10 @@ export class AdminService extends BaseService {
     }
   }
 
-  /**
-   * Get comprehensive analytics
-   */
   async getAnalytics(): Promise<AdminAnalytics> {
     try {
-      // Get users analytics
       const usersSnapshot = await this.db.collection(COLLECTIONS.USERS).get();
-      let clientCount = 0;
-      let artisanCount = 0;
+      let clientCount = 0, artisanCount = 0;
 
       usersSnapshot.forEach(doc => {
         const data = doc.data();
@@ -231,7 +172,6 @@ export class AdminService extends BaseService {
         if (data.role === 'artisan') artisanCount++;
       });
 
-      // Get artisans with verification status
       const artisansSnapshot = await this.db.collection(COLLECTIONS.ARTISANS).get();
       let verifiedArtisans = 0;
 
@@ -240,58 +180,34 @@ export class AdminService extends BaseService {
         if (data.is_verified) verifiedArtisans++;
       });
 
-      // Get jobs analytics
       const jobsSnapshot = await this.db.collection(COLLECTIONS.JOBS).get();
-      let openJobs = 0;
-      let matchedJobs = 0;
-      let completedJobs = 0;
-      let cancelledJobs = 0;
+      let openJobs = 0, matchedJobs = 0, completedJobs = 0, cancelledJobs = 0;
 
       jobsSnapshot.forEach(doc => {
         const data = doc.data();
         switch (data.status) {
-          case 'open':
-            openJobs++;
-            break;
+          case 'open': openJobs++; break;
           case 'matched':
-          case 'in_progress':
-            matchedJobs++;
-            break;
-          case 'completed':
-            completedJobs++;
-            break;
-          case 'cancelled':
-            cancelledJobs++;
-            break;
+          case 'in_progress': matchedJobs++; break;
+          case 'completed': completedJobs++; break;
+          case 'cancelled': cancelledJobs++; break;
         }
       });
 
-      // Get matches analytics
       const matchesSnapshot = await this.db.collection(COLLECTIONS.MATCHES).get();
-      let pendingMatches = 0;
-      let acceptedMatches = 0;
-      let completedMatches = 0;
+      let pendingMatches = 0, acceptedMatches = 0, completedMatches = 0;
 
       matchesSnapshot.forEach(doc => {
         const data = doc.data();
         switch (data.status) {
-          case 'pending':
-            pendingMatches++;
-            break;
-          case 'accepted':
-            acceptedMatches++;
-            break;
-          case 'completed':
-            completedMatches++;
-            break;
+          case 'pending': pendingMatches++; break;
+          case 'accepted': acceptedMatches++; break;
+          case 'completed': completedMatches++; break;
         }
       });
 
-      // Get revenue analytics
       const transactionsSnapshot = await this.db.collection(COLLECTIONS.TRANSACTIONS).get();
-      let totalHeld = 0;
-      let totalReleased = 0;
-      let totalCommission = 0;
+      let totalHeld = 0, totalReleased = 0, totalCommission = 0;
 
       transactionsSnapshot.forEach(doc => {
         const data = doc.data();

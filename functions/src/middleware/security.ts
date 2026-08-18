@@ -2,12 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import * as admin from 'firebase-admin';
 import { Logger } from '../utils/logger';
 
-
-
-/**
- * Firestore-backed rate limiting middleware
- * Limits requests per IP address
- */
 export const rateLimit = (maxRequests: number = 100, windowMs: number = 15 * 60 * 1000) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
@@ -43,43 +37,23 @@ export const rateLimit = (maxRequests: number = 100, windowMs: number = 15 * 60 
         }
       });
     } catch (error) {
-      // Fail open if Firestore has issues so we don't break the app
       Logger.error('Rate limiting error', error);
       next();
     }
   };
 };
 
-
-
-/**
- * Security headers middleware
- * Implements various security headers to prevent common attacks
- */
 export const securityHeaders = (req: Request, res: Response, next: NextFunction): void => {
-  // Prevent XSS attacks
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
-  
-  // Strict Transport Security (HTTPS only)
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  
-  // Content Security Policy
   res.setHeader('Content-Security-Policy', "default-src 'self'");
-  
-  // Referrer Policy
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
-  // Permissions Policy
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-  
   next();
 };
 
-/**
- * Monitor and block suspicious IP addresses using Firestore
- */
 export const monitorIP = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
   const now = Date.now();
@@ -100,7 +74,6 @@ export const monitorIP = async (req: Request, res: Response, next: NextFunction)
         return;
       }
       
-      // Reset block if time expired
       if (data.blockedUntil && now >= data.blockedUntil) {
         await docRef.update({ blockedUntil: null, failedAttempts: 0 });
       }
@@ -112,10 +85,6 @@ export const monitorIP = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
-/**
- * Record failed authentication attempt using Firestore
- * Call this when authentication fails
- */
 export const recordFailedAuth = async (ip: string): Promise<void> => {
   try {
     const db = admin.firestore();
@@ -143,7 +112,7 @@ export const recordFailedAuth = async (ip: string): Promise<void> => {
       };
       
       if (attempts >= 5) {
-        const blockDuration = 15 * 60 * 1000; // 15 minutes
+        const blockDuration = 15 * 60 * 1000;
         updateData.blockedUntil = now + blockDuration;
         Logger.warn(`IP ${ip} blocked for 15 minutes after ${attempts} failed attempts`);
       }
@@ -155,10 +124,6 @@ export const recordFailedAuth = async (ip: string): Promise<void> => {
   }
 };
 
-/**
- * Security Audit Logger
- * Logs all sensitive operations for security monitoring
- */
 export interface AuditLog {
   timestamp: string;
   action: string;
@@ -170,9 +135,6 @@ export interface AuditLog {
   details?: any;
 }
 
-/**
- * Create audit log entry in Firestore
- */
 export const auditLog = async (log: AuditLog): Promise<void> => {
   try {
     const db = admin.firestore();
@@ -182,25 +144,18 @@ export const auditLog = async (log: AuditLog): Promise<void> => {
     });
   } catch (error) {
     Logger.error('Failed to write audit log', error);
-    // Don't fail the request if logging fails
   }
 };
 
-/**
- * Audit logging middleware for sensitive operations
- */
 export const auditMiddleware = (action: string) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const userAgent = req.headers['user-agent'];
-    
-    // Store original res.json to intercept response
     const originalJson = res.json.bind(res);
     
     res.json = function (body: any): Response {
       const status = res.statusCode >= 200 && res.statusCode < 300 ? 'success' : 'failure';
       
-      // Log asynchronously (don't await)
       auditLog({
         timestamp: new Date().toISOString(),
         action,
@@ -219,9 +174,6 @@ export const auditMiddleware = (action: string) => {
   };
 };
 
-/**
- * Request ID middleware for tracking requests
- */
 export const requestId = (req: Request, res: Response, next: NextFunction): void => {
   const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   req.headers['x-request-id'] = id;
@@ -229,9 +181,6 @@ export const requestId = (req: Request, res: Response, next: NextFunction): void
   next();
 };
 
-/**
- * Validate Content-Type for POST/PATCH requests
- */
 export const validateContentType = (req: Request, res: Response, next: NextFunction): void => {
   if (['POST', 'PATCH', 'PUT'].includes(req.method)) {
     const contentType = req.headers['content-type'];
@@ -247,5 +196,3 @@ export const validateContentType = (req: Request, res: Response, next: NextFunct
   
   next();
 };
-
-

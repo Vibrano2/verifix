@@ -15,33 +15,16 @@ export class AuthController extends BaseController {
     this.authService = new AuthService();
   }
 
-  /**
-   * POST /api/auth/phone/send-otp
-   */
-  async sendOTP(req: Request, res: Response): Promise<void> {
-    try {
-      const { phone } = req.body;
 
-      const result = await this.authService.sendOTP(phone);
-
-      if (!result.success) {
-        return this.sendBadRequest(res, result.message);
-      }
-
-      this.sendSuccess(res, result.message);
-    } catch (error) {
-      this.handleError(error, res, 'Send OTP');
-    }
-  }
 
   /**
-   * POST /api/auth/phone/verify-otp
+   * POST /api/auth/register
    */
-  async verifyOTP(req: Request, res: Response): Promise<void> {
+  async registerUser(req: Request, res: Response): Promise<void> {
     try {
       const { idToken, first_name, last_name, role } = req.body;
 
-      const user = await this.authService.verifyOTPAndCreateUser({
+      const user = await this.authService.registerUser({
         idToken,
         first_name,
         last_name,
@@ -50,7 +33,7 @@ export class AuthController extends BaseController {
 
       this.sendCreated(res, 'User created successfully', user);
     } catch (error) {
-      this.handleError(error, res, 'Verify OTP');
+      this.handleError(error, res, 'Register user');
     }
   }
 
@@ -106,6 +89,58 @@ export class AuthController extends BaseController {
       this.sendSuccess(res, 'Custom token created. Use this to sign in on the client.', result);
     } catch (error) {
       this.handleError(error, res, 'Create custom token');
+    }
+  }
+
+  /**
+   * POST /v1/auth/send-otp
+   */
+  async sendOTP(req: Request, res: Response): Promise<void> {
+    try {
+      const { email } = req.body;
+      const result = await this.authService.sendOTP(email);
+      this.sendSuccess(res, result.message);
+    } catch (error) {
+      this.handleError(error, res, 'Send OTP');
+    }
+  }
+
+  /**
+   * POST /v1/auth/verify-otp
+   */
+  async verifyOTP(req: Request, res: Response): Promise<void> {
+    try {
+      const { email, otp, role } = req.body;
+      const result = await this.authService.verifyOTP(email, otp, role);
+      res.status(200).json(result);
+    } catch (error) {
+      this.handleError(error, res, 'Verify OTP');
+    }
+  }
+
+  /**
+   * POST /v1/auth/email/verify
+   */
+  async verifyEmailLogin(req: Request, res: Response): Promise<void> {
+    try {
+      const { idToken, role } = req.body;
+      const result = await this.authService.verifyEmailLogin(idToken, role);
+      res.status(200).json(result);
+    } catch (error) {
+      this.handleError(error, res, 'Verify Email Login');
+    }
+  }
+
+  /**
+   * POST /v1/auth/firebase/verify
+   */
+  async verifyFirebaseLogin(req: Request, res: Response): Promise<void> {
+    try {
+      const { idToken, role } = req.body;
+      const result = await this.authService.verifyFirebaseLogin(idToken, role);
+      res.status(200).json(result);
+    } catch (error) {
+      this.handleError(error, res, 'Verify Firebase Login');
     }
   }
 }

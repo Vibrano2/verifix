@@ -5,7 +5,6 @@ import * as admin from 'firebase-admin';
 jest.mock('firebase-admin', () => {
   const getMock = jest.fn();
   const whereMock = jest.fn();
-  const docMock = jest.fn();
   const updateMock = jest.fn();
   const setMock = jest.fn();
   

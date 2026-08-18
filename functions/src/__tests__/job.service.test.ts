@@ -1,12 +1,15 @@
 import { JobService } from '../services/job.service';
 import * as admin from 'firebase-admin';
 
+jest.mock('../utils/paystack', () => ({
+  initiateTransfer: jest.fn().mockResolvedValue({ status: true })
+}));
+
 // Mock Firebase Admin
 jest.mock('firebase-admin', () => {
   const getMock = jest.fn();
   const whereMock = jest.fn();
   const limitMock = jest.fn();
-  const docMock = jest.fn();
   const updateMock = jest.fn();
   
   const docRefMock = {
@@ -146,8 +149,8 @@ describe('JobService', () => {
       docMock.mockImplementation((path) => {
         if (path === 'job_123') return { get: jest.fn().mockResolvedValue(mockJobDoc), ref: {} };
         if (path === 'match_1') return { get: jest.fn().mockResolvedValue(mockMatchDoc), ref: {} };
-        if (path === 'artisan_1') return { get: jest.fn(), ref: {} };
-        return { get: jest.fn(), ref: {} };
+        if (path === 'artisan_1') return { get: jest.fn().mockResolvedValue({ exists: true, data: () => ({ paystack_recipient_code: 'RCP_123' }) }), ref: {} };
+        return { get: jest.fn().mockResolvedValue({ exists: true, data: () => ({}) }), ref: {} };
       });
 
       const whereMock = collectionMock().where as jest.Mock;
@@ -163,10 +166,11 @@ describe('JobService', () => {
       expect(db.runTransaction).toHaveBeenCalled();
       
       // Check results
-      expect(result.status).toBe('released');
-      expect(result.locked_job_value).toBe(10000);
-      expect(result.commission_retained).toBe(1000);
-      expect(result.artisan_receives).toBe(9000);
+      expect(result.transaction.status).toBe('released');
+      expect(result.transaction.locked_job_value).toBe(10000);
+      expect(result.transaction.commission_retained).toBe(1000);
+      expect(result.transaction.artisan_receives).toBe(9000);
     });
   });
 });
+

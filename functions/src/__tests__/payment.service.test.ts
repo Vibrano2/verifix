@@ -1,4 +1,19 @@
-import { PaymentService } from '../payment.service';
+import { PaymentService } from '../services/payment.service';
+
+// Mock Firebase Admin
+jest.mock('firebase-admin', () => {
+  const dbMock = {
+    collection: jest.fn()
+  };
+  return {
+    firestore: Object.assign(jest.fn(() => dbMock), {
+      FieldValue: {
+        serverTimestamp: jest.fn(() => 'mock_timestamp')
+      }
+    }),
+    initializeApp: jest.fn()
+  };
+});
 
 describe('PaymentService', () => {
   let paymentService: PaymentService;
@@ -28,7 +43,6 @@ describe('PaymentService', () => {
     });
 
     it('should return false if hashing throws an error', () => {
-      // Intentionally passing null to body to trigger crypto error
       const result = paymentService.verifyWebhookSignature('anysig', null as any);
       expect(result).toBe(false);
     });

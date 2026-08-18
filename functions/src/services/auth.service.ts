@@ -1,13 +1,7 @@
-/**
- * Auth Service
- * Business logic for authentication operations
- */
-
 import * as admin from 'firebase-admin';
 import { BaseService } from './base.service';
 import { UserRepository, ArtisanRepository } from '../repositories';
 import { ROLES, VERIFICATION_STATUS } from '../constants';
-import { checkOTPRateLimit, recordOTPAttempt } from '../utils/rateLimit';
 import { User } from '../models/user.model';
 import { Trade } from '../constants/trades';
 import * as crypto from 'crypto';
@@ -27,45 +21,7 @@ export class AuthService extends BaseService {
     this.artisanRepo = new ArtisanRepository();
   }
 
-  /**
-   * Send OTP to phone number
-   * Enforces rate limiting: 3 requests/hour, 24h lockout after 5 failures
-   */
-  async sendOTP(phone: string): Promise<{
-    success: boolean;
-    message: string;
-    resetAt?: Date;
-  }> {
-    try {
-      // Check rate limit
-      const rateLimitCheck = await checkOTPRateLimit(phone);
-      
-      if (!rateLimitCheck.allowed) {
-        return {
-          success: false,
-          message: rateLimitCheck.reason || 'Rate limit exceeded',
-          resetAt: rateLimitCheck.resetAt
-        };
-      }
-
-      // In production, integrate with SMS provider (Twilio, etc.)
-      // For now, Firebase Client SDK handles OTP on frontend
-      
-      this.logOperation('send-otp', { phone: hashPII(phone) });
-
-      return {
-        success: true,
-        message: 'OTP sent successfully. Use Firebase Client SDK signInWithPhoneNumber() on frontend'
-      };
-    } catch (error) {
-      this.handleError(error, 'Send OTP');
-    }
-  }
-
-  /**
-   * Verify OTP and create/update user
-   */
-  async verifyOTPAndCreateUser(data: {
+  async registerUser(data: {
     idToken: string;
     first_name: string;
     last_name: string;
@@ -73,73 +29,63 @@ export class AuthService extends BaseService {
   }): Promise<User> {
     try {
       this.validateRequired(data, ['idToken', 'first_name', 'last_name', 'role']);
-
       const { idToken, first_name, last_name, role } = data;
 
-      // Validate role
       if (role !== ROLES.CLIENT && role !== ROLES.ARTISAN) {
         throw new Error(`Invalid role. Must be "${ROLES.CLIENT}" or "${ROLES.ARTISAN}"`);
       }
 
       let uid: string;
+      let email: string | undefined;
       let phone: string | undefined;
 
       if (process.env.NODE_ENV !== 'production' && idToken.startsWith('TEST_TOKEN_')) {
         uid = `test_${idToken}`;
+        email = `test@example.com`;
         phone = `+2348000000000`;
       } else {
-        // Verify the ID token using Firebase Admin SDK
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         uid = decodedToken.uid;
+        email = decodedToken.email;
         phone = decodedToken.phone_number;
       }
 
-      if (!phone) {
-        throw new Error('Phone number is missing from the verified ID token. Please authenticate using a phone number.');
+      if (!email) {
+        throw new Error('Email is missing from the verified ID token.');
       }
 
-      // Check if user already exists
       const existingUser = await this.userRepo.findById(uid);
       if (existingUser) {
         this.logOperation('user-already-exists', { uid });
         return existingUser;
       }
 
-      // Check if phone already registered
-      const phoneExists = await this.userRepo.phoneExists(phone);
-      if (phoneExists) {
-        throw new Error('Phone number already registered');
+      const emailExists = await this.userRepo.emailExists(email);
+      if (emailExists) {
+        throw new Error('Email already registered');
       }
 
-      // Record successful OTP verification
-      await recordOTPAttempt(phone, true);
-
-      // Create new user
       const newUser = await this.userRepo.createUser({
         uid,
         first_name: first_name.trim(),
         last_name: last_name.trim(),
-        phone: phone.trim(),
+        email: email.trim(),
+        phone: phone ? phone.trim() : undefined,
         role,
         created_at: new Date()
       });
 
-      // If artisan, create placeholder profile
       if (role === ROLES.ARTISAN) {
         await this.createArtisanPlaceholder(uid);
       }
 
       this.logOperation('user-created', { uid, role });
-
       return newUser!;
     } catch (error) {
-      this.handleError(error, 'Verify OTP');
+      this.handleError(error, 'Register user');
     }
   }
 
-  /**
-   * Create placeholder artisan profile
-   */
   private async createArtisanPlaceholder(uid: string): Promise<void> {
     await this.artisanRepo.create(uid, {
       uid,
@@ -160,9 +106,6 @@ export class AuthService extends BaseService {
     } as any);
   }
 
-  /**
-   * Register admin user (email/password)
-   */
   async registerAdmin(data: {
     email: string;
     password: string;
@@ -171,22 +114,19 @@ export class AuthService extends BaseService {
   }): Promise<{ uid: string; email: string }> {
     try {
       this.validateRequired(data, ['email', 'password', 'first_name', 'last_name']);
-
       const { email, password, first_name, last_name } = data;
 
-      // Create Firebase Auth user
       const userRecord = await admin.auth().createUser({
         email,
         password,
         displayName: `${first_name} ${last_name}`
       });
 
-      // Create user document
       await this.userRepo.createUser({
         uid: userRecord.uid,
         first_name: first_name.trim(),
         last_name: last_name.trim(),
-        phone: '', // Admin doesn't need phone
+        phone: '',
         role: ROLES.ADMIN,
         email: email.trim(),
         created_at: new Date()
@@ -203,43 +143,24 @@ export class AuthService extends BaseService {
     }
   }
 
-  /**
-   * Request password reset
-   */
   async requestPasswordReset(email: string): Promise<{ message: string }> {
     try {
-      // Generate password reset link
       await admin.auth().generatePasswordResetLink(email);
-
-      // In production, send email via SendGrid, Mailgun, etc.
       this.logOperation('password-reset-requested', { email: hashPII(email) });
-
-      // Always return success to avoid email enumeration
-      return {
-        message: 'If this email exists, a reset link has been sent'
-      };
+      return { message: 'If this email exists, a reset link has been sent' };
     } catch (error) {
-      // Still return success message for security
       this.logger.warn('Password reset attempted for non-existent email', { email: hashPII(email) });
-      return {
-        message: 'If this email exists, a reset link has been sent'
-      };
+      return { message: 'If this email exists, a reset link has been sent' };
     }
   }
 
-  /**
-   * Create custom token (dev only)
-   */
   async createCustomToken(phone: string): Promise<{ customToken: string; uid: string }> {
     try {
-      // Check if in production
       if (process.env.NODE_ENV === 'production') {
         throw new Error('Custom tokens not allowed in production');
       }
 
-      // Find or create user
       const existingUser = await this.userRepo.findByPhone(phone);
-      
       let uid: string;
 
       if (existingUser) {
@@ -249,9 +170,7 @@ export class AuthService extends BaseService {
         uid = userRecord.uid;
       }
 
-      // Create custom token
       const customToken = await admin.auth().createCustomToken(uid);
-
       this.logOperation('custom-token-created', { uid });
 
       return { customToken, uid };
@@ -260,15 +179,129 @@ export class AuthService extends BaseService {
     }
   }
 
-  /**
-   * Verify Firebase ID token
-   */
   async verifyToken(idToken: string): Promise<admin.auth.DecodedIdToken> {
     try {
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      return decodedToken;
+      return await admin.auth().verifyIdToken(idToken);
     } catch (error) {
       this.handleError(error, 'Verify token');
+    }
+  }
+
+  async sendOTP(email: string): Promise<{ message: string }> {
+    try {
+      this.validateRequired({ email }, ['email']);
+      const formattedEmail = email.trim().toLowerCase();
+
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiration = new Date();
+      expiration.setMinutes(expiration.getMinutes() + 15);
+
+      await admin.firestore().collection('otps').doc(formattedEmail).set({
+        otp,
+        expiresAt: admin.firestore.Timestamp.fromDate(expiration),
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      this.logger.info(`[MOCK EMAIL] To: ${formattedEmail}, Subject: Your Artiva Login Code, Body: Your OTP is ${otp}`);
+      return { message: 'OTP sent successfully' };
+    } catch (error) {
+      this.handleError(error, 'Send OTP');
+    }
+  }
+
+  async verifyOTP(email: string, otp: string, role: string): Promise<{ token: string, user: User }> {
+    try {
+      this.validateRequired({ email, otp, role }, ['email', 'otp', 'role']);
+      const formattedEmail = email.trim().toLowerCase();
+
+      const otpDoc = await admin.firestore().collection('otps').doc(formattedEmail).get();
+      if (!otpDoc.exists) {
+        throw new Error('Invalid or expired OTP');
+      }
+
+      const otpData = otpDoc.data();
+      if (otpData?.otp !== otp) {
+        throw new Error('Invalid OTP');
+      }
+
+      if (otpData?.expiresAt.toDate() < new Date()) {
+        throw new Error('OTP has expired');
+      }
+
+      await admin.firestore().collection('otps').doc(formattedEmail).delete();
+
+      let uid: string;
+      try {
+        const userRecord = await admin.auth().getUserByEmail(formattedEmail);
+        uid = userRecord.uid;
+      } catch (err: any) {
+        if (err.code === 'auth/user-not-found') {
+          const newUserRecord = await admin.auth().createUser({ email: formattedEmail });
+          uid = newUserRecord.uid;
+        } else {
+          throw err;
+        }
+      }
+
+      let user = await this.userRepo.findByEmail(formattedEmail);
+      if (!user) {
+        user = await this.userRepo.createUser({
+          uid,
+          first_name: '',
+          last_name: '',
+          email: formattedEmail,
+          role,
+          created_at: new Date()
+        });
+        
+        if (role === ROLES.ARTISAN) {
+          await this.createArtisanPlaceholder(uid);
+        }
+      }
+
+      const token = await admin.auth().createCustomToken(uid);
+      this.logOperation('otp-verified-login', { uid, role: user?.role });
+
+      return { token, user: user! };
+    } catch (error) {
+      this.handleError(error, 'Verify OTP Login');
+    }
+  }
+
+  async verifyEmailLogin(idToken: string, role: string): Promise<{ token: string, user: User }> {
+    try {
+      this.validateRequired({ idToken, role }, ['idToken', 'role']);
+
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const uid = decodedToken.uid;
+      const email = decodedToken.email;
+
+      if (!email) {
+        throw new Error('Email is missing from the verified ID token.');
+      }
+
+      let user = await this.userRepo.findByEmail(email);
+      if (!user) {
+        user = await this.userRepo.createUser({
+          uid,
+          first_name: decodedToken.name?.split(' ')[0] || '',
+          last_name: decodedToken.name?.split(' ').slice(1).join(' ') || '',
+          email: email,
+          role,
+          created_at: new Date()
+        });
+
+        if (role === ROLES.ARTISAN) {
+          await this.createArtisanPlaceholder(uid);
+        }
+      }
+
+      const token = await admin.auth().createCustomToken(uid);
+      this.logOperation('email-password-login-verified', { uid, role: user?.role });
+
+      return { token, user: user! };
+    } catch (error) {
+      this.handleError(error, 'Verify Email Login');
     }
   }
 }

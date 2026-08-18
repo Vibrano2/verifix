@@ -1,3 +1,4 @@
+import './initFirebase';
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import express from 'express';
@@ -27,10 +28,7 @@ function validateEnvironment() {
 
 validateEnvironment();
 
-// Initialize Firebase Admin if not already initialized
-if (admin.apps.length === 0) {
-  admin.initializeApp();
-}
+// Firebase Admin is now initialized via './initFirebase'
 
 // Initialize encryption
 initializeEncryption();
@@ -88,6 +86,13 @@ app.use('/api/artisans', artisanRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
+
+// Register v1 aliases
+app.use('/v1/auth', authRoutes);
+app.use('/v1/artisans', artisanRoutes);
+app.use('/v1/jobs', jobRoutes);
+app.use('/v1/payments', paymentRoutes);
+app.use('/v1/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

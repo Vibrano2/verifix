@@ -52,10 +52,15 @@ export class PaymentController extends BaseController {
 
   /**
    * GET /api/payments/verify/:reference
+   * POST /v1/payments/verify
    */
   async verifyPayment(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const { reference } = req.params;
+      const reference = req.params.reference || req.body.reference;
+      
+      if (!reference) {
+         return this.sendBadRequest(res, 'Payment reference is required');
+      }
 
       const verification = await this.paymentService.verifyPayment(reference);
 

@@ -3,7 +3,7 @@
  * Handles HTTP requests for artisan operations
  */
 
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { ArtisanService } from '../services';
 import { AuthenticatedRequest } from '../types';
@@ -42,6 +42,36 @@ export class ArtisanController extends BaseController {
       this.sendCreated(res, 'Artisan profile created successfully', { profile: artisan });
     } catch (error) {
       this.handleError(error, res, 'Complete artisan profile');
+    }
+  }
+
+  /**
+   * POST /v1/artisans (Unified Registration)
+   */
+  async registerArtisan(req: Request, res: Response): Promise<void> {
+    try {
+      const data = req.body;
+      const result = await this.artisanService.registerArtisan(data);
+      this.sendCreated(res, 'Artisan registered successfully', { data: result?.profile }); // match requested payload response: { data: { uid, is_verified } }
+    } catch (error) {
+      this.handleError(error, res, 'Register artisan');
+    }
+  }
+
+  /**
+   * GET /v1/artisans (Public Directory)
+   */
+  async listArtisans(req: Request, res: Response): Promise<void> {
+    try {
+      const { trade, location, available } = req.query;
+      const artisans = await this.artisanService.listArtisans({
+        trade: trade as string,
+        location: location as string,
+        available: available === 'true'
+      });
+      this.sendSuccess(res, 'Artisans fetched successfully', { data: artisans });
+    } catch (error) {
+      this.handleError(error, res, 'List artisans');
     }
   }
 

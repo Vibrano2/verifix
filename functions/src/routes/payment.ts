@@ -36,7 +36,7 @@ const paymentController = new PaymentController();
  *       403:
  *         description: Forbidden
  */
-router.post('/initialise', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.post(['/initialise', '/initialize'], authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -321,6 +321,33 @@ router.post('/:id/reveal-contact', authenticate, async (req: AuthenticatedReques
  *         description: Payment verification status
  */
 router.get('/verify/:reference', authenticate, (req, res) => 
+  paymentController.verifyPayment(req, res)
+);
+
+/**
+ * @swagger
+ * /api/payments/verify:
+ *   post:
+ *     summary: Verify a payment transaction
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reference
+ *             properties:
+ *               reference:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Payment verification status
+ */
+router.post('/verify', authenticate, (req, res) => 
   paymentController.verifyPayment(req, res)
 );
 

@@ -265,9 +265,9 @@ router.post('/:id/rating', authenticate, validate(RatingSchema), (req, res) =>
 
 /**
  * @swagger
- * /api/jobs/{id}/complete:
+ * /api/jobs/{id}/select-artisan:
  *   post:
- *     summary: Mark job as complete and release escrow
+ *     summary: Select an artisan for a job
  *     tags: [Jobs]
  *     security:
  *       - bearerAuth: []
@@ -284,9 +284,48 @@ router.post('/:id/rating', authenticate, validate(RatingSchema), (req, res) =>
  *           schema:
  *             type: object
  *             required:
- *               - match_id
+ *               - artisan_id
+ *             properties:
+ *               artisan_id:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Artisan selected
+ *       400:
+ *         description: Bad request
+ *       403:
+ *         description: Forbidden
+ */
+router.post('/:id/select-artisan', authenticate, (req, res) => 
+  jobController.selectArtisan(req, res)
+);
+
+/**
+ * @swagger
+ * /api/jobs/{id}/complete:
+ *   post:
+ *     summary: Mark job as complete and release escrow
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
  *             properties:
  *               match_id:
+ *                 type: string
+ *               rating:
+ *                 type: number
+ *               review:
  *                 type: string
  *     responses:
  *       200:
@@ -298,6 +337,14 @@ router.post('/:id/rating', authenticate, validate(RatingSchema), (req, res) =>
  */
 router.post('/:id/complete', authenticate, (req, res) => 
   jobController.markComplete(req, res)
+);
+
+router.post('/:id/tracking/start', authenticate, (req, res) => 
+  jobController.startTracking(req, res)
+);
+
+router.post('/:id/tracking/arrive', authenticate, (req, res) => 
+  jobController.arriveTracking(req, res)
 );
 
 export default router;

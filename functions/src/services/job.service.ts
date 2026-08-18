@@ -1,13 +1,9 @@
-/**
- * Job Service
- * Business logic for job operations
- */
-
 import * as admin from 'firebase-admin';
 import { BaseService } from './base.service';
 import { COLLECTIONS } from '../constants';
 import { Job, CreateJobDTO, UpdateJobDTO } from '../models/job.model';
 import { isValidTrade, Trade } from '../constants/trades';
+import { initiateTransfer } from '../utils/paystack';
 
 export class JobService extends BaseService {
   private db: admin.firestore.Firestore;
@@ -17,21 +13,16 @@ export class JobService extends BaseService {
     this.db = admin.firestore();
   }
 
-  /**
-   * Create new job
-   */
   async createJob(clientUid: string, data: CreateJobDTO): Promise<Job> {
     try {
       this.validateRequired(data, ['trade_needed', 'title', 'description', 'location', 'urgency']);
 
-      // Validate trade
       if (!isValidTrade(data.trade_needed as string)) {
         throw new Error('Invalid trade. Must be one of the 24 locked trades.');
       }
 
-      // Validate urgency
       const validUrgencies = ['Today', 'This Week', 'Flexible'];
-      if (!validUrgencies.includes(data.urgency)) {
+      if (!data.urgency || !validUrgencies.includes(data.urgency)) {
         throw new Error(`Invalid urgency. Must be one of: ${validUrgencies.join(', ')}`);
       }
 
@@ -45,14 +36,13 @@ export class JobService extends BaseService {
         budget: data.budget,
         budget_min: data.budget_min,
         budget_max: data.budget_max,
-        match_fee: data.match_fee || 500, // Default ₦500
+        match_fee: data.match_fee || 500,
         status: 'open',
         created_at: admin.firestore.FieldValue.serverTimestamp(),
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       };
 
       const docRef = await this.db.collection(COLLECTIONS.JOBS).add(jobData);
-
       this.logOperation('job-created', { jobId: docRef.id, clientUid, trade: data.trade_needed });
 
       return {
@@ -66,16 +56,10 @@ export class JobService extends BaseService {
     }
   }
 
-  /**
-   * Get job by ID
-   */
   async getJobById(jobId: string): Promise<Job | null> {
     try {
       const doc = await this.db.collection(COLLECTIONS.JOBS).doc(jobId).get();
-
-      if (!doc.exists) {
-        return null;
-      }
+      if (!doc.exists) return null;
 
       return {
         job_id: doc.id,
@@ -86,15 +70,10 @@ export class JobService extends BaseService {
     }
   }
 
-  /**
-   * Update job
-   */
   async updateJob(jobId: string, updates: UpdateJobDTO): Promise<Job> {
     try {
       const job = await this.getJobById(jobId);
-      if (!job) {
-        throw new Error('Job not found');
-      }
+      if (!job) throw new Error('Job not found');
 
       const updateData: any = {
         ...updates,
@@ -102,7 +81,6 @@ export class JobService extends BaseService {
       };
 
       await this.db.collection(COLLECTIONS.JOBS).doc(jobId).update(updateData);
-
       this.logOperation('job-updated', { jobId });
 
       return await this.getJobById(jobId) as Job;
@@ -111,9 +89,6 @@ export class JobService extends BaseService {
     }
   }
 
-  /**
-   * Get jobs by client UID
-   */
   async getJobsByClient(clientUid: string): Promise<Job[]> {
     try {
       const snapshot = await this.db
@@ -131,14 +106,9 @@ export class JobService extends BaseService {
     }
   }
 
-  /**
-   * Get open jobs by trade
-   */
   async getOpenJobsByTrade(trade: Trade): Promise<Job[]> {
     try {
-      if (!isValidTrade(trade as string)) {
-        throw new Error('Invalid trade');
-      }
+      if (!isValidTrade(trade as string)) throw new Error('Invalid trade');
 
       const snapshot = await this.db
         .collection(COLLECTIONS.JOBS)
@@ -156,41 +126,24 @@ export class JobService extends BaseService {
     }
   }
 
-  /**
-   * Mark job as complete and release escrow
-   * CRITICAL REQUIREMENTS:
-   * - Only the client who owns the job can mark it complete
-   * - Commission calculated from locked_job_value (never from current job value)
-   * - Idempotent - calling twice doesn't double-release
-   * - Handles edge cases: zero job value, fractional kobo
-   */
   async markComplete(jobId: string, clientUid: string, matchId: string): Promise<any> {
     try {
       const job = await this.getJobById(jobId);
-      if (!job) {
-        throw new Error('Job not found');
-      }
+      if (!job) throw new Error('Job not found');
 
-      // Verify ownership
       if (job.client_uid !== clientUid) {
         throw new Error('Forbidden: Only the client who posted this job can mark it complete');
       }
 
       const matchRef = this.db.collection('matches').doc(matchId);
       const matchDoc = await matchRef.get();
-
-      if (!matchDoc.exists) {
-        throw new Error('Match not found');
-      }
+      if (!matchDoc.exists) throw new Error('Match not found');
 
       const matchData = matchDoc.data();
-
-      // Verify match belongs to this job
       if (matchData?.job_id !== jobId) {
         throw new Error('Match does not belong to this job');
       }
 
-      // Get transaction for this match
       const transactionsSnapshot = await this.db.collection('transactions')
         .where('match_id', '==', matchId)
         .where('status', '==', 'held')
@@ -204,7 +157,6 @@ export class JobService extends BaseService {
       const transactionDoc = transactionsSnapshot.docs[0];
       const transactionData = transactionDoc.data();
 
-      // IDEMPOTENCY CHECK: If transaction already released, return success without re-processing
       if (transactionData?.status === 'released') {
         return {
           message: 'Job already marked complete (idempotent)',
@@ -218,47 +170,50 @@ export class JobService extends BaseService {
         };
       }
 
-      // Calculate commission from locked_job_value (immutable, set at payment initialization)
       const lockedJobValue = transactionData?.locked_job_value || 0;
-      
-      // Handle edge case: zero job value
-      if (lockedJobValue === 0) {
-        this.logger.warn(`Job ${jobId} has zero locked_job_value, no commission to retain`);
-      }
-
-      // Calculate 10% commission, rounding to handle fractional kobo
       const commissionRetained = Math.round(lockedJobValue * 0.10);
 
-      // CRITICAL: Use Firestore transaction to ensure atomicity
-      // All 4 updates succeed or all fail - prevents partial completion
+      const artisanRef = this.db.collection('artisan_profiles').doc(matchData!.artisan_uid);
+      const artisanDoc = await artisanRef.get();
+      const artisanData = artisanDoc.data();
+
       await this.db.runTransaction(async (transaction) => {
-        // 1. Update transaction: status → released, set commission and released_at
         transaction.update(transactionDoc.ref, {
           status: 'released',
           commission_retained: commissionRetained,
           released_at: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        // 2. Update job status to complete
         const jobRef = this.db.collection('jobs').doc(jobId);
         transaction.update(jobRef, {
-          status: 'completed', // PRD uses 'completed', code used 'complete'
+          status: 'completed',
           updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        // 3. Update match status to completed
         transaction.update(matchRef, {
           status: 'completed',
           updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        // 4. Increment artisan's completed_jobs count
-        const artisanRef = this.db.collection('artisan_profiles').doc(matchData!.artisan_uid);
         transaction.update(artisanRef, {
           completed_jobs: admin.firestore.FieldValue.increment(1),
           updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
       });
+
+      const netAmount = lockedJobValue - commissionRetained;
+      let transferResult = null;
+      if (artisanData?.paystack_recipient_code && netAmount > 0) {
+        try {
+          transferResult = await initiateTransfer(
+            artisanData.paystack_recipient_code,
+            netAmount,
+            `Payment for Job ${jobId}`
+          );
+        } catch (transferError: any) {
+          this.logger.error(`Failed to transfer funds to artisan ${matchData!.artisan_uid} for job ${jobId}`, transferError);
+        }
+      }
 
       this.logOperation('job-completed', { jobId, clientUid });
 
@@ -269,7 +224,8 @@ export class JobService extends BaseService {
           status: 'released',
           locked_job_value: lockedJobValue,
           commission_retained: commissionRetained,
-          artisan_receives: lockedJobValue - commissionRetained,
+          artisan_receives: netAmount,
+          transfer_triggered: !!transferResult,
           released_at: new Date()
         }
       };
@@ -278,17 +234,11 @@ export class JobService extends BaseService {
     }
   }
 
-  /**
-   * Cancel job
-   */
   async cancelJob(jobId: string, clientUid: string): Promise<void> {
     try {
       const job = await this.getJobById(jobId);
-      if (!job) {
-        throw new Error('Job not found');
-      }
+      if (!job) throw new Error('Job not found');
 
-      // Verify ownership
       if (job.client_uid !== clientUid) {
         throw new Error('Unauthorized: You can only cancel your own jobs');
       }
@@ -304,10 +254,37 @@ export class JobService extends BaseService {
     }
   }
 
-  /**
-   * Search jobs with filters
-   * Now supports pagination with limit and offset
-   */
+  async updateTrackingState(jobId: string, artisanUid: string, state: 'en_route' | 'arrived'): Promise<void> {
+    try {
+      const job = await this.getJobById(jobId);
+      if (!job) throw new Error('Job not found');
+
+      if (job.status !== 'in_progress') {
+        throw new Error('Can only track location for in_progress (funded) jobs');
+      }
+
+      const matchSnapshot = await this.db.collection('matches')
+        .where('job_id', '==', jobId)
+        .where('artisan_uid', '==', artisanUid)
+        .where('status', '==', 'accepted')
+        .limit(1)
+        .get();
+
+      if (matchSnapshot.empty) {
+        throw new Error('Unauthorized: You are not the accepted artisan for this job');
+      }
+
+      await this.db.collection(COLLECTIONS.JOBS).doc(jobId).update({
+        tracking_state: state,
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      this.logOperation('job-tracking-updated', { jobId, artisanUid, state });
+    } catch (error) {
+      this.handleError(error, 'Update tracking state');
+    }
+  }
+
   async searchJobs(filters: {
     trade?: string;
     location?: string;
@@ -320,9 +297,7 @@ export class JobService extends BaseService {
       let query: admin.firestore.Query = this.db.collection(COLLECTIONS.JOBS);
 
       if (filters.trade) {
-        if (!isValidTrade(filters.trade)) {
-          throw new Error('Invalid trade');
-        }
+        if (!isValidTrade(filters.trade)) throw new Error('Invalid trade');
         query = query.where('trade_needed', '==', filters.trade);
       }
 
@@ -334,11 +309,9 @@ export class JobService extends BaseService {
         query = query.where('urgency', '==', filters.urgency);
       }
 
-      // Apply ordering
       query = query.orderBy('created_at', 'desc');
 
-      // Apply pagination
-      const limit = filters.limit && filters.limit > 0 ? Math.min(filters.limit, 100) : 50; // Default 50, max 100
+      const limit = filters.limit && filters.limit > 0 ? Math.min(filters.limit, 100) : 50;
       const offset = filters.offset || 0;
 
       query = query.limit(limit);
@@ -353,7 +326,6 @@ export class JobService extends BaseService {
         ...doc.data()
       } as unknown as Job));
 
-      // Filter by location if provided (Firestore doesn't support nested field queries well)
       if (filters.location) {
         jobs = jobs.filter(job => 
           job.location.city.toLowerCase().includes(filters.location!.toLowerCase()) ||

@@ -15,7 +15,30 @@
     }
   ],
   "firestore": {
+    "database": "default",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "auth": {
+      "port": 9099
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    }
+  },
+  "auth": {
+    "authorizedDomains": [
+      "localhost",
+      "artiva-a0594.firebaseapp.com",
+      "artiva-a0594.web.app"
+    ],
+    "providers": {
+      "emailPassword": true
+    }
   }
 }

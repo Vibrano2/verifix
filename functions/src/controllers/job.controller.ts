@@ -20,7 +20,7 @@ export class JobController extends BaseController {
   }
 
   /**
-   * POST /api/jobs
+   * POST /v1/jobs
    */
   async createJob(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
@@ -28,9 +28,15 @@ export class JobController extends BaseController {
         return this.sendUnauthorized(res, 'Authentication required');
       }
 
-      const job = await this.jobService.createJob(req.user.uid, req.body);
+      const body = { ...req.body };
+      // Map frontend payload to backend schema
+      if (body.trade && !body.trade_needed) body.trade_needed = body.trade;
+      if (body.timing && !body.urgency) body.urgency = body.timing === 'ASAP' ? 'Today' : 'Flexible';
+      if (typeof body.location === 'string') body.location = { address: body.location, city: '', state: '', lga: '' };
 
-      this.sendCreated(res, 'Job created successfully', { job });
+      const job = await this.jobService.createJob(req.user.uid, body);
+
+      this.sendCreated(res, 'Job created successfully', { data: job });
     } catch (error) {
       this.handleError(error, res, 'Create job');
     }
@@ -102,7 +108,66 @@ export class JobController extends BaseController {
   }
 
   /**
-   * POST /api/jobs/:id/complete
+   * POST /v1/jobs/:id/select-artisan
+   */
+  async selectArtisan(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        return this.sendUnauthorized(res, 'Authentication required');
+      }
+
+      const { id } = req.params;
+      const { artisan_id } = req.body;
+
+      if (!artisan_id) {
+        return this.sendBadRequest(res, 'Artisan ID is required');
+      }
+
+      const db = admin.firestore();
+      
+      // Find the match
+      const matchesSnapshot = await db.collection('matches')
+        .where('job_id', '==', id)
+        .where('artisan_uid', '==', artisan_id)
+        .limit(1)
+        .get();
+
+      if (matchesSnapshot.empty) {
+         // Create the match if it doesn't exist (e.g. they skipped matching phase somehow)
+         const matchRef = db.collection('matches').doc();
+         await matchRef.set({
+           job_id: id,
+           artisan_uid: artisan_id,
+           status: 'accepted',
+           rating: null,
+           created_at: admin.firestore.FieldValue.serverTimestamp(),
+           updated_at: admin.firestore.FieldValue.serverTimestamp()
+         });
+         
+         await db.collection('jobs').doc(id).update({
+           status: 'matched',
+           assigned_artisan_uid: artisan_id
+         });
+         
+         this.sendSuccess(res, 'Artisan selected', { match_id: matchRef.id });
+         return;
+      }
+
+      const matchDoc = matchesSnapshot.docs[0];
+      await matchDoc.ref.update({ status: 'accepted' });
+      await db.collection('jobs').doc(id).update({
+        status: 'matched',
+        assigned_artisan_uid: artisan_id
+      });
+
+      this.sendSuccess(res, 'Artisan selected', { match_id: matchDoc.id });
+    } catch (error) {
+      this.handleError(error, res, 'Select artisan');
+    }
+  }
+
+  /**
+   * POST /v1/jobs/:id/complete
    */
   async markComplete(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
@@ -111,13 +176,48 @@ export class JobController extends BaseController {
       }
 
       const { id } = req.params;
-      const { match_id } = req.body;
+      let { match_id, rating, review } = req.body;
 
+      // If match_id is not provided, try to find the accepted match for this job
       if (!match_id) {
-        return this.sendBadRequest(res, 'Match ID is required');
+        const matchesSnapshot = await admin.firestore().collection('matches')
+          .where('job_id', '==', id)
+          .where('status', '==', 'accepted')
+          .limit(1)
+          .get();
+        
+        if (!matchesSnapshot.empty) {
+          match_id = matchesSnapshot.docs[0].id;
+        } else {
+           // check for any match for this job if there's only one
+           const allMatches = await admin.firestore().collection('matches').where('job_id', '==', id).get();
+           if (allMatches.size === 1) {
+             match_id = allMatches.docs[0].id;
+           } else {
+             return this.sendBadRequest(res, 'Match ID could not be determined automatically');
+           }
+        }
       }
 
       const result = await this.jobService.markComplete(id, req.user.uid, match_id);
+
+      // If rating is provided, submit rating
+      if (rating) {
+         try {
+           const { RatingController } = require('./rating.controller');
+           const ratingController = new RatingController();
+           // Manually construct request for rating controller
+           const ratingReq = { ...req, params: { id }, body: { score: rating, review } } as any;
+           const ratingRes = {
+             status: () => ({ json: () => {} }),
+             json: () => {}
+           } as any;
+           await ratingController.submitRating(ratingReq, ratingRes);
+         } catch(e) {
+           // ignore rating error if completion succeeds
+           console.error("Error submitting rating inline", e);
+         }
+      }
 
       // result contains the transaction details
       this.sendSuccess(res, 'Job marked complete and escrow released successfully', result);
@@ -280,6 +380,38 @@ export class JobController extends BaseController {
       });
     } catch (error) {
       this.handleError(error, res, 'Get matches');
+    }
+  }
+
+  /**
+   * POST /v1/jobs/:id/tracking/start
+   */
+  async startTracking(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        return this.sendUnauthorized(res, 'Authentication required');
+      }
+      const { id } = req.params;
+      await this.jobService.updateTrackingState(id, req.user.uid, 'en_route');
+      this.sendSuccess(res, 'Tracking started');
+    } catch (error) {
+      this.handleError(error, res, 'Start tracking');
+    }
+  }
+
+  /**
+   * POST /v1/jobs/:id/tracking/arrive
+   */
+  async arriveTracking(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        return this.sendUnauthorized(res, 'Authentication required');
+      }
+      const { id } = req.params;
+      await this.jobService.updateTrackingState(id, req.user.uid, 'arrived');
+      this.sendSuccess(res, 'Artisan arrived');
+    } catch (error) {
+      this.handleError(error, res, 'Arrive tracking');
     }
   }
 }

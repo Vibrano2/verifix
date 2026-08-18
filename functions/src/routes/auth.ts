@@ -6,37 +6,12 @@ import { CreateUserSchema } from '../models/user.model';
 const router = Router();
 const authController = new AuthController();
 
-/**
- * @swagger
- * /api/auth/phone/send-otp:
- *   post:
- *     summary: Send OTP to phone number using Firebase Auth
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - phone
- *             properties:
- *               phone:
- *                 type: string
- *                 description: Phone number in E.164 format (e.g. +2348012345678)
- *     responses:
- *       200:
- *         description: OTP sent successfully
- *       400:
- *         description: Bad request
- */
-router.post('/phone/send-otp', (req, res) => authController.sendOTP(req, res));
 
 /**
  * @swagger
- * /api/auth/phone/verify-otp:
+ * /api/auth/register:
  *   post:
- *     summary: Verify OTP and create/update user
+ *     summary: Register user after Firebase Email Auth
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -49,9 +24,11 @@ router.post('/phone/send-otp', (req, res) => authController.sendOTP(req, res));
  *               - first_name
  *               - last_name
  *               - role
+ *               - email
  *             properties:
  *               idToken:
  *                 type: string
+ *                 description: Firebase ID Token (JWT)
  *               first_name:
  *                 type: string
  *               last_name:
@@ -63,11 +40,11 @@ router.post('/phone/send-otp', (req, res) => authController.sendOTP(req, res));
  *                 type: string
  *     responses:
  *       201:
- *         description: User verified and created/updated
+ *         description: User registered successfully
  *       400:
  *         description: Bad request
  */
-router.post('/phone/verify-otp', validate(CreateUserSchema), (req, res) => authController.verifyOTP(req, res));
+router.post('/register', validate(CreateUserSchema), (req, res) => authController.registerUser(req, res));
 
 /**
  * @swagger
@@ -89,5 +66,15 @@ router.post('/phone/verify-otp', validate(CreateUserSchema), (req, res) => authC
  *         description: Custom token created
  */
 router.post('/create-custom-token', (req, res) => authController.createCustomToken(req, res));
+
+// OTP Auth Endpoints
+router.post('/send-otp', (req, res) => authController.sendOTP(req, res));
+router.post('/verify-otp', (req, res) => authController.verifyOTP(req, res));
+
+// Email Login Verification Endpoint
+router.post('/email/verify', (req, res) => authController.verifyEmailLogin(req, res));
+
+// Firebase Phone Auth Verification Endpoint
+router.post('/firebase/verify', (req, res) => authController.verifyFirebaseLogin(req, res));
 
 export default router;
