@@ -1,16 +1,16 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers';
 import { validate } from '../middleware/zodValidation';
-import { CreateUserSchema } from '../models/user.model';
+import { RegisterUserSchema, LoginUserSchema, ForgotPasswordSchema, ResetPasswordSchema } from '../models/user.model';
 
 const router = Router();
 const authController = new AuthController();
 
 /**
  * @swagger
- * /api/auth/phone/send-otp:
+ * /api/auth/register:
  *   post:
- *     summary: Send OTP to phone number using Firebase Auth
+ *     summary: Register a new user
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -19,38 +19,15 @@ const authController = new AuthController();
  *           schema:
  *             type: object
  *             required:
- *               - phone
- *             properties:
- *               phone:
- *                 type: string
- *                 description: Phone number in E.164 format (e.g. +2348012345678)
- *     responses:
- *       200:
- *         description: OTP sent successfully
- *       400:
- *         description: Bad request
- */
-router.post('/phone/send-otp', (req, res) => authController.sendOTP(req, res));
-
-/**
- * @swagger
- * /api/auth/phone/verify-otp:
- *   post:
- *     summary: Verify OTP and create/update user
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - idToken
+ *               - email
+ *               - password
  *               - first_name
  *               - last_name
  *               - role
  *             properties:
- *               idToken:
+ *               email:
+ *                 type: string
+ *               password:
  *                 type: string
  *               first_name:
  *                 type: string
@@ -59,21 +36,19 @@ router.post('/phone/send-otp', (req, res) => authController.sendOTP(req, res));
  *               role:
  *                 type: string
  *                 enum: [client, artisan, admin]
- *               email:
- *                 type: string
  *     responses:
  *       201:
- *         description: User verified and created/updated
+ *         description: User registered successfully
  *       400:
  *         description: Bad request
  */
-router.post('/phone/verify-otp', validate(CreateUserSchema), (req, res) => authController.verifyOTP(req, res));
+router.post('/register', validate(RegisterUserSchema), (req, res) => authController.register(req, res));
 
 /**
  * @swagger
- * /api/auth/create-custom-token:
+ * /api/auth/login:
  *   post:
- *     summary: Helper endpoint for development/testing
+ *     summary: Login user
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -81,13 +56,69 @@ router.post('/phone/verify-otp', validate(CreateUserSchema), (req, res) => authC
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - email
+ *               - password
  *             properties:
- *               phone:
+ *               email:
+ *                 type: string
+ *               password:
  *                 type: string
  *     responses:
  *       200:
- *         description: Custom token created
+ *         description: Login successful
+ *       400:
+ *         description: Bad request
  */
-router.post('/create-custom-token', (req, res) => authController.createCustomToken(req, res));
+router.post('/login', validate(LoginUserSchema), (req, res) => authController.login(req, res));
+
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Request password reset
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Reset request processed
+ */
+router.post('/forgot-password', validate(ForgotPasswordSchema), (req, res) => authController.forgotPassword(req, res));
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Reset password
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - newPassword
+ *             properties:
+ *               token:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ */
+router.post('/reset-password', validate(ResetPasswordSchema), (req, res) => authController.resetPassword(req, res));
 
 export default router;
