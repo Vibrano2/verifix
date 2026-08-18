@@ -1,8 +1,3 @@
-/**
- * Artisan Controller
- * Handles HTTP requests for artisan operations
- */
-
 import { Request, Response } from 'express';
 import { BaseController } from './base.controller';
 import { ArtisanService } from '../services';
@@ -17,9 +12,6 @@ export class ArtisanController extends BaseController {
     this.artisanService = new ArtisanService();
   }
 
-  /**
-   * POST /api/artisans/signup
-   */
   async completeProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -45,22 +37,16 @@ export class ArtisanController extends BaseController {
     }
   }
 
-  /**
-   * POST /v1/artisans (Unified Registration)
-   */
   async registerArtisan(req: Request, res: Response): Promise<void> {
     try {
       const data = req.body;
       const result = await this.artisanService.registerArtisan(data);
-      this.sendCreated(res, 'Artisan registered successfully', { data: result?.profile }); // match requested payload response: { data: { uid, is_verified } }
+      this.sendCreated(res, 'Artisan registered successfully', { data: result?.profile });
     } catch (error) {
       this.handleError(error, res, 'Register artisan');
     }
   }
 
-  /**
-   * GET /v1/artisans (Public Directory)
-   */
   async listArtisans(req: Request, res: Response): Promise<void> {
     try {
       const { trade, location, available } = req.query;
@@ -75,49 +61,36 @@ export class ArtisanController extends BaseController {
     }
   }
 
-  /**
-   * PATCH /api/artisans/:uid/availability
-   */
   async updateAvailability(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { uid } = req.params;
       const { available } = req.body;
 
       await this.artisanService.updateAvailability(uid, available);
-
       this.sendSuccess(res, 'Availability updated successfully', { available });
     } catch (error) {
       this.handleError(error, res, 'Update availability');
     }
   }
 
-  /**
-   * PATCH /api/artisans/:uid/profile
-   */
   async updateProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { uid } = req.params;
       const updates = req.body;
 
       const artisan = await this.artisanService.updateProfile(uid, updates);
-
       this.sendSuccess(res, 'Profile updated successfully', { profile: artisan });
     } catch (error) {
       this.handleError(error, res, 'Update profile');
     }
   }
 
-  /**
-   * POST /api/artisans/:uid/photo
-   */
   async addWorkPhoto(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { uid } = req.params;
-      
       const { url, filename } = await uploadFile(req, `artisan_photos/${uid}`, 5 * 1024 * 1024);
 
       await this.artisanService.addWorkPhoto(uid, url);
-
       this.sendSuccess(res, 'Photo uploaded successfully', { url, filename });
     } catch (error: any) {
       if (error.message.includes('Invalid file type') || 
@@ -130,17 +103,12 @@ export class ArtisanController extends BaseController {
     }
   }
 
-  /**
-   * POST /api/artisans/:uid/id-document
-   */
   async uploadIDDocument(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { uid } = req.params;
-      
       const { url, filename } = await uploadFile(req, `id_documents/${uid}`, 10 * 1024 * 1024);
 
       await this.artisanService.uploadIDDocument(uid, url);
-
       this.sendSuccess(res, 'ID document uploaded successfully', { url, filename });
     } catch (error: any) {
       if (error.message.includes('Invalid file type') || 
@@ -153,30 +121,20 @@ export class ArtisanController extends BaseController {
     }
   }
 
-  /**
-   * GET /api/artisans/:uid
-   */
   async getProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { uid } = req.params;
-
       const profile = await this.artisanService.getProfile(uid);
-
       this.sendSuccess(res, 'Profile fetched successfully', { profile });
     } catch (error) {
       this.handleError(error, res, 'Get profile');
     }
   }
 
-  /**
-   * GET /api/artisans/:uid/dashboard
-   */
   async getDashboard(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { uid } = req.params;
-
       const dashboard = await this.artisanService.getDashboard(uid);
-
       this.sendSuccess(res, 'Dashboard data fetched successfully', dashboard);
     } catch (error) {
       this.handleError(error, res, 'Get dashboard');

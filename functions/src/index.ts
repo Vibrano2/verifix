@@ -1,6 +1,5 @@
 import './initFirebase';
 import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
 import express from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
@@ -16,8 +15,12 @@ import { ndprMaskingMiddleware } from './middleware/ndprMasking';
 import { initializeEncryption } from './utils/encryption';
 import { Logger } from './utils/logger';
 import { RefundService } from './services/refund.service';
+import authRoutes from './routes/auth';
+import artisanRoutes from './routes/artisan';
+import jobRoutes from './routes/job';
+import paymentRoutes from './routes/payment';
+import adminRoutes from './routes/admin';
 
-// Validate environment variables on startup
 function validateEnvironment() {
   const required = ['PAYSTACK_SECRET_KEY', 'ENCRYPTION_KEY', 'ADMIN_UID'];
   const missing = required.filter(key => !process.env[key] || process.env[key] === 'default-dev-key-change-in-production-32char');
@@ -27,22 +30,15 @@ function validateEnvironment() {
 }
 
 validateEnvironment();
-
-// Firebase Admin is now initialized via './initFirebase'
-
-// Initialize encryption
 initializeEncryption();
 
-// Create Express app
 const app = express();
 
-// Security Middleware
 app.use(requestId);
 app.use(securityHeaders);
 app.use(monitorIP);
-app.use(rateLimit(100, 15 * 60 * 1000)); // 100 requests per 15 minutes
+app.use(rateLimit(100, 15 * 60 * 1000));
 
-// CORS Configuration
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5000',
@@ -70,37 +66,23 @@ app.use(express.json({
   }
 }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
 app.use(validateContentType);
-
-// NDPR PII Data Masking Middleware
 app.use(ndprMaskingMiddleware as any);
 
-// Swagger API Documentation UI
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Import routes
-import authRoutes from './routes/auth';
-import artisanRoutes from './routes/artisan';
-import jobRoutes from './routes/job';
-import paymentRoutes from './routes/payment';
-import adminRoutes from './routes/admin';
-
-// Register API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/artisans', artisanRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Register v1 aliases
 app.use('/v1/auth', authRoutes);
 app.use('/v1/artisans', artisanRoutes);
 app.use('/v1/jobs', jobRoutes);
 app.use('/v1/payments', paymentRoutes);
 app.use('/v1/admin', adminRoutes);
 
-// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
@@ -109,10 +91,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Export Express App as HTTPS Cloud Function
 export const api = functions.https.onRequest(app);
 
-// Export PubSub Scheduled Cloud Function for 4-Hour No-Response Auto-Refunds
 const refundService = new RefundService();
 export const processNoResponseRefundsScheduler = functions.pubsub
   .schedule('every 15 minutes')

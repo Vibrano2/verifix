@@ -1,8 +1,3 @@
-/**
- * Job Controller
- * Handles HTTP requests for job operations
- */
-
 import { Response } from 'express';
 import { BaseController } from './base.controller';
 import { JobService, MatchingService } from '../services';
@@ -19,9 +14,6 @@ export class JobController extends BaseController {
     this.matchingService = new MatchingService();
   }
 
-  /**
-   * POST /v1/jobs
-   */
   async createJob(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -29,26 +21,20 @@ export class JobController extends BaseController {
       }
 
       const body = { ...req.body };
-      // Map frontend payload to backend schema
       if (body.trade && !body.trade_needed) body.trade_needed = body.trade;
       if (body.timing && !body.urgency) body.urgency = body.timing === 'ASAP' ? 'Today' : 'Flexible';
       if (typeof body.location === 'string') body.location = { address: body.location, city: '', state: '', lga: '' };
 
       const job = await this.jobService.createJob(req.user.uid, body);
-
       this.sendCreated(res, 'Job created successfully', { data: job });
     } catch (error) {
       this.handleError(error, res, 'Create job');
     }
   }
 
-  /**
-   * GET /api/jobs/:id
-   */
   async getJob(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-
       const job = await this.jobService.getJobById(id);
 
       if (!job) {
@@ -61,24 +47,16 @@ export class JobController extends BaseController {
     }
   }
 
-  /**
-   * PATCH /api/jobs/:id
-   */
   async updateJob(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-
       const job = await this.jobService.updateJob(id, req.body);
-
       this.sendSuccess(res, 'Job updated successfully', { job });
     } catch (error) {
       this.handleError(error, res, 'Update job');
     }
   }
 
-  /**
-   * GET /api/jobs (list jobs with filters)
-   */
   async listJobs(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -86,7 +64,6 @@ export class JobController extends BaseController {
       }
 
       const { trade, location, status, urgency, limit, offset } = req.query;
-
       const jobs = await this.jobService.searchJobs({
         trade: trade as string,
         location: location as string,
@@ -107,9 +84,6 @@ export class JobController extends BaseController {
     }
   }
 
-  /**
-   * POST /v1/jobs/:id/select-artisan
-   */
   async selectArtisan(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -124,8 +98,6 @@ export class JobController extends BaseController {
       }
 
       const db = admin.firestore();
-      
-      // Find the match
       const matchesSnapshot = await db.collection('matches')
         .where('job_id', '==', id)
         .where('artisan_uid', '==', artisan_id)
@@ -133,7 +105,6 @@ export class JobController extends BaseController {
         .get();
 
       if (matchesSnapshot.empty) {
-         // Create the match if it doesn't exist (e.g. they skipped matching phase somehow)
          const matchRef = db.collection('matches').doc();
          await matchRef.set({
            job_id: id,
@@ -166,9 +137,6 @@ export class JobController extends BaseController {
     }
   }
 
-  /**
-   * POST /v1/jobs/:id/complete
-   */
   async markComplete(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -178,7 +146,6 @@ export class JobController extends BaseController {
       const { id } = req.params;
       let { match_id, rating, review } = req.body;
 
-      // If match_id is not provided, try to find the accepted match for this job
       if (!match_id) {
         const matchesSnapshot = await admin.firestore().collection('matches')
           .where('job_id', '==', id)
@@ -189,7 +156,6 @@ export class JobController extends BaseController {
         if (!matchesSnapshot.empty) {
           match_id = matchesSnapshot.docs[0].id;
         } else {
-           // check for any match for this job if there's only one
            const allMatches = await admin.firestore().collection('matches').where('job_id', '==', id).get();
            if (allMatches.size === 1) {
              match_id = allMatches.docs[0].id;
@@ -201,12 +167,10 @@ export class JobController extends BaseController {
 
       const result = await this.jobService.markComplete(id, req.user.uid, match_id);
 
-      // If rating is provided, submit rating
       if (rating) {
          try {
            const { RatingController } = require('./rating.controller');
            const ratingController = new RatingController();
-           // Manually construct request for rating controller
            const ratingReq = { ...req, params: { id }, body: { score: rating, review } } as any;
            const ratingRes = {
              status: () => ({ json: () => {} }),
@@ -214,21 +178,16 @@ export class JobController extends BaseController {
            } as any;
            await ratingController.submitRating(ratingReq, ratingRes);
          } catch(e) {
-           // ignore rating error if completion succeeds
            console.error("Error submitting rating inline", e);
          }
       }
 
-      // result contains the transaction details
       this.sendSuccess(res, 'Job marked complete and escrow released successfully', result);
     } catch (error) {
       this.handleError(error, res, 'Mark job complete');
     }
   }
 
-  /**
-   * POST /api/jobs/:id/cancel
-   */
   async cancelJob(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -236,33 +195,23 @@ export class JobController extends BaseController {
       }
 
       const { id } = req.params;
-
       await this.jobService.cancelJob(id, req.user.uid);
-
       this.sendSuccess(res, 'Job cancelled successfully');
     } catch (error) {
       this.handleError(error, res, 'Cancel job');
     }
   }
 
-  /**
-   * GET /api/jobs/client/:clientUid (client's jobs)
-   */
   async getClientJobs(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { clientUid } = req.params;
-
       const jobs = await this.jobService.getJobsByClient(clientUid);
-
       this.sendSuccess(res, 'Jobs fetched successfully', { jobs, count: jobs.length });
     } catch (error) {
       this.handleError(error, res, 'Get client jobs');
     }
   }
 
-  /**
-   * POST /api/jobs/:id/match
-   */
   async matchArtisans(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -270,7 +219,6 @@ export class JobController extends BaseController {
       }
 
       const { id } = req.params;
-
       const db = admin.firestore();
       const jobDoc = await db.collection('jobs').doc(id).get();
       
@@ -279,13 +227,10 @@ export class JobController extends BaseController {
       }
 
       const jobData = jobDoc.data();
-
-      // Verify ownership
       if (jobData?.client_uid !== req.user.uid) {
         return this.sendForbidden(res, 'Forbidden: You do not own this job');
       }
 
-      // Only match open jobs
       if (jobData?.status !== 'open') {
         return this.sendBadRequest(res, 'Job is not open for matching');
       }
@@ -303,9 +248,6 @@ export class JobController extends BaseController {
     }
   }
 
-  /**
-   * GET /api/jobs/:id/matches
-   */
   async getMatches(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -315,7 +257,6 @@ export class JobController extends BaseController {
       const { id } = req.params;
       const db = admin.firestore();
       
-      // Verify job ownership
       const jobRef = db.collection('jobs').doc(id);
       const jobDoc = await jobRef.get();
 
@@ -328,20 +269,15 @@ export class JobController extends BaseController {
         return this.sendForbidden(res, 'Forbidden: You do not own this job');
       }
 
-      // Get matches
       const matchesSnapshot = await db.collection('matches')
         .where('job_id', '==', id)
         .orderBy('created_at', 'desc')
         .get();
 
-      // Extract unique artisan UIDs
       const artisanUids = [...new Set(matchesSnapshot.docs.map(doc => doc.data().artisan_uid))];
-
-      // Batch fetch all artisan profiles (fixes N+1 query problem)
       const artisanProfiles: Record<string, any> = {};
       
       if (artisanUids.length > 0) {
-        // Firestore 'in' query supports up to 10 items, so batch if needed
         const batchSize = 10;
         for (let i = 0; i < artisanUids.length; i += batchSize) {
           const batch = artisanUids.slice(i, i + batchSize);
@@ -355,7 +291,6 @@ export class JobController extends BaseController {
         }
       }
 
-      // Map matches with artisan data
       const matchesWithArtisans = matchesSnapshot.docs.map(doc => {
         const matchData = doc.data();
         const artisanData = artisanProfiles[matchData.artisan_uid];
@@ -383,9 +318,6 @@ export class JobController extends BaseController {
     }
   }
 
-  /**
-   * POST /v1/jobs/:id/tracking/start
-   */
   async startTracking(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -399,9 +331,6 @@ export class JobController extends BaseController {
     }
   }
 
-  /**
-   * POST /v1/jobs/:id/tracking/arrive
-   */
   async arriveTracking(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
