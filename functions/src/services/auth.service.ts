@@ -4,6 +4,7 @@ import { UserRepository, ArtisanRepository } from '../repositories';
 import { ROLES, VERIFICATION_STATUS } from '../constants';
 import { User } from '../models/user.model';
 import { Trade } from '../constants/trades';
+import { checkOTPRateLimit, recordOTPAttempt } from '../utils/rateLimit';
 import * as crypto from 'crypto';
 
 function hashPII(data: string): string {
@@ -35,20 +36,11 @@ export class AuthService extends BaseService {
         throw new Error(`Invalid role. Must be "${ROLES.CLIENT}" or "${ROLES.ARTISAN}"`);
       }
 
-      let uid: string;
-      let email: string | undefined;
-      let phone: string | undefined;
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const uid = decodedToken.uid;
+      const email = decodedToken.email;
+      const phone = decodedToken.phone_number;
 
-      if (process.env.NODE_ENV !== 'production' && idToken.startsWith('TEST_TOKEN_')) {
-        uid = `test_${idToken}`;
-        email = `test@example.com`;
-        phone = `+2348000000000`;
-      } else {
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        uid = decodedToken.uid;
-        email = decodedToken.email;
-        phone = decodedToken.phone_number;
-      }
 
       if (!email) {
         throw new Error('Email is missing from the verified ID token.');
@@ -192,6 +184,11 @@ export class AuthService extends BaseService {
       this.validateRequired({ email }, ['email']);
       const formattedEmail = email.trim().toLowerCase();
 
+      const rateLimitResult = await checkOTPRateLimit(formattedEmail);
+      if (!rateLimitResult.allowed) {
+        throw new Error(rateLimitResult.reason || 'Too many OTP requests. Please try again later.');
+      }
+
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const expiration = new Date();
       expiration.setMinutes(expiration.getMinutes() + 15);
@@ -202,6 +199,7 @@ export class AuthService extends BaseService {
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
+      await recordOTPAttempt(formattedEmail, true);
       this.logger.info(`[MOCK EMAIL] To: ${formattedEmail}, Subject: Your Artiva Login Code, Body: Your OTP is ${otp}`);
       return { message: 'OTP sent successfully' };
     } catch (error) {
@@ -214,21 +212,31 @@ export class AuthService extends BaseService {
       this.validateRequired({ email, otp, role }, ['email', 'otp', 'role']);
       const formattedEmail = email.trim().toLowerCase();
 
+      const rateLimitResult = await checkOTPRateLimit(formattedEmail);
+      if (!rateLimitResult.allowed) {
+        throw new Error(rateLimitResult.reason || 'Too many failed attempts. Account temporarily locked.');
+      }
+
       const otpDoc = await admin.firestore().collection('otps').doc(formattedEmail).get();
       if (!otpDoc.exists) {
+        await recordOTPAttempt(formattedEmail, false);
         throw new Error('Invalid or expired OTP');
       }
 
       const otpData = otpDoc.data();
       if (otpData?.otp !== otp) {
+        await recordOTPAttempt(formattedEmail, false);
         throw new Error('Invalid OTP');
       }
 
       if (otpData?.expiresAt.toDate() < new Date()) {
+        await recordOTPAttempt(formattedEmail, false);
         throw new Error('OTP has expired');
       }
 
       await admin.firestore().collection('otps').doc(formattedEmail).delete();
+      await recordOTPAttempt(formattedEmail, true);
+
 
       let uid: string;
       try {

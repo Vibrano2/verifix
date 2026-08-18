@@ -4,6 +4,7 @@ import { ArtisanRepository, UserRepository } from '../repositories';
 import { Artisan, UpdateArtisanProfileDTO, PortfolioProject } from '../models/artisan.model';
 import { getCategoryForTrade, isValidTrade, Trade } from '../constants/trades';
 import { createTransferRecipient } from '../utils/paystack';
+import { validateFileSignature } from '../utils/fileUpload';
 
 export class ArtisanService extends BaseService {
   private artisanRepo: ArtisanRepository;
@@ -121,6 +122,9 @@ export class ArtisanService extends BaseService {
       let id_document_url = data.id_photo || '';
       if (data.id_document_base64) {
         const buffer = Buffer.from(data.id_document_base64, 'base64');
+        if (!validateFileSignature(buffer, 'image/jpeg') && !validateFileSignature(buffer, 'image/png')) {
+          throw new Error('Invalid ID document file format. Only JPEG and PNG images are allowed.');
+        }
         const file = bucket.file(`id_documents/${uid}/id_doc_${Date.now()}.jpg`);
         await file.save(buffer, { contentType: 'image/jpeg' });
         await file.makePublic();
@@ -131,6 +135,9 @@ export class ArtisanService extends BaseService {
       if (data.work_photos_base64 && Array.isArray(data.work_photos_base64)) {
         for (let i = 0; i < data.work_photos_base64.length; i++) {
           const buffer = Buffer.from(data.work_photos_base64[i], 'base64');
+          if (!validateFileSignature(buffer, 'image/jpeg') && !validateFileSignature(buffer, 'image/png')) {
+            continue;
+          }
           const file = bucket.file(`artisan_photos/${uid}/work_${Date.now()}_${i}.jpg`);
           await file.save(buffer, { contentType: 'image/jpeg' });
           await file.makePublic();

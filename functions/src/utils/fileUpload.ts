@@ -24,9 +24,10 @@ const FILE_SIGNATURES: Record<string, number[][]> = {
  * Validate file type by checking actual file signature (magic numbers)
  * This prevents relying on just file extension or declared MIME type
  */
-function validateFileSignature(buffer: Buffer, declaredType: string): boolean {
-  const signatures = FILE_SIGNATURES[declaredType];
-  if (!signatures) return false;
+export function validateFileSignature(buffer: Buffer, declaredType: string = 'image/jpeg'): boolean {
+  if (!buffer || buffer.length < 4) return false;
+  const signatures = FILE_SIGNATURES[declaredType] || Object.values(FILE_SIGNATURES).flat();
+
 
   return signatures.some(signature => {
     for (let i = 0; i < signature.length; i++) {

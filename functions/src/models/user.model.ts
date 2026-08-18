@@ -6,7 +6,7 @@ export const CreateUserSchema = z.object({
     idToken: z.string().min(10),
     first_name: z.string().min(1).max(50),
     last_name: z.string().min(1).max(50),
-    role: z.enum(['client', 'artisan', 'admin']),
+    role: z.enum(['client', 'artisan']),
     email: z.string().email()
   })
 });

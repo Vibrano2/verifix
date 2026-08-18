@@ -25,10 +25,11 @@ export class PaymentController extends BaseController {
   async handleWebhook(req: Request, res: Response): Promise<void> {
     try {
       const signature = req.headers['x-paystack-signature'] as string;
-      const body = JSON.stringify(req.body);
+      const body = (req as any).rawBody || JSON.stringify(req.body);
 
       // Verify webhook signature
       const isValid = this.paymentService.verifyWebhookSignature(signature, body);
+
 
       if (!isValid) {
         return this.sendUnauthorized(res, 'Invalid webhook signature');
