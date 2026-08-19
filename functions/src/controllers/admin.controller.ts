@@ -64,14 +64,13 @@ export class AdminController extends BaseController {
    */
   async createArtisan(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      this.validateRequired(req.body, [
-        'first_name',
-        'last_name',
-        'phone',
-        'trade',
-        'location',
-        'tagline'
-      ]);
+      const requiredFields = ['first_name', 'last_name', 'phone', 'trade', 'location', 'tagline'];
+      const missingFields = requiredFields.filter(field => !req.body[field]);
+      
+      if (missingFields.length > 0) {
+        this.sendBadRequest(res, `Missing required fields: ${missingFields.join(', ')}`);
+        return;
+      }
 
       const result = await this.adminService.addArtisanManually(req.body);
 
@@ -151,7 +150,8 @@ export class AdminController extends BaseController {
       const { id } = req.params;
       const { reason } = req.body;
       if (!reason) {
-        return this.sendError(res, 'Rejection reason is required', 400);
+        this.sendBadRequest(res, 'Rejection reason is required');
+        return;
       }
       await this.proformaService.rejectProforma(id, reason);
       this.sendSuccess(res, 'Proforma invoice rejected successfully');

@@ -18,10 +18,10 @@ export class ProformaController extends BaseController {
       }
 
       const invoice = await this.proformaService.submitProforma(req.user.uid, req.body);
-      this.sendSuccess(res, 'Proforma invoice submitted successfully', { invoice }, 201);
+      this.sendCreated(res, 'Proforma invoice submitted successfully', { invoice });
     } catch (error: any) {
       if (error.message.includes('Forbidden')) {
-        this.sendError(res, error.message, 403);
+        this.sendForbidden(res, error.message);
       } else {
         this.handleError(error, res, 'Submit proforma');
       }
@@ -41,7 +41,7 @@ export class ProformaController extends BaseController {
       this.sendSuccess(res, 'Proforma invoices fetched successfully', { invoices });
     } catch (error: any) {
       if (error.message.includes('Forbidden')) {
-        this.sendError(res, error.message, 403);
+        this.sendForbidden(res, error.message);
       } else {
         this.handleError(error, res, 'Get job proformas');
       }

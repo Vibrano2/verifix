@@ -214,22 +214,30 @@ sequenceDiagram
 
 ### Step 5: Escrow Payment via Paystack
 
-```javascript
-const handler = window.PaystackPop.setup({
-  key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
-  email: user.email,
-  amount: job.budget * 100,
-  currency: 'NGN',
-  callback: async (response) => {
-    await fetch(`${import.meta.env.VITE_API_BASE_URL}/v1/payments/verify`, {
-      method: 'POST',
-      headers: await getAuthHeaders(),
-      body: JSON.stringify({ reference: response.reference })
-    });
-  }
-});
-handler.openIframe();
+> [!IMPORTANT]
+> The backend calculates the final payment total (`Budget + ₦500 Platform Fee`). Do not rely on frontend calculations.
+
+**Endpoint**: `POST /v1/payments/initialise`
+
+**Headers**: `Authorization: Bearer <idToken>`
+
+**Payload**:
+```json
+{
+  "match_id": "match_uid_123"
+}
 ```
+
+**Response**:
+```json
+{
+  "message": "Payment initialized successfully",
+  "transaction_id": "tx_abc123",
+  "authorization_url": "https://checkout.paystack.com/...",
+  "access_code": "..."
+}
+```
+*Frontend Action: Redirect the user to the `authorization_url` to complete payment. Paystack will send a webhook to the backend to lock the funds in Escrow.*
 
 ### Step 6: Live Tracking
 
@@ -258,7 +266,84 @@ The frontend can listen directly to Firestore document `/jobs/:id` for status tr
 
 ## 5. Admin Queue & Verification Endpoints
 
-- **Fetch Pending Artisans**: `GET /v1/admin/artisans/pending`
-- **Approve Artisan**: `PATCH /v1/admin/artisans/:uid/verify` with `{ "verified": true }`
-- **Reject Artisan**: `PATCH /v1/admin/artisans/:uid/verify` with `{ "verified": false, "reason": "Unclear ID document" }`
-- **Resolve Dispute**: `POST /v1/admin/disputes/:id/resolve` with `{ "action": "refund_client" | "payout_artisan" }`
+- **Fetch Pending Artisans**: `GET /v1/admin/verification-queue`
+- **Approve Artisan**: `POST /v1/admin/verify/:uid`
+- **Reject Artisan**: `POST /v1/admin/reject/:uid` (Send `{"reason": "..."}`)
+
+---
+
+## 6. Chat & Messaging (Phase 7)
+
+**Endpoint Base**: `/v1/chat/job/:jobId`
+
+> [!NOTE]
+> Only the Client who created the job and the Artisan assigned to the job have access to these endpoints.
+
+### Fetch Messages
+**GET** `/v1/chat/job/:jobId?limit=50`
+**Headers**: `Authorization: Bearer <idToken>`
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "messages": [
+      {
+        "id": "msg_123",
+        "sender_uid": "user_456",
+        "content": "I am on my way!",
+        "is_read": false,
+        "created_at": "2024-05-20T10:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+### Send Message
+**POST** `/v1/chat/job/:jobId`
+**Headers**: `Authorization: Bearer <idToken>`
+**Payload**:
+```json
+{
+  "content": "Are you here yet?"
+}
+```
+
+---
+
+## 7. Proforma Invoices (Material Escrow)
+
+### Artisan Submits Invoice
+**POST** `/v1/proforma`
+**Headers**: `Authorization: Bearer <idToken>`
+**Payload**:
+```json
+{
+  "job_id": "job_123",
+  "supplier_name": "Lekki Plumbing Supplies",
+  "supplier_bank_details": {
+    "account_name": "LPS Ltd",
+    "account_number": "1234567890",
+    "bank_code": "058"
+  },
+  "total_amount": 15000,
+  "items": [
+    {
+      "description": "PVC Pipes",
+      "quantity": 5,
+      "unit_price": 3000,
+      "total": 15000
+    }
+  ]
+}
+```
+
+### Fetch Job Proformas (Client or Artisan)
+**GET** `/v1/proforma/job/:jobId`
+**Headers**: `Authorization: Bearer <idToken>`
+
+### Admin Proforma Endpoints (Phase 12)
+- **GET** `/v1/admin/proforma-queue` (List all pending proformas)
+- **POST** `/v1/admin/proforma/:id/approve` (Triggers Escrow partial release)
+- **POST** `/v1/admin/proforma/:id/reject` (Payload: `{"reason": "Invalid pricing"}`)

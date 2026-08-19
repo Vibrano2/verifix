@@ -24,7 +24,7 @@ export class ChatController extends BaseController {
       this.sendSuccess(res, 'Messages fetched successfully', { messages });
     } catch (error: any) {
       if (error.message.includes('Forbidden')) {
-        this.sendError(res, error.message, 403);
+        this.sendForbidden(res, error.message);
       } else {
         this.handleError(error, res, 'Get messages');
       }
@@ -41,10 +41,10 @@ export class ChatController extends BaseController {
       const { content } = req.body;
 
       const message = await this.chatService.sendMessage(jobId, req.user.uid, content);
-      this.sendSuccess(res, 'Message sent successfully', { message }, 201);
+      this.sendCreated(res, 'Message sent successfully', { message });
     } catch (error: any) {
       if (error.message.includes('Forbidden')) {
-        this.sendError(res, error.message, 403);
+        this.sendForbidden(res, error.message);
       } else {
         this.handleError(error, res, 'Send message');
       }
