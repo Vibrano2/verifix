@@ -51,21 +51,25 @@ export async function getAuthHeaders() {
 ```
 
 ### A. New User Registration
-- **Method / Endpoint**: `POST /v1/auth/register`
-- **Payload**:
+
+**Endpoint**: `POST /v1/auth/register`
+
+**Payload**:
 
 ```json
 {
   "idToken": "<firebase_id_token>",
   "first_name": "Jane",
   "last_name": "Doe",
-  "role": "client" // "client" | "artisan"
+  "role": "client"
 }
 ```
 
 ### B. Returning User Login Sync
-- **Method / Endpoint**: `POST /v1/auth/firebase/verify`
-- **Payload**:
+
+**Endpoint**: `POST /v1/auth/firebase/verify`
+
+**Payload**:
 
 ```json
 {
@@ -78,9 +82,11 @@ export async function getAuthHeaders() {
 
 ## 3. Artisan Onboarding & Directory
 
-### A. Register Artisan Profile (Multipart or Base64)
-- **Method / Endpoint**: `POST /v1/artisans`
-- **Payload**:
+### A. Register Artisan Profile
+
+**Endpoint**: `POST /v1/artisans`
+
+**Payload**:
 
 ```json
 {
@@ -113,8 +119,10 @@ export async function getAuthHeaders() {
 ```
 
 ### B. Search & Browse Verified Artisans
-- **Method / Endpoint**: `GET /v1/artisans?trade=Plumbing&location=Lagos&available=true`
-- **Response**:
+
+**Endpoint**: `GET /v1/artisans?trade=Plumbing&location=Lagos&available=true`
+
+**Response**:
 
 ```json
 {
@@ -157,9 +165,12 @@ sequenceDiagram
 ```
 
 ### Step 1: Create Job
-- **Method / Endpoint**: `POST /v1/jobs`
-- **Headers**: `Authorization: Bearer <idToken>`
-- **Payload**:
+
+**Endpoint**: `POST /v1/jobs`
+
+**Headers**: `Authorization: Bearer <idToken>`
+
+**Payload**:
 
 ```json
 {
@@ -176,17 +187,24 @@ sequenceDiagram
 ```
 
 ### Step 2: Trigger Matching
-- **Method / Endpoint**: `POST /api/jobs/:id/match`
-- **Headers**: `Authorization: Bearer <idToken>`
+
+**Endpoint**: `POST /api/jobs/:id/match`
+
+**Headers**: `Authorization: Bearer <idToken>`
 
 ### Step 3: Fetch Matches
-- **Method / Endpoint**: `GET /api/jobs/:id/matches`
-- **Headers**: `Authorization: Bearer <idToken>`
+
+**Endpoint**: `GET /api/jobs/:id/matches`
+
+**Headers**: `Authorization: Bearer <idToken>`
 
 ### Step 4: Select Artisan
-- **Method / Endpoint**: `POST /v1/jobs/:id/select-artisan`
-- **Headers**: `Authorization: Bearer <idToken>`
-- **Payload**:
+
+**Endpoint**: `POST /v1/jobs/:id/select-artisan`
+
+**Headers**: `Authorization: Bearer <idToken>`
+
+**Payload**:
 
 ```json
 {
@@ -200,10 +218,9 @@ sequenceDiagram
 const handler = window.PaystackPop.setup({
   key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
   email: user.email,
-  amount: job.budget * 100, // Amount in kobo
+  amount: job.budget * 100,
   currency: 'NGN',
   callback: async (response) => {
-    // response.reference
     await fetch(`${import.meta.env.VITE_API_BASE_URL}/v1/payments/verify`, {
       method: 'POST',
       headers: await getAuthHeaders(),
@@ -215,14 +232,19 @@ handler.openIframe();
 ```
 
 ### Step 6: Live Tracking
+
 - **Artisan starts journey**: `POST /v1/jobs/:id/tracking/start`
 - **Artisan arrives on site**: `POST /v1/jobs/:id/tracking/arrive`
-- Frontend can listen to the Firestore document `/jobs/:id` for live status updates (`en_route` -> `arrived`).
+
+The frontend can listen directly to Firestore document `/jobs/:id` for status transitions (`en_route` -> `arrived`).
 
 ### Step 7: Mark Job Complete & Release Escrow
-- **Method / Endpoint**: `POST /v1/jobs/:id/complete`
-- **Headers**: `Authorization: Bearer <idToken>`
-- **Payload**:
+
+**Endpoint**: `POST /v1/jobs/:id/complete`
+
+**Headers**: `Authorization: Bearer <idToken>`
+
+**Payload**:
 
 ```json
 {
@@ -231,8 +253,6 @@ handler.openIframe();
   "review": "Punctual, fast, and fixed the pipe completely!"
 }
 ```
-
-*(Backend automatically initiates instant transfer to artisan's verified bank account upon completion)*
 
 ---
 
