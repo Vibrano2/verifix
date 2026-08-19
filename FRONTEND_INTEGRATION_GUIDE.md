@@ -29,11 +29,13 @@ VITE_PAYSTACK_PUBLIC_KEY=pk_test_your_paystack_public_key_here
 ## 2. Authentication & User Sync Flow
 
 Every authenticated API request requires the Firebase ID token passed in the Authorization header:
+
 ```http
 Authorization: Bearer <firebase_id_token>
 ```
 
 ### Authorization Header Helper
+
 ```javascript
 import { auth } from './config/firebase';
 
@@ -51,6 +53,7 @@ export async function getAuthHeaders() {
 ### A. New User Registration
 - **Method / Endpoint**: `POST /v1/auth/register`
 - **Payload**:
+
 ```json
 {
   "idToken": "<firebase_id_token>",
@@ -63,6 +66,7 @@ export async function getAuthHeaders() {
 ### B. Returning User Login Sync
 - **Method / Endpoint**: `POST /v1/auth/firebase/verify`
 - **Payload**:
+
 ```json
 {
   "idToken": "<firebase_id_token>",
@@ -77,6 +81,7 @@ export async function getAuthHeaders() {
 ### A. Register Artisan Profile (Multipart or Base64)
 - **Method / Endpoint**: `POST /v1/artisans`
 - **Payload**:
+
 ```json
 {
   "idToken": "<firebase_id_token>",
@@ -110,6 +115,7 @@ export async function getAuthHeaders() {
 ### B. Search & Browse Verified Artisans
 - **Method / Endpoint**: `GET /v1/artisans?trade=Plumbing&location=Lagos&available=true`
 - **Response**:
+
 ```json
 {
   "success": true,
@@ -154,6 +160,7 @@ sequenceDiagram
 - **Method / Endpoint**: `POST /v1/jobs`
 - **Headers**: `Authorization: Bearer <idToken>`
 - **Payload**:
+
 ```json
 {
   "trade": "Plumbing",
@@ -180,6 +187,7 @@ sequenceDiagram
 - **Method / Endpoint**: `POST /v1/jobs/:id/select-artisan`
 - **Headers**: `Authorization: Bearer <idToken>`
 - **Payload**:
+
 ```json
 {
   "artisan_id": "artisan_uid_123"
@@ -187,6 +195,7 @@ sequenceDiagram
 ```
 
 ### Step 5: Escrow Payment via Paystack
+
 ```javascript
 const handler = window.PaystackPop.setup({
   key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
@@ -214,6 +223,7 @@ handler.openIframe();
 - **Method / Endpoint**: `POST /v1/jobs/:id/complete`
 - **Headers**: `Authorization: Bearer <idToken>`
 - **Payload**:
+
 ```json
 {
   "match_id": "match_uid_123",
@@ -221,6 +231,7 @@ handler.openIframe();
   "review": "Punctual, fast, and fixed the pipe completely!"
 }
 ```
+
 *(Backend automatically initiates instant transfer to artisan's verified bank account upon completion)*
 
 ---
