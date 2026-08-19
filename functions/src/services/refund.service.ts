@@ -8,11 +8,11 @@ import axios from 'axios';
 import { Logger } from '../utils/logger';
 
 export class RefundService {
-  private db: admin.firestore.Firestore;
+  private get db() { return admin.firestore(); }
   private paystackSecretKey: string;
 
   constructor() {
-    this.db = admin.firestore();
+    // this.db = admin.firestore();
     this.paystackSecretKey = process.env.PAYSTACK_SECRET_KEY || '';
   }
 

@@ -4,11 +4,11 @@ import { Job } from '../models/job.model';
 import { Artisan } from '../models/artisan.model';
 
 export class MatchingService extends BaseService {
-  private db: admin.firestore.Firestore;
+  private get db() { return admin.firestore(); }
   
   constructor() {
     super();
-    this.db = admin.firestore();
+    // this.db = admin.firestore();
   }
 
   /**

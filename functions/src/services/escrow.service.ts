@@ -3,11 +3,11 @@ import { BaseService } from './base.service';
 import { COLLECTIONS } from '../constants';
 
 export class EscrowService extends BaseService {
-  private db: admin.firestore.Firestore;
+  private get db() { return admin.firestore(); }
 
   constructor() {
     super();
-    this.db = admin.firestore();
+    // this.db = admin.firestore();
   }
 
   async releaseFunds(jobId: string, clientUid: string): Promise<{

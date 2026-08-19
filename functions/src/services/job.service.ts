@@ -6,11 +6,11 @@ import { isValidTrade, Trade } from '../constants/trades';
 import { initiateTransfer } from '../utils/paystack';
 
 export class JobService extends BaseService {
-  private db: admin.firestore.Firestore;
+  private get db() { return admin.firestore(); }
 
   constructor() {
     super();
-    this.db = admin.firestore();
+    // this.db = admin.firestore();
   }
 
   async createJob(clientUid: string, data: CreateJobDTO): Promise<Job> {

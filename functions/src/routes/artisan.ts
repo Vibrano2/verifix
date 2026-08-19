@@ -8,7 +8,7 @@ const router = Router();
 const artisanController = new ArtisanController();
 
 // Unified Registration
-router.post('/', (req, res) => artisanController.registerArtisan(req, res));
+router.post('/', authenticate, (req, res) => artisanController.registerArtisan(req as any, res));
 
 // Public Directory
 router.get('/', (req, res) => artisanController.listArtisans(req, res));

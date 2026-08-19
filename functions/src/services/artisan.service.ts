@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin';
 import { BaseService } from './base.service';
 import { ArtisanRepository, UserRepository } from '../repositories';
-import { Artisan, UpdateArtisanProfileDTO, PortfolioProject } from '../models/artisan.model';
+import { Artisan, UpdateArtisanProfileDTO, PortfolioProject, PublicArtisanDTO, mapToPublicArtisan } from '../models/artisan.model';
 import { getCategoryForTrade, isValidTrade, Trade } from '../constants/trades';
 import { createTransferRecipient } from '../utils/paystack';
 import { validateFileSignature } from '../utils/fileUpload';
@@ -73,40 +73,26 @@ export class ArtisanService extends BaseService {
     }
   }
 
-  async registerArtisan(data: any): Promise<{ user: any, profile: Artisan }> {
+  async registerArtisan(uid: string, data: any): Promise<{ user: any, profile: Artisan }> {
     try {
       this.validateRequired(data, [
-        'first_name', 'last_name', 'email', 'password', 'phone', 'trade', 'location', 'tagline'
+        'first_name', 'last_name', 'phone', 'trade', 'location', 'tagline'
       ]);
 
       if (!isValidTrade(data.trade)) {
         throw new Error('Invalid trade. Must be one of the 24 locked trades.');
       }
 
-      const email = data.email.trim().toLowerCase();
-      const emailExists = await this.userRepo.emailExists(email);
-      if (emailExists) {
-        throw new Error('Email already registered');
-      }
-
-      const userRecord = await admin.auth().createUser({
-        email,
-        password: data.password,
-        displayName: `${data.first_name} ${data.last_name}`,
-        phoneNumber: data.phone
-      });
-
-      const uid = userRecord.uid;
-
-      const user = await this.userRepo.createUser({
-        uid,
+      // Update the existing user document with their first/last name and phone
+      const userData: any = {
         first_name: data.first_name.trim(),
         last_name: data.last_name.trim(),
-        email,
         phone: data.phone,
         role: 'artisan',
-        created_at: new Date()
-      });
+        updated_at: new Date()
+      };
+      
+      const user = await this.userRepo.update(uid, userData);
 
       let paystack_recipient_code = '';
       if (data.bank_details) {
@@ -173,7 +159,7 @@ export class ArtisanService extends BaseService {
       };
 
       const profile = await this.artisanRepo.create(uid, artisanData);
-      this.logOperation('artisan-registered', { uid, email });
+      this.logOperation('artisan-registered', { uid });
 
       return { user, profile: profile! };
     } catch (error) {
@@ -331,20 +317,22 @@ export class ArtisanService extends BaseService {
     }
   }
 
-  async findByTrade(trade: string, limit?: number): Promise<Artisan[]> {
+  async findByTrade(trade: string, limit?: number): Promise<PublicArtisanDTO[]> {
     try {
       if (!isValidTrade(trade)) throw new Error('Invalid trade');
 
-      return await this.artisanRepo.findByTrade(trade as Trade, limit);
+      const artisans = await this.artisanRepo.findByTrade(trade as Trade, limit);
+      return artisans.map(mapToPublicArtisan);
     } catch (error) {
       this.handleError(error, 'Find artisans by trade');
     }
   }
 
-  async listArtisans(filters: { trade?: string; location?: string; available?: boolean }): Promise<Artisan[]> {
+  async listArtisans(filters: { trade?: string; location?: string; available?: boolean }): Promise<PublicArtisanDTO[]> {
     try {
       if (filters.available === true || filters.available?.toString() === 'true') {
-        return await this.artisanRepo.findAvailable(filters.trade, filters.location);
+        const availableArtisans = await this.artisanRepo.findAvailable(filters.trade, filters.location);
+        return availableArtisans.map(mapToPublicArtisan);
       }
       
       let query: admin.firestore.Query = admin.firestore().collection('artisan_profiles')
@@ -366,7 +354,7 @@ export class ArtisanService extends BaseService {
         );
       }
       
-      return results;
+      return results.map(mapToPublicArtisan);
     } catch (error) {
       this.handleError(error, 'List artisans');
     }

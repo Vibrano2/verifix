@@ -27,6 +27,9 @@ export const LocationSchema = z.object({
 
 export const CreateArtisanSchema = z.object({
   body: z.object({
+    first_name: z.string().min(2),
+    last_name: z.string().min(2),
+    phone: z.string().min(10),
     trade: z.enum(VALID_TRADES as [string, ...string[]]),
     location: LocationSchema,
     tagline: z.string().min(5).max(100),
@@ -34,7 +37,14 @@ export const CreateArtisanSchema = z.object({
     experience_years: z.number().min(0).optional(),
     hourly_rate: z.number().min(0).optional(),
     skills: z.array(z.string().min(1).max(50)).max(20).optional(),
-    portfolio: z.array(PortfolioProjectSchema).max(10).optional()
+    portfolio: z.array(PortfolioProjectSchema).max(10).optional(),
+    nin: z.string().length(11),
+    bank_details: z.object({
+      account_number: z.string(),
+      bank_code: z.string()
+    }).optional(),
+    id_document_base64: z.string().optional(),
+    work_photos_base64: z.array(z.string()).optional()
   })
 });
 
@@ -47,7 +57,12 @@ export const UpdateArtisanSchema = z.object({
     experience_years: z.number().min(0).optional(),
     hourly_rate: z.number().min(0).optional(),
     skills: z.array(z.string().min(1).max(50)).max(20).optional(),
-    portfolio: z.array(PortfolioProjectSchema).max(10).optional()
+    portfolio: z.array(PortfolioProjectSchema).max(10).optional(),
+    nin: z.string().length(11).optional(),
+    bank_details: z.object({
+      account_number: z.string(),
+      bank_code: z.string()
+    }).optional()
   })
 });
 
@@ -77,6 +92,7 @@ export interface Artisan {
   portfolio?: PortfolioProject[];
   id_document_url?: string;
   work_photos?: string[];
+  nin?: string;
   is_available: boolean;
   is_verified: boolean;
   verification_status: VerificationStatus;
@@ -93,3 +109,18 @@ export interface Artisan {
 
 export type CreateArtisanDTO = z.infer<typeof CreateArtisanSchema>['body'] & { uid: string };
 export type UpdateArtisanProfileDTO = z.infer<typeof UpdateArtisanSchema>['body'];
+
+export type PublicArtisanDTO = Omit<Artisan, 'nin' | 'bank_details' | 'paystack_recipient_code' | 'id_document_url' | 'rejection_reason'>;
+
+export function mapToPublicArtisan(artisan: Artisan): PublicArtisanDTO {
+  const {
+    nin,
+    bank_details,
+    paystack_recipient_code,
+    id_document_url,
+    rejection_reason,
+    ...publicData
+  } = artisan;
+  
+  return publicData;
+}

@@ -88,15 +88,19 @@ router.post(['/initialise', '/initialize'], authenticate, async (req: Authentica
     // Use phone as email if no email (Paystack requires email)
     const email = userData?.email || `${userData?.phone.replace('+', '')}@verifix.app`;
 
-    // Amount in kobo (Paystack uses smallest currency unit)
-    const amountInKobo = jobData!.match_fee * 100;
-
-    // Generate unique reference
-    const reference = `VF-${match_id}-${Date.now()}`;
-
     // Lock the job value at payment initialization
     // This value is immutable and used for commission calculation
     const lockedJobValue = jobData!.budget || 0;
+
+    // Backend-authoritative amount calculation: JOB VALUE + ₦500 Artiva Fee
+    const platformFee = 500;
+    const totalAmount = lockedJobValue + platformFee;
+    
+    // Amount in kobo (Paystack uses smallest currency unit)
+    const amountInKobo = totalAmount * 100;
+
+    // Generate unique reference
+    const reference = `VF-${match_id}-${Date.now()}`;
 
     // Calculate commission (10%)
     const commissionRetained = Math.round(lockedJobValue * 0.10);
@@ -124,7 +128,7 @@ router.post(['/initialise', '/initialize'], authenticate, async (req: Authentica
     const transactionData = {
       match_id,
       artisan_uid: matchData!.artisan_uid,
-      amount: jobData!.match_fee,
+      amount: totalAmount,
       status: 'pending', // Will be updated to 'held' by webhook
       paystack_reference: reference,
       locked_job_value: lockedJobValue,

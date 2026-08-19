@@ -20,7 +20,8 @@ import artisanRoutes from './routes/artisan';
 import jobRoutes from './routes/job';
 import paymentRoutes from './routes/payment';
 import adminRoutes from './routes/admin';
-
+import chatRoutes from './routes/chat';
+import proformaRoutes from './routes/proforma';
 function validateEnvironment() {
   const required = ['PAYSTACK_SECRET_KEY', 'ENCRYPTION_KEY', 'ADMIN_UID'];
   const missing = required.filter(key => !process.env[key] || process.env[key] === 'default-dev-key-change-in-production-32char');
@@ -34,17 +35,14 @@ initializeEncryption();
 
 const app = express();
 
-app.use(requestId);
-app.use(securityHeaders);
-app.use(monitorIP);
-app.use(rateLimit(100, 15 * 60 * 1000));
-
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5000',
   'http://localhost:5173',
   'https://verifix.app',
   'https://www.verifix.app',
+  'https://artiva-f24a8.web.app',
+  'https://artiva-f24a8.firebaseapp.com',
 ];
 
 app.use(cors({
@@ -58,6 +56,11 @@ app.use(cors({
   },
   credentials: true
 }));
+
+app.use(requestId);
+app.use(securityHeaders);
+app.use(monitorIP);
+app.use(rateLimit(100, 15 * 60 * 1000));
 
 app.use(express.json({
   limit: '10mb',
@@ -76,12 +79,16 @@ app.use('/api/artisans', artisanRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/proforma', proformaRoutes);
 
 app.use('/v1/auth', authRoutes);
 app.use('/v1/artisans', artisanRoutes);
 app.use('/v1/jobs', jobRoutes);
 app.use('/v1/payments', paymentRoutes);
 app.use('/v1/admin', adminRoutes);
+app.use('/v1/chat', chatRoutes);
+app.use('/v1/proforma', proformaRoutes);
 
 app.get('/health', (req, res) => {
   res.json({
@@ -91,12 +98,20 @@ app.get('/health', (req, res) => {
   });
 });
 
-export const api = functions.https.onRequest(app);
+import { onRequest } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 
-const refundService = new RefundService();
-export const processNoResponseRefundsScheduler = functions.pubsub
-  .schedule('every 15 minutes')
-  .onRun(async () => {
-    Logger.info('Triggering processNoResponseRefundsScheduler cron task...');
-    return await refundService.processNoResponseRefunds();
-  });
+export const api = onRequest({ 
+  cors: false, 
+  timeoutSeconds: 60, 
+  memory: '512MiB',
+  invoker: 'public'
+}, app);
+
+export const processNoResponseRefundsScheduler = onSchedule('every 15 minutes', async () => {
+  Logger.info('Triggering processNoResponseRefundsScheduler cron task...');
+  const refundService = new RefundService();
+  return await refundService.processNoResponseRefunds();
+});
+
+

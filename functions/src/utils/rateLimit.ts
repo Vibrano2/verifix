@@ -32,7 +32,7 @@ const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
-const db = admin.firestore();
+const getDb = () => admin.firestore();
 
 /**
  * Check if phone is rate limited for OTP requests
@@ -43,7 +43,7 @@ export async function checkOTPRateLimit(phone: string): Promise<{
   resetAt?: Date;
 }> {
   try {
-    const docRef = db.collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
+    const docRef = getDb().collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
     const doc = await docRef.get();
 
     if (!doc.exists) {
@@ -103,7 +103,7 @@ export async function checkOTPRateLimit(phone: string): Promise<{
  */
 export async function recordOTPAttempt(phone: string, success: boolean): Promise<void> {
   try {
-    const docRef = db.collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
+    const docRef = getDb().collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
     const doc = await docRef.get();
 
     const attempt: OTPAttempt = {
@@ -171,7 +171,7 @@ export async function recordOTPAttempt(phone: string, success: boolean): Promise
  */
 export async function resetOTPRateLimit(phone: string): Promise<void> {
   try {
-    const docRef = db.collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
+    const docRef = getDb().collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
     await docRef.delete();
     Logger.info('OTP rate limit reset', { phone: hashPII(phone) });
   } catch (error) {
@@ -190,7 +190,7 @@ export async function getOTPRateLimitStatus(phone: string): Promise<{
   lockedUntil?: Date;
 }> {
   try {
-    const docRef = db.collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
+    const docRef = getDb().collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
     const doc = await docRef.get();
 
     if (!doc.exists) {

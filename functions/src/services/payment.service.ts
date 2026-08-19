@@ -10,13 +10,13 @@ import { COLLECTIONS } from '../constants';
 import { Transaction } from '../models/transaction.model';
 
 export class PaymentService extends BaseService {
-  private db: admin.firestore.Firestore;
+  private get db() { return admin.firestore(); }
   private paystackSecretKey: string;
   private paystackBaseUrl = 'https://api.paystack.co';
 
   constructor() {
     super();
-    this.db = admin.firestore();
+    // this.db = admin.firestore();
     this.paystackSecretKey = process.env.PAYSTACK_SECRET_KEY || '';
   }
 

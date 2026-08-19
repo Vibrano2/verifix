@@ -37,10 +37,14 @@ export class ArtisanController extends BaseController {
     }
   }
 
-  async registerArtisan(req: Request, res: Response): Promise<void> {
+  async registerArtisan(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        return this.sendUnauthorized(res, 'Authentication required');
+      }
+
       const data = req.body;
-      const result = await this.artisanService.registerArtisan(data);
+      const result = await this.artisanService.registerArtisan(req.user.uid, data);
       this.sendCreated(res, 'Artisan registered successfully', { data: result?.profile });
     } catch (error) {
       this.handleError(error, res, 'Register artisan');

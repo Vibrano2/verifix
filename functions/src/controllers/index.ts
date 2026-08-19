@@ -10,3 +10,5 @@ export * from './job.controller';
 export * from './payment.controller';
 export * from './admin.controller';
 export * from './rating.controller';
+export * from './chat.controller';
+export * from './proforma.controller';

@@ -12,6 +12,13 @@ const adminController = new AdminController();
 router.get('/verification-queue', authenticate, requireAdmin, (req, res) => 
   adminController.getVerificationQueue(req, res)
 );
+/**
+ * POST /api/admin/artisans
+ * Manually add and pre-verify an artisan
+ */
+router.post('/artisans', authenticate, requireAdmin, (req, res) => 
+  adminController.createArtisan(req, res)
+);
 
 /**
  * POST /api/admin/verify/:uid
@@ -43,6 +50,30 @@ router.get('/stats', authenticate, requireAdmin, (req, res) =>
  */
 router.get('/analytics', authenticate, requireAdmin, (req, res) => 
   adminController.getAnalytics(req, res)
+);
+
+/**
+ * GET /api/admin/proforma-queue
+ * Get pending proforma invoices
+ */
+router.get('/proforma-queue', authenticate, requireAdmin, (req, res) => 
+  adminController.getProformaQueue(req, res)
+);
+
+/**
+ * POST /api/admin/proforma/:id/approve
+ * Approve a proforma invoice and trigger partial escrow release
+ */
+router.post('/proforma/:id/approve', authenticate, requireAdmin, (req, res) => 
+  adminController.approveProforma(req, res)
+);
+
+/**
+ * POST /api/admin/proforma/:id/reject
+ * Reject a proforma invoice
+ */
+router.post('/proforma/:id/reject', authenticate, requireAdmin, (req, res) => 
+  adminController.rejectProforma(req, res)
 );
 
 export default router;

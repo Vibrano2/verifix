@@ -5,15 +5,18 @@
 
 import { Response } from 'express';
 import { BaseController } from './base.controller';
-import { AdminService } from '../services';
+import { AdminService } from '../services/admin.service';
+import { ProformaService } from '../services/proforma.service';
 import { AuthenticatedRequest } from '../types';
 
 export class AdminController extends BaseController {
   private adminService: AdminService;
+  private proformaService: ProformaService;
 
   constructor() {
     super();
     this.adminService = new AdminService();
+    this.proformaService = new ProformaService();
   }
 
   /**
@@ -54,6 +57,27 @@ export class AdminController extends BaseController {
       });
     } catch (error) {
       this.handleError(error, res, 'Verify artisan');
+    }
+  }
+  /**
+   * POST /api/admin/artisans
+   */
+  async createArtisan(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      this.validateRequired(req.body, [
+        'first_name',
+        'last_name',
+        'phone',
+        'trade',
+        'location',
+        'tagline'
+      ]);
+
+      const result = await this.adminService.addArtisanManually(req.body);
+
+      this.sendSuccess(res, 'Artisan created and pre-verified successfully', result);
+    } catch (error) {
+      this.handleError(error, res, 'Create artisan');
     }
   }
 
@@ -99,6 +123,40 @@ export class AdminController extends BaseController {
       this.sendSuccess(res, 'Analytics data fetched successfully', analytics);
     } catch (error) {
       this.handleError(error, res, 'Get analytics');
+    }
+  }
+
+  async getProformaQueue(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const queue = await this.proformaService.getAdminQueue();
+      this.sendSuccess(res, 'Proforma queue fetched successfully', { queue });
+    } catch (error) {
+      this.handleError(error, res, 'Get proforma queue');
+    }
+  }
+
+  async approveProforma(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+      await this.proformaService.approveProforma(id, notes);
+      this.sendSuccess(res, 'Proforma invoice approved successfully');
+    } catch (error) {
+      this.handleError(error, res, 'Approve proforma');
+    }
+  }
+
+  async rejectProforma(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      if (!reason) {
+        return this.sendError(res, 'Rejection reason is required', 400);
+      }
+      await this.proformaService.rejectProforma(id, reason);
+      this.sendSuccess(res, 'Proforma invoice rejected successfully');
+    } catch (error) {
+      this.handleError(error, res, 'Reject proforma');
     }
   }
 }
