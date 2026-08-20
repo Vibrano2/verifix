@@ -17,8 +17,8 @@ firebase-debug.*.log*
 node_modules/
 functions/node_modules/
 
-# Build outputs
-functions/lib/
+# Build outputs (lib/ is now tracked for Firebase deployment)
+# functions/lib/
 
 # Environment variables & credentials
 .env

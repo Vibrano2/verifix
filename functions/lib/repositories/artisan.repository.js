@@ -1,0 +1,220 @@
+"use strict";
+/**
+ * Artisan Repository
+ * Handles all artisan-related database operations
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ArtisanRepository = void 0;
+const base_repository_1 = require("./base.repository");
+const constants_1 = require("../constants");
+const logger_1 = require("../utils/logger");
+const admin = __importStar(require("firebase-admin"));
+class ArtisanRepository extends base_repository_1.BaseRepository {
+    constructor() {
+        super(constants_1.COLLECTIONS.ARTISANS);
+    }
+    /**
+     * Find artisans by trade
+     * @param trade - Trade type
+     * @param limit - Maximum number of results
+     * @returns Array of artisans
+     */
+    async findByTrade(trade, limit) {
+        try {
+            let query = this.getCollection()
+                .where('trade', '==', trade);
+            if (limit) {
+                query = query.limit(limit);
+            }
+            const snapshot = await query.get();
+            return snapshot.docs.map(doc => doc.data());
+        }
+        catch (error) {
+            logger_1.Logger.error('Error finding artisans by trade', error);
+            throw error;
+        }
+    }
+    /**
+     * Find verified and available artisans
+     * @param trade - Trade type (optional)
+     * @param state - State location (optional)
+     * @returns Array of available artisans
+     */
+    async findAvailable(trade, state) {
+        try {
+            let query = this.getCollection()
+                .where('is_available', '==', true)
+                .where('is_verified', '==', true);
+            if (trade) {
+                query = query.where('trade', '==', trade);
+            }
+            if (state) {
+                query = query.where('location.state', '==', state);
+            }
+            // Sort by rating (highest first)
+            query = query.orderBy('rating', 'desc');
+            const snapshot = await query.get();
+            return snapshot.docs.map(doc => doc.data());
+        }
+        catch (error) {
+            logger_1.Logger.error('Error finding available artisans', error);
+            throw error;
+        }
+    }
+    /**
+     * Find artisans pending verification
+     * @returns Array of unverified artisans
+     */
+    async findPendingVerification() {
+        try {
+            const snapshot = await this.getCollection()
+                .where('verification_status', '==', 'pending')
+                .orderBy('created_at', 'desc')
+                .get();
+            return snapshot.docs.map(doc => doc.data());
+        }
+        catch (error) {
+            logger_1.Logger.error('Error finding artisans pending verification', error);
+            throw error;
+        }
+    }
+    /**
+     * Update artisan availability
+     * @param uid - Artisan UID
+     * @param isAvailable - Availability status
+     * @returns Updated artisan
+     */
+    async updateAvailability(uid, isAvailable) {
+        try {
+            await this.getCollection().doc(uid).update({
+                is_available: isAvailable
+            });
+            return await this.findById(uid);
+        }
+        catch (error) {
+            logger_1.Logger.error('Error updating artisan availability', error);
+            throw error;
+        }
+    }
+    /**
+     * Verify artisan
+     * @param uid - Artisan UID
+     * @returns Updated artisan
+     */
+    async verify(uid) {
+        try {
+            await this.getCollection().doc(uid).update({
+                is_verified: true,
+                verification_status: 'approved'
+            });
+            return await this.findById(uid);
+        }
+        catch (error) {
+            logger_1.Logger.error('Error verifying artisan', error);
+            throw error;
+        }
+    }
+    /**
+     * Reject artisan verification
+     * @param uid - Artisan UID
+     * @param reason - Rejection reason
+     * @returns Updated artisan
+     */
+    async reject(uid, reason) {
+        try {
+            const updateData = {
+                is_verified: false,
+                verification_status: 'rejected'
+            };
+            if (reason) {
+                updateData.rejection_reason = reason;
+            }
+            await this.getCollection().doc(uid).update(updateData);
+            return await this.findById(uid);
+        }
+        catch (error) {
+            logger_1.Logger.error('Error rejecting artisan', error);
+            throw error;
+        }
+    }
+    /**
+     * Update artisan rating
+     * @param uid - Artisan UID
+     * @param newRating - New rating value
+     * @returns Updated artisan
+     */
+    async updateRating(uid, newRating) {
+        try {
+            const artisan = await this.findById(uid);
+            if (!artisan) {
+                return null;
+            }
+            const currentRating = artisan.rating || 0;
+            const totalJobs = artisan.total_jobs || 0;
+            // Calculate new average rating
+            const updatedRating = ((currentRating * totalJobs) + newRating) / (totalJobs + 1);
+            await this.getCollection().doc(uid).update({
+                rating: updatedRating,
+                total_jobs: admin.firestore.FieldValue.increment(1)
+            });
+            return await this.findById(uid);
+        }
+        catch (error) {
+            logger_1.Logger.error('Error updating artisan rating', error);
+            throw error;
+        }
+    }
+    /**
+     * Update artisan reputation score
+     * @param uid - Artisan UID
+     * @param reputationScore - New reputation score (average of all ratings)
+     * @returns Updated artisan
+     */
+    async updateReputationScore(uid, reputationScore) {
+        try {
+            await this.getCollection().doc(uid).update({
+                reputation_score: reputationScore
+            });
+            return await this.findById(uid);
+        }
+        catch (error) {
+            logger_1.Logger.error('Error updating artisan reputation score', error);
+            throw error;
+        }
+    }
+}
+exports.ArtisanRepository = ArtisanRepository;
+//# sourceMappingURL=artisan.repository.js.map
