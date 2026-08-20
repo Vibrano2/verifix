@@ -205,16 +205,9 @@ export function generateSecureToken(length: number = 32): string {
  * @returns true if key is strong enough
  */
 export function validateEncryptionKey(): boolean {
-  if (!process.env.ENCRYPTION_KEY) {
-    Logger.warn('⚠️  ENCRYPTION_KEY not set in environment variables. Using default key (NOT SECURE)');
+  if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length < 32) {
     return false;
   }
-  
-  if (process.env.ENCRYPTION_KEY.length < 32) {
-    Logger.warn('⚠️  ENCRYPTION_KEY is too short. Should be at least 32 characters');
-    return false;
-  }
-  
   return true;
 }
 

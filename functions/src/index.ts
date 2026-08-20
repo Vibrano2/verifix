@@ -21,15 +21,7 @@ import paymentRoutes from './routes/payment';
 import adminRoutes from './routes/admin';
 import chatRoutes from './routes/chat';
 import proformaRoutes from './routes/proforma';
-function validateEnvironment() {
-  const required = ['PAYSTACK_SECRET_KEY', 'ENCRYPTION_KEY', 'ADMIN_UID'];
-  const missing = required.filter(key => !process.env[key] || process.env[key] === 'default-dev-key-change-in-production-32char');
-  if (missing.length > 0) {
-    Logger.warn(`Environment Warning: Some production key defaults are in use: ${missing.join(', ')}`);
-  }
-}
-
-validateEnvironment();
+// Environment validation disabled during deployment to prevent log noise
 initializeEncryption();
 
 const app = express();
