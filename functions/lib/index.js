@@ -34256,12 +34256,7 @@ function hashData(text) {
   return crypto.createHash("sha256").update(text).digest("hex");
 }
 function validateEncryptionKey() {
-  if (!process.env.ENCRYPTION_KEY) {
-    Logger.warn("\u26A0\uFE0F  ENCRYPTION_KEY not set in environment variables. Using default key (NOT SECURE)");
-    return false;
-  }
-  if (process.env.ENCRYPTION_KEY.length < 32) {
-    Logger.warn("\u26A0\uFE0F  ENCRYPTION_KEY is too short. Should be at least 32 characters");
+  if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length < 32) {
     return false;
   }
   return true;
@@ -76798,14 +76793,6 @@ var proforma_default = router7;
 // src/index.ts
 var import_https2 = require("firebase-functions/v2/https");
 var import_scheduler = require("firebase-functions/v2/scheduler");
-function validateEnvironment() {
-  const required2 = ["PAYSTACK_SECRET_KEY", "ENCRYPTION_KEY", "ADMIN_UID"];
-  const missing = required2.filter((key) => !process.env[key] || process.env[key] === "default-dev-key-change-in-production-32char");
-  if (missing.length > 0) {
-    Logger.warn(`Environment Warning: Some production key defaults are in use: ${missing.join(", ")}`);
-  }
-}
-validateEnvironment();
 initializeEncryption();
 var app = (0, import_express8.default)();
 var allowedOrigins = [
