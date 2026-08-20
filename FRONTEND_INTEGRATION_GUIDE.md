@@ -172,6 +172,43 @@ export async function getAuthHeaders() {
 }
 ```
 
+### F. Update Artisan Profile
+
+**Endpoint**: `PATCH /api/artisans/:uid/profile`
+
+**Headers**: `Authorization: Bearer <idToken>` (must match `uid`)
+
+**Payload**:
+```json
+{
+  "trade": "Plumbing",
+  "location": {
+    "city": "Lagos",
+    "state": "Lagos",
+    "lga": "Ikeja"
+  }
+}
+```
+
+### G. Upload Work Photo
+
+**Endpoint**: `POST /api/artisans/:uid/photo`
+
+**Headers**: `Authorization: Bearer <idToken>` (must match `uid`), `Content-Type: multipart/form-data`
+
+**Payload**:
+`file`: The image file (JPG, PNG)
+
+### H. Upload ID Document
+
+**Endpoint**: `POST /api/artisans/:uid/id-document`
+
+**Headers**: `Authorization: Bearer <idToken>` (must match `uid`), `Content-Type: multipart/form-data`
+
+**Payload**:
+`nin`: String representation of the National Identity Number
+`file`: The image file for the ID document (JPG, PNG, PDF)
+
 ---
 
 ## 4. Job Lifecycle & Escrow Integration
