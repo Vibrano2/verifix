@@ -99,10 +99,14 @@ export const api = onRequest({
   cors: false, 
   timeoutSeconds: 60, 
   memory: '512MiB',
-  invoker: 'public'
+  invoker: 'public',
+  secrets: ['PAYSTACK_SECRET_KEY', 'ENCRYPTION_KEY', 'ADMIN_UID']
 }, app);
 
-export const processNoResponseRefundsScheduler = onSchedule('every 15 minutes', async () => {
+export const processNoResponseRefundsScheduler = onSchedule({
+  schedule: 'every 15 minutes',
+  secrets: ['PAYSTACK_SECRET_KEY', 'ENCRYPTION_KEY', 'ADMIN_UID']
+}, async () => {
   Logger.info('Triggering processNoResponseRefundsScheduler cron task...');
   const refundService = new RefundService();
   await refundService.processNoResponseRefunds();
