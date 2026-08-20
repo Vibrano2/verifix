@@ -10,7 +10,7 @@ Place the following keys in your frontend environment file (`.env` / `.env.devel
 
 ```env
 # Backend Base API URL
-VITE_API_BASE_URL=https://us-central1-artiva-a0594.cloudfunctions.net/api
+VITE_API_BASE_URL=https://us-central1-artiva-f24a8.cloudfunctions.net/api
 ```
 
 ---
@@ -92,7 +92,10 @@ export async function getAuthHeaders() {
 
 **Headers**: `Authorization: Bearer <idToken>`
 
-**Payload** (3-step signup — send on final step submission):
+**Payload** (3-step signup):
+
+> [!WARNING]
+> **DO NOT make an API request on Step 1 or 2!** Keep the user's input in React state/memory. Send this payload **ONLY** on the final step submission when all fields are populated.
 
 ```json
 {
