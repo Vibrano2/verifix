@@ -63,8 +63,41 @@ export class PaymentService extends BaseService {
 
       await transactionDoc.ref.update({
         status: newStatus,
+        escrow_status: transaction.type === 'escrow' ? 'HELD' : undefined,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       });
+
+      if (transaction.type === 'escrow' && transaction.match_id) {
+        // Dynamic No-Response Timer (PRD Q02)
+        const matchRef = this.db.collection(COLLECTIONS.MATCHES).doc(transaction.match_id);
+        const matchDoc = await matchRef.get();
+        if (matchDoc.exists) {
+          const matchData = matchDoc.data();
+          const jobRef = this.db.collection(COLLECTIONS.JOBS).doc(matchData!.job_id);
+          const jobDoc = await jobRef.get();
+          
+          let timerHours = 4; // default
+          if (jobDoc.exists) {
+            const urgency = jobDoc.data()?.urgency;
+            if (urgency === 'Today') {
+              timerHours = 2;
+            } else if (urgency === 'This Week') {
+              timerHours = 4;
+            } else if (urgency === 'Flexible') {
+              timerHours = 12;
+            }
+          }
+
+          const expiryDate = new Date();
+          expiryDate.setHours(expiryDate.getHours() + timerHours);
+          
+          await matchRef.update({
+            status: 'paid', // Active/Paid
+            no_response_timer_expiry: admin.firestore.Timestamp.fromDate(expiryDate),
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      }
 
       this.logOperation('payment-success-handled', { reference, newStatus });
     } catch (error) {

@@ -1,0 +1,1318 @@
+ARTIVA
+Product Requirements Document
+Version 1.9  —  Consolidated Escrow & Direct Supplier Payout Edition
+Group 5  |  Cohort 8  |  The Local Impact Challenge
+Product Manager: Gabriel Ohigbamhudu Sunday
+Date: August 2026  |  Status: Draft — Open for Team Review
+Document Control
+Version
+Date
+Author
+Status
+Summary of Changes
+1.0
+Aug 2026
+Gabriel O. Sunday (PM)
+Superseded
+First draft — business narrative, Abuja beachhead, escrow-lite model
+1.1
+Aug 2026
+Gabriel O. Sunday + Team
+Superseded
+Merged technical scaffolding: API contracts, Firestore schema, screen inventory, track mappings, algorithms, demo script
+1.2
+Aug 2026
+Gabriel O. Sunday (PM)
+Superseded
+Five targeted fixes: no-response policy, subscription-model clarification, no-match risk mitigation, GPS scope wording, numeric NFR targets
+1.3
+Aug 2026
+Gabriel O. Sunday (PM)
+Superseded
+Brand rebrand to Artiva; logo and colour palette locked (Sage Teal #68A9AC, Gold #C9B121, Deep Navy #162D4F)
+1.4
+Aug 2026
+Gabriel O. Sunday (PM)
+Superseded
+Full Artiva rebrand completed. WhatsApp contact removed. All negotiation and transactions moved inside the app. In-app messaging added to MVP core loop.
+1.5
+Aug 2026
+Gabriel O. Sunday (PM)
+Superseded
+Artisan signup flow finalized: 3-step onboarding (phone OTP + profile) → (trade + services) → (NIN + ID document + 3-5 work photos), per UI/UX hi-fi wireframes
+1.6
+Aug 2026
+Gabriel O. Sunday (PM)
+Superseded
+Full merge pass: v1.5 decisions carried forward with restored v1.3 structural depth (escrow language, track mapping, API spec, constraints, GTM)
+1.7
+Aug 2026
+Gabriel O. Sunday (PM)
+Superseded
+Full depth restored from v1.3 across every section — rich acceptance-criteria tables, Firestore data schema, priority-score algorithm, NFR targets, risk register, and open-questions log — while keeping all v1.4–v1.6 product decisions (escrow-lite, in-app messaging, NIN-based 3-step artisan signup, no WhatsApp hand-off).
+1.8
+Aug 2026
+Gabriel O. Sunday (PM), Bankole Olayemi
+Superseded
+Team draft proposing a consolidated single-checkout escrow flow (job value + ₦500 fee in one Paystack transaction) and a direct-to-supplier material payout protocol (proforma invoices; zero cash to artisans for materials). Introduced Material Supplier as a Phase 2 stakeholder. Condensed format — v1.9 restores full PRD depth around these changes.
+1.9
+Aug 2026
+Gabriel O. Sunday (PM) + Team
+Current
+v1.8's consolidated checkout and direct supplier proforma payout protocol merged into the full v1.7 structure; Material Supplier persona added; new KPIs, NFR targets, risks, and screens added for the supplier-payout flow; reviewer sign-off updated with confirmed track leads. Several v1.8 claims that conflicted with the confirmed project record were not silently adopted — flagged instead in Section 16 (Q12–Q15) for a team decision.
+
+Reviewer Sign-Off
+Reviewer
+Track
+Review Due
+[Name]
+UI/UX Design
+Week 2, Day 1
+Bankole Olayemi, Victor David
+Backend Development
+Week 2, Day 1
+[Name]
+Frontend Development
+Week 2, Day 1
+[Name]
+Data Science
+Week 2, Day 1
+Reign-El Alajemba
+Cybersecurity
+Week 2, Day 1
+[Name]
+AI/ML
+Week 2, Day 1
+[Name]
+Virtual Assistant
+Week 2, Day 1
+Abraham Oghenemaro Akukuata
+Data Analysis
+Week 2, Day 1
+[Name]
+Digital Marketing
+Week 2, Day 1
+[Name]
+Brand Design
+Week 2, Day 1
+1. Executive Summary
+Artiva is a mobile-responsive web platform that connects homeowners and small contractors in Abuja with verified, available artisans for urgent home repairs. It addresses a two-sided market failure: clients cannot find a reliable artisan fast enough during an emergency, and skilled artisans cannot get consistent, well-paying leads.
+The platform's core value proposition is speed and protection: a verified artisan is matched in under 30 minutes, with the client's payment held in escrow until the job is confirmed complete. It is not a directory — it is a trust-and-urgency marketplace. All negotiation, messaging, and transactions happen inside the app; there is no external WhatsApp or phone hand-off.
+This PRD covers the MVP scope only: the minimum set of features required to prove the core loop end-to-end, generate real revenue, and demonstrate Product-Market Fit within a single beachhead estate — Life Camp (NTA Estate), Abuja.
+As of v1.9, the client's platform fee and job value are collected in a single consolidated checkout rather than two separate payments, and — for jobs that require materials — the artisan never handles client cash for supplies. Instead, the artisan submits a supplier proforma invoice and the platform pays the supplier directly from the escrowed funds. Both changes reduce friction and reduce fraud risk without changing the underlying revenue model.
+Metric
+Target
+Q1 Revenue (conservative)
+₦230,000
+Q1 Revenue (optimistic)
+₦362,500
+Revenue target (hackathon brief)
+₦200,000
+Beachhead launch site
+Life Camp (NTA Estate), Abuja
+Phase 2 expansion
+Karu, Mararaba (both NTA Properties estates)
+Seed artisans at launch
+30 across 6 trades
+Client match fee
+₦500 per match
+Commission on jobs
+10% of job value, held in escrow at booking
+MVP timeline
+4 weeks
+Primary research
+Artisans (n=47), Customers (n=105)
+2. Problem Statement
+2.1 The Problem
+Nigeria's informal skilled labour market is fragmented, unregulated, and high-risk for both sides of the transaction. When a homeowner needs an urgent repair, the existing alternatives fail consistently in the one moment clients are most willing to pay for certainty.
+The problem manifests as three connected pain points:
+Pain Point
+Client Impact
+Artisan Impact
+Evidence
+Trust & Attendance deficit
+Artisans ghost jobs after contact; no-shows waste time and money
+Reliable artisans are fully booked; new clients cannot find them
+80.6% of Nigerian construction firms report a skilled labour shortage (2025 industry survey)
+Communication black hole
+Artisans go silent mid-project with no structured status update
+Artisans lose repeat clients due to poor communication infrastructure
+Primary survey: majority of customer respondents (n=105) reported ghosting incidents in the last 6 months
+Financial vulnerability at deposit stage
+Upfront deposits are lost when artisans don't show or don't finish
+Payment disputes damage artisan reputation and income reliability
+23.1% of artisans (n=47) cite irregular income as their #1 barrier
+Material cost misappropriation
+Cash given to an artisan for materials doesn't always fully reach the supplier
+Honest artisans are lumped in with bad actors, damaging trust industry-wide
+Reported informally through Gabriel's 25 years of contracting experience — no formal survey data collected on this specific point yet; flagged for validation
+2.2 The Insight
+The real competitor is not another app. It is the estate WhatsApp group and the usual guy's phone number. Those alternatives work adequately when there is time to vet someone. They fail completely in the urgent moment — exactly when clients are most willing to pay for certainty.
+Speed without trust is what WhatsApp groups already offer. Trust without speed is what existing artisan directories already own. The combination — verified and available within 30 minutes, with all communication and money protected inside the platform — is the gap nobody currently owns.
+2.3 Gabriel's Domain Credibility
+Gabriel Ohigbamhudu Sunday has run Oasis Interbiz Ltd, a construction and installation contracting business in Abuja, for 25 years. He has hired, fired, and managed artisans across every trade. He has the relationships to seed the first 15–20 artisans before any digital outreach begins, and he participated in the original construction of Life Camp — the beachhead estate.
+3. Goals & Success Metrics
+3.1 Product Goals
+Prove the core loop end-to-end, entirely inside the app: a real client posts a real job, matches a real verified artisan, pays a real ₦500 fee, negotiates and completes the job through in-app chat
+Generate a minimum of ₦200,000 in Q1 revenue from Life Camp alone
+Establish Artiva as the default option for urgent repairs within Life Camp before any competitor enters the estate
+Build a verified artisan pool of 30+ across 6 trades before client-side launch, so every search returns results
+Eliminate off-platform payment leakage by consolidating the platform fee and job value into one checkout, and remove cash-handling risk on materials via direct-to-supplier payouts (v1.9)
+3.2 North Star Metric
+Weekly Completed Jobs via Platform. This is the single metric that proves both sides of the marketplace are working: clients are finding value (jobs get done) and artisans are earning (jobs get completed).
+3.3 KPIs
+KPI
+Definition
+Week 2 Baseline
+Month 1 Target
+Q1 Target
+Match conversion rate
+Jobs posted where client unlocked in-app chat with artisan ÷ total jobs posted
+First real data point
+40%+
+50%+
+Time to match
+Time from job post to chat unlock
+First real data point
+<30 min median
+<30 min median
+Job completion rate
+Matches where Mark Complete was triggered ÷ total matches
+First real data point
+60%+
+70%+
+Match fee revenue
+Total ₦500 fees collected
+₦0 (Week 1 build)
+₦15,000
+₦130,000
+Commission revenue
+Total 10% commission retained on completed jobs
+₦0 (Week 1 build)
+₦10,000
+₦100,000
+Seed artisan count
+Verified artisans with badge approved and availability on
+30 (Week 1 target)
+30
+45+
+Artisan retention rate
+Artisans active (≥1 lead received) in Month N ÷ total artisans
+N/A
+70%+
+70%+
+No-response rate
+Matches where artisan sent no in-app message within 4 hours ÷ total matches
+First real data point
+<20%
+<10%
+Match-to-completion conversion (v1.9)
+Jobs matched ÷ jobs marked complete, under the single-checkout model. Proposed in the v1.8 draft — overlaps with Match Conversion Rate and Job Completion Rate above; see Open Question Q13 on whether to merge these into one metric
+New metric — not yet tracked
+60%+
+>75%
+Material dispute/fraud rate (v1.9)
+Proforma-related disputes ÷ total material-inclusive jobs
+N/A — feature not yet live
+<3%
+<1.5%
+4. Users & Personas
+4.1 Primary Users
+User Type
+Description
+Primary Need
+Willingness to Pay
+Client
+Resident of Life Camp or neighbouring NTA estate; owns or manages a property requiring maintenance
+A verified artisan available now — not next week
+Yes — ₦500 is a small price for certainty in an emergency
+Artisan
+Electrician, plumber, painter, bricklayer, welder, or aluminium fabricator operating in Abuja
+Consistent, verified leads without standing at a junction all day
+No upfront cost — earns through completed jobs on the platform (10% commission only)
+Platform Admin
+Oasis Interbiz team member manually reviewing artisan verification submissions
+Fast, clear queue of pending verifications to process
+Internal user — no payment
+4.2 Persona 1 — Mrs. Amaka (Client)
+Attribute
+Detail
+Age & role
+38, homeowner in Life Camp
+Situation
+Kitchen sink is leaking at 7pm before a family visit tomorrow morning
+Current behaviour
+Posts in the estate WhatsApp group; waits; gets one or two recommendations; calls them; one doesn't pick up, one wants to come 'next week'
+Frustration
+Has no way to verify who is trustworthy and no certainty anyone will actually show up
+What she needs
+One tap to post; verified artisans available tonight; the ability to negotiate and pay entirely inside the app, with automatic refund protection if the artisan never responds
+Willingness to pay
+₦500 for guaranteed speed and recourse — yes, immediately
+4.3 Persona 2 — Mr. Emeka (Artisan)
+Attribute
+Detail
+Age & trade
+34, electrician, based near Life Camp
+Situation
+Spends 2–3 hours at the junction each morning hoping for a client call
+Current behaviour
+Relies entirely on word-of-mouth referrals from past clients and neighbours
+Frustration
+Income is irregular; some weeks get 5 jobs, some weeks get none; no way to signal availability to new clients, and no way to negotiate without chasing clients on WhatsApp
+What he needs
+Leads sent directly to him; a verified badge that builds trust; an in-app way to negotiate and receive payment without chasing clients
+Revenue model note
+Mr. Emeka pays nothing to join and nothing per month. He accepts 10% commission per completed job as the cost of a lead he would otherwise never receive. Earlier research explored a ₦3,000/month artisan subscription — that idea was tested, rejected, and is not part of this MVP.
+4.4 Persona 3 — Gabriel (Admin Verifier)
+Attribute
+Detail
+Role
+Platform admin; also the Product Manager and Oasis Interbiz principal
+Job-to-be-Done
+Verify artisans quickly so the marketplace has supply credibility from day one
+Context
+He knows which artisans are reliable because he has hired and fired them for two decades. He can review a NIN, an ID document, and a photo of past work and determine competency — a skill no automated KYC system replicates at this stage.
+4.5 Persona 4 — Material Supplier (Phase 2 Stakeholder, not MVP)
+Attribute
+Detail
+Role
+Local vendor of construction and trade supplies (e.g. hardware, plumbing fittings, electrical parts)
+Relationship to MVP
+Introduced in v1.9 as a Phase 2 stakeholder. In the MVP, a supplier only appears as a payment destination on a verified proforma invoice — there is no supplier-facing account, listing, or dashboard in v1.9
+What changes for them in v1.9
+Instead of receiving cash indirectly through an artisan, a supplier is paid directly from Artiva's escrow account once their proforma invoice is verified
+Full stakeholder relationship (Phase 2 / v2.0)
+A dedicated Material Suppliers Marketplace — with vendor listings, subscription fees, and sponsored placements — is explicitly deferred out of MVP scope (see Section 5.2) to protect platform IP and keep the 4-week build focused
+5. Scope
+5.1 In Scope — MVP
+Core loop: Post urgent job → Match available verified artisan → Pay ₦500 match fee + full job value (held in escrow) → Negotiate & coordinate inside the app → Mark Complete → Release payment minus 10% commission → Rate artisan
+Feature Area
+In MVP
+Notes
+Client job posting
+Yes
+Trade + location + urgency (Today / This Week / Flexible) + short description
+Artisan matching
+Yes
+Rule-based heuristic: trade filter + availability filter + distance sort + earned-priority tiebreaker + concentration-fix rotation weight
+Artisan verification
+Yes — manual
+3-step signup: (1) phone OTP + name/experience/location, (2) trade + services, (3) NIN + ID document + 3-5 work photos; manual admin badge approval; 24-hour SLA
+Escrow — consolidated checkout (v1.9)
+Yes
+Client pays job value + ₦500 platform fee in a single Paystack transaction at checkout, itemized on the receipt; entire amount held until Mark Complete; 10% commission retained on release, remainder to artisan
+Direct supplier proforma settlement (v1.9)
+Yes
+For material-inclusive jobs, the artisan uploads a supplier proforma invoice; the platform verifies it and pays the supplier directly from escrow. Artisans never receive raw cash or partial escrow advances for materials.
+In-app messaging / negotiation
+Yes
+Simple text chat thread between client and matched artisan for scheduling, status updates, and price negotiation. No external WhatsApp hand-off, no phone number reveal.
+No-response policy
+Yes
+Auto-refund to client if artisan does not send an in-app message within 4 hours of match; artisan profile flagged for admin review
+Mark Complete + rating
+Yes
+Client confirms job done; 1–5 star rating; triggers fund release; duplicate rating rejected with 409
+Artisan dashboard
+Yes
+Held vs. released funds; jobs completed; reputation score; availability toggle; open chats
+Admin verification queue
+Yes
+Pending list; approve/reject; no-response flags visible; admin UID environment-variable controlled
+Edge & loading states
+Yes
+Empty match with Notify Me; failed payment with retry; unverified waiting screen; duplicate rating protection; spinner on every API-dependent screen
+NDPR compliance
+Yes
+Consent on signup; data handling policy; NIN and ID documents restricted to admin UID
+Analytics events
+Yes
+job_posted, artisan_matched, payment_initiated, payment_success, message_sent, job_completed, rating_submitted
+5.2 Out of Scope — MVP
+Feature
+Reason
+Roadmap Phase
+WhatsApp deep-link / external chat / phone number reveal
+Explicitly removed in v1.4 — all negotiation and coordination now happens inside the app, where it can be protected and audited
+Removed permanently
+AI/ML smart ranking
+Needs 100–150 completed jobs minimum; rule-based heuristic performs well at launch density
+Q3 — Platform
+AI/ML fraud detection model
+No training data exists at launch; rule-based input validation is sufficient for MVP
+Q3 — Platform
+AI/ML price estimator
+No rate card dataset exists at launch; job value is self-reported for MVP
+Q3 — Platform
+Automated payout rail
+Manual release on Mark Complete is sufficient for MVP
+Q2 — Scale
+Formal dispute resolution
+7-day workmanship window + manual team review for MVP; Google Form escalation only
+Q2 — Scale
+Push notification infrastructure
+Intent logging only in Week 2; no push infrastructure in MVP
+Q2 — Scale
+Multi-city launch
+Density beats coverage; Life Camp first, then Karu/Mararaba via the same NTA Properties relationship
+Q2 — Scale
+Artisan insurance / loans
+Strong survey interest but outside the MVP value proposition
+Q3 — Platform
+Full Dialogflow chatbot, multilingual support
+A full chatbot with many intents, Igbo/Pidgin support, and a dedicated messaging platform is a standalone product build — not needed for the judged core loop
+Q2 — Scale
+Referral programme
+Earned priority already incentivises quality; formal referral mechanics are a growth lever
+Q2 — Scale
+Precise GPS radius matching
+Estate-level (Life Camp) location matching is used instead — sufficient for a single-estate beachhead where all artisans and clients are in the same area
+Not planned
+Automated KYC / biometric verification
+Manual review by Gabriel is faster and more reliable at launch-scale; automated KYC is post-MVP
+Q2 — Scale
+iOS native app
+Mobile-responsive web app only; PWA for installability
+Q3 — Platform
+Formal OWASP penetration test report
+A focused security checklist and pre-demo sign-off are appropriate for MVP scope; a formal pentest is a post-launch commitment
+Q2
+Full STRIDE threat model document
+Lightweight threat checklist implemented in Week 1 covers the 4 highest-risk surfaces adequately for MVP
+Q2
+Dedicated Material Suppliers Marketplace (v1.9)
+A vendor-facing marketplace where suppliers list and sell products directly to clients/artisans is deferred to protect platform IP and keep the 4-week MVP build focused on the core client-artisan loop
+Phase 2 (v2.0)
+Supplier ad network / sponsored vendor placements (v1.9)
+In-app ad placements and vendor subscription/sponsorship slots are a monetization layer for the supplier marketplace above — deferred alongside it
+Phase 2 (v2.0)
+6. User Stories & Requirements
+6.1 Client Stories
+ID
+User Story
+Acceptance Criteria
+Priority
+C-001
+As a client, I want to post an urgent job in under 60 seconds so I can find help quickly
+Form has 4 fields max; submits in under 60 seconds on low-end Android; job document created in Firestore on submit
+Must Have
+C-002
+As a client, I want to see only artisans who are available right now
+Match list filters on available = true; unavailable artisans never appear
+Must Have
+C-003
+As a client, I want to see a verified badge so I know the artisan has been checked
+Badge appears only when verified = true; unverified artisans never appear in match results
+Must Have
+C-004
+As a client, I want to pay ₦500 to unlock in-app chat and be protected if the job fails
+Paystack checkout renders; payment held; chat unlocks only after confirmed webhook
+Must Have
+C-005
+As a client, I want to negotiate and coordinate with the artisan inside the app
+In-app chat thread opens after payment; messages stored; both parties can send text
+Must Have
+C-006
+As a client, I want to mark a job complete so the artisan gets paid and I can rate them
+Mark Complete triggers fund release minus commission; rating prompt appears; duplicate rating rejected with 409
+Must Have
+C-007
+As a client, I want to see a clear empty state when no artisans are available
+Empty state screen renders with friendly message and Notify Me button when zero results returned
+Must Have
+C-008
+As a client, I want to see a failed payment screen with a retry option
+Failed payment screen renders on Paystack failure; Try Again re-initialises same payment without requiring a new job post
+Should Have
+C-009
+As a client, I want to be automatically refunded if my matched artisan never contacts me
+If artisan sends no in-app message within 4 hours of match confirmation, platform initiates Paystack refund; client notified in-app; artisan profile flagged for admin review
+Must Have
+C-010
+As a client, I want to pay the job value and platform fee together in one checkout so I don't have to make two separate payments (v1.9)
+Single Paystack transaction captures job_value + ₦500; both amounts itemized on the checkout screen and receipt
+Must Have
+6.2 Artisan Stories
+ID
+User Story
+Acceptance Criteria
+Priority
+A-001
+As an artisan, I want to sign up with my phone number so I don't need an email
+OTP sent to phone; verified on entry; artisan_profile document created on completion. Google/Apple buttons are shown as an optional sign-in affordance; phone OTP remains the functional MVP path.
+Must Have
+A-002
+As an artisan, I want to select my trade and the specific services I offer so clients find me for the right job
+Trade selected from a fixed list; at least one specific service selected within that trade before proceeding
+Must Have
+A-003
+As an artisan, I want to submit my NIN, a valid ID document, and work photos so I can get my Verified badge
+NIN captured as text; ID upload accepts NIN Slip / Driver's Licence / Voter's Card / International Passport (JPEG/PNG/PDF, server-side MIME validation); 3–5 work photos required; submission enters admin queue automatically
+Must Have
+A-004
+As an artisan, I want to toggle my availability so clients only see me when I'm ready
+Availability toggle updates available field in real time; artisan disappears from match results when toggled off
+Must Have
+A-005
+As an artisan, I want to see my held and released funds so I know exactly what I've earned
+Dashboard shows total held, total released, completed job count; figures update within seconds of a Mark Complete event
+Must Have
+A-006
+As an artisan, I want to build a reputation score through completed jobs so I earn priority over time
+Reputation score = weighted average of ratings; displayed on dashboard; used as tiebreaker in matching sort
+Must Have
+A-007
+As an artisan, I want to receive and reply to client messages inside the app after a match
+Chat thread opens automatically once payment is confirmed; artisan can send and receive text messages tied to that job
+Must Have
+A-008
+As an artisan, I want to know if a lead was refunded due to my non-response so I can maintain my profile standing
+If a refund is triggered due to non-response, artisan receives an in-app notification; admin flag logged against their profile
+Must Have
+A-009
+As an artisan, I want to submit a supplier proforma invoice so the platform pays for materials directly and I never have to handle client cash for materials (v1.9)
+Proforma upload accepts PDF/image; entry appears in artisan's job view with status (Pending/Approved/Paid); on approval, funds are released directly to the supplier's bank account from escrow — artisan_net_labor is unaffected
+Must Have
+6.3 Admin Stories
+ID
+User Story
+Acceptance Criteria
+Priority
+AD-001
+As an admin, I want to see a queue of pending verifications so I can approve artisans quickly
+Admin queue lists all artisans with verified = false; NIN, ID document, and work photos viewable on tap; Approve sets verified = true; only admin UID can access
+Must Have
+AD-002
+As an admin, I want pending verifications to clear within 24 hours
+Queue monitored daily; target: zero profiles unreviewed for more than 24 hours
+Must Have
+AD-003
+As an admin, I want to view transaction logs and revenue metrics to prove business viability to judges
+Admin dashboard shows: total match fees, total commission, jobs completed today, active artisans, conversion funnel
+Must Have
+AD-004
+As an admin, I want to see artisan profiles flagged for non-response so I can take action
+Non-response flags appear on the artisan profile in the admin queue; admin can warn or remove the artisan
+Must Have
+AD-005
+As an admin, I want to review and approve/reject supplier proforma invoices so material funds only go to verified suppliers (v1.9)
+Proforma queue separate from the artisan verification queue; invoice, supplier name, and amount viewable; Approve triggers direct payout to the supplier's bank account; Reject returns a reason to the artisan
+Must Have
+7. Functional Requirements
+7.1 Authentication & Artisan Onboarding
+Phone OTP via Firebase Auth — no email required
+OTP requests rate-limited to 3 per phone number per hour; 24-hour lockout after 5 failed attempts
+Session token required on every authenticated request
+Admin access controlled by environment-variable admin UID — not a role field in the database
+Artisan 3-step signup: (1) phone OTP + name/experience/location, (2) trade + specific services, (3) NIN + ID document + 3-5 work photos + NDPR consent
+NIN is stored securely for verification only — never shown to clients. Accepted ID documents: NIN Slip, Driver's Licence, Voter's Card, International Passport
+Google/Apple continue buttons are shown on signup for UX polish; Firebase phone OTP remains the only functional auth path for MVP (flagged for team review — full OAuth is a post-MVP add if time allows)
+7.2 Matching Engine
+Hard filter: trade = job.trade AND available = true AND verified = true
+Sort: distance ascending (closest first)
+Tiebreaker: completed_jobs descending, then reputation_score descending (null = sorted last)
+Zero-result handling: return empty list with empty-state trigger; never return unverified artisans
+Concentration fix: rotation weight applied to prevent the same artisan dominating consecutive matches in the same estate area
+Note: The matching engine is rule-based by design. A learned ranking model is scoped for Q3 once 100–150 real completed jobs provide sufficient training signal.
+Priority Score Algorithm (v1)
+priority_score = (avg_rating × 0.40) + (min(completed_jobs, 50) / 50 × 0.30) + (response_speed_score × 0.20) + (verification_bonus × 0.10)
+response_speed_score: 1.0 if avg response < 30 min; 0.5 if < 2 hours; 0.2 if < 24 hours; 0.0 otherwise
+verification_bonus: 1.0 if verified = true; 0.3 if verified = pending
+No-Match Risk Mitigation
+Risk Scenario
+Mitigation
+Owner
+A trade category has zero seed artisans in Life Camp
+Virtual Assistant and Digital Marketing onboard artisans by trade category before client-side launch; Data Science's simulation identifies zero-result trades each week so outreach can target specifically
+Virtual Assistant + Digital Marketing
+All artisans in a trade are marked Busy simultaneously
+Rotation weight and availability toggle remind artisans to update their status; admin monitors availability distribution weekly
+Admin / Product Management
+Client location doesn't match any artisan's service area
+MVP uses estate-level (Life Camp) rather than precise GPS, so all artisans and clients in the beachhead share the same location value — reducing zero-result risk significantly compared to a city-wide model
+Backend / Data Science
+Minimum viable supply threshold not met
+Client-side platform does not launch until at least 20 verified artisans across all 6 core trades are confirmed. If supply is below this threshold, launch is delayed by 48 hours rather than launching with predictably empty results.
+Product Management
+7.3 Escrow & Consolidated Payment Flow (v1.9)
+Artiva operates an escrow-lite model. As of v1.9, the client's job value and ₦500 platform fee are collected in a single consolidated Paystack transaction at checkout — not two separate payments — and the entire amount is held by the platform until the job is confirmed complete. From that point, funds follow one of two release paths: a standard labour release on Mark Complete, or a direct-to-supplier release when the job requires materials (Section 7.6).
+Step
+Action
+System Behaviour
+1
+Client and artisan agree a price in-app, then client taps the consolidated Checkout — job value + ₦500 fee
+Single Paystack transaction initialised server-side for the combined amount, itemized as job_value and platform_match_fee; amounts locked in transaction document; no-response timer started (4-hour countdown)
+2
+Client completes Paystack checkout
+Paystack fires webhook to platform on success
+3
+Platform receives webhook
+Signature (HMAC) verified; escrow_status updated to HELD; in-app chat thread opened between client and artisan
+4a — Standard labour release
+Client taps Mark Complete
+Authorization checked; commission calculated server-side (job_value × 0.10); artisan_net_labor (job_value minus commission) released to artisan; escrow_status updated to RELEASED; no-response timer cancelled
+4b — Material path
+Artisan submits a verified supplier proforma invoice (Section 7.6)
+Platform pays the supplier directly from escrow for the invoiced amount; escrow_status updated to DISBURSED_PARTIAL; remaining balance still held for the labour release on Mark Complete
+4c — No-response path
+Artisan sends no in-app message within 4 hours of match
+Platform initiates automatic Paystack refund to client for the full held amount; escrow_status updated to REFUNDED; artisan profile receives a non-response flag; admin notified; client sees an in-app message explaining the refund
+5
+Rating submitted
+1–5 star value stored; reputation_score recalculated; duplicate submission rejected with 409
+6
+Payment failure
+Failed payment screen rendered; retry re-initialises the same consolidated payment; job remains open
+Note: Definition of "contact": the first message sent by the artisan inside the Artiva chat thread. Opening the app alone does not count. The 4-hour window is deliberate: short enough to protect the client from being left waiting, long enough to account for artisans who are mid-job when a lead arrives. The window is enforced by a server-side timer (Firebase scheduled function), not dependent on client action. Consolidating the checkout in v1.9 does not change this — the timer still starts at the same point in the flow, now step 1.
+7.4 In-App Messaging
+Simple real-time chat (Firebase Firestore or equivalent) between matched client and artisan only
+Chat becomes available only after successful match-fee and job-value payment
+Messages are text-only in MVP (no media/file sharing required for launch)
+Both parties can see message timestamps and read status (basic)
+Chat history is retained for the life of the job and visible to admin for dispute context
+No WhatsApp deep-link, no phone number reveal, no external hand-off
+7.5 Data Requirements (Firestore Schema)
+Collection
+Key Fields
+Access Rules
+users
+uid, phone (OTP-verified), role (client/artisan/admin), created_at
+User reads/writes own document only
+artisan_profiles
+uid, trade, services[], nin, id_document_url, work_photos[], location, available, verified, completed_jobs, reputation_score, locked_job_value, no_response_flags (integer)
+Artisan writes own profile; clients read verified profiles only (never nin or id_document_url); admin writes verified field and no_response_flags
+jobs
+job_id, client_uid, trade, location, urgency, status (open/matched/complete/refunded), created_at
+Client writes own jobs; artisans read open jobs in their trade/location
+matches
+match_id, job_id, artisan_uid, client_uid, status, no_response_timer_expiry, created_at
+Client and matched artisan read; platform writes on payment confirmation
+messages
+message_id, match_id, sender_uid, text, sent_at, read_at
+Client and matched artisan on that match read/write; admin reads for dispute context
+transactions (v1.9 schema)
+transaction_id, job_id, client_uid, artisan_uid, amounts{ job_value, platform_match_fee, total_charged, artisan_net_labor }, escrow_status (HELD/DISBURSED_PARTIAL/RELEASED/REFUNDED), proforma_invoices[{ invoice_id, supplier_name, amount, status }], paystack_reference, refund_reason, created_at
+Client and artisan read own transactions; platform writes on webhook, proforma approval, Mark Complete, and no-response refund; nested amounts and proforma array replace the flatter v1.7 fields
+ratings
+rating_id, job_id, artisan_uid, client_uid, score, review, created_at
+Client writes once per job; artisan reads own ratings
+analytics_events
+event_id, event_type, user_id, session_id, metadata, timestamp
+Platform writes; Data Analysis reads
+7.6 Direct Material Supplier Procurement Protocol (v1.9)
+To remove the risk of material funds being misappropriated between client payment and material purchase, v1.9 introduces a strict direct-to-supplier payout protocol for any job that requires materials.
+Zero cash to artisan for materials: artisans are never given raw cash or a partial escrow advance to buy materials themselves
+Proforma invoice upload: when a job needs materials, the artisan uploads an official proforma invoice from a named supplier through the in-app proforma module
+Platform verification & disbursement: admin reviews the invoice in the proforma queue (Section 6.3, AD-005) and, on approval, the platform pays the supplier directly from escrow — never through the artisan's account
+Quality control: this protects the client's payment and keeps material sourcing auditable, without adding a supplier-facing marketplace to the MVP (that remains Phase 2 — see Section 5.2)
+8. Track Feature Mapping
+This section maps each learning track to their specific PRD features, deliverables, and acceptance criteria. Scope is set to what can genuinely be built and demoed in 4 weeks.
+Track
+MVP Deliverables
+Acceptance Criteria
+Product Management
+Sprint planning; backlog grooming; daily standups; problem statement; judging criteria map; beachhead confirmation; demo script; pitch rehearsal coordination
+Every card moves through backlog → in progress → done on schedule; no blocker open >24hrs without escalation
+UI/UX Design
+User research synthesis (8 interviews); user flows; low-fi wireframes (10 screens); hi-fi prototypes; design system; usability test reports (2 rounds)
+All screens mobile-first (375px); <60 seconds to post job; Lighthouse accessibility >90
+Brand Design
+Logo (Artiva sage-teal circular badge + gold speed lines, tested at 48×48px); colour palette (Sage Teal #68A9AC, Gold #C9B121, Deep Navy #162D4F); marketing assets; pitch deck visual template; 12-slide final deck; brand guidelines
+Final asset pack confirmed by Day 3; all 12 slides built with real screenshots and data by Week 3
+Backend Development
+Database schema; API spec; Firebase project; Phone OTP; Paystack sandbox + live integration; escrow logic; no-response timer (Firebase scheduled function); in-app chat APIs; admin queue; webhook handling; API documentation. v1.9 (Bankole Olayemi, Victor David): refactor payment architecture to a single-checkout Paystack flow (job value + ₦500); implement supplier proforma payout webhook handlers.
+All P0 endpoints live by Day 14; Paystack test transaction successful by Day 7; no-response timer tested by Day 21; consolidated checkout and proforma payout tested by Week 3
+Frontend Development
+React + Tailwind + Vite scaffold; all 10 MVP screens; responsive pass (320→414px); Paystack checkout; in-app chat UI; edge states; loading states on every API-dependent screen. v1.9: consolidated checkout screen with itemized job value + fee breakdown; proforma invoice upload module for artisans.
+End-to-end loop working on low-end Android by Day 21; Lighthouse performance >85; itemized checkout and proforma upload usable by Week 3
+Cybersecurity
+Lightweight threat checklist; secure coding guidelines (1 page); hardened Firestore rules; input validation layer (Zod); Paystack webhook signature verification; NIN/ID access restriction; pre-demo security sign-off; NDPR compliance note. v1.9 (Reign-El Alajemba): audit the consolidated transaction endpoints on staging; IDOR, tamper-proofing, and vulnerability scans on the new checkout and proforma payout paths.
+0 critical vulnerabilities in pre-demo sign-off; no secrets in git history; all 4 highest-risk surfaces confirmed secure by Day 21; consolidated checkout and proforma endpoints cleared by staging audit
+Data Science
+Data dictionary; matching heuristic v1 (plain-language spec + implementation); synthetic test dataset; validation script; concentration-fix validation; revenue model spreadsheet with matching-constraints and reputation-effect tabs
+Matching algorithm deployed and validated against 5-location test by Day 14; accuracy report by Day 21; zero-result trades identified weekly
+Data Analysis
+Metrics framework; event taxonomy; Firebase Analytics dashboard; custom event instrumentation; live metrics dashboard showing revenue and conversion; Q1 projection model with downside case. v1.9 (Abraham Oghenemaro Akukuata): design the SQL schema and issue a supplier survey to gather building-material vendor data ahead of the Phase 2 supplier marketplace.
+Live dashboard receiving real event data from Week 2; all KPIs in Section 3.3 tracked with at least one real data point by Day 28; supplier survey data collected before Phase 2 planning begins
+AI/ML
+Research only in Week 1: feasibility note on improving the matching heuristic post-MVP. Week 2: monitor real job completion data. Deliverable: one-page feasibility note + Q3 roadmap slide text. No code shipped to production.
+Feasibility note complete by Day 5; Q3 roadmap slide text confirmed with PM by Day 4; no AI/ML code in production during the 4-week sprint
+Digital Marketing
+Brand voice guide; 4-week content calendar; artisan outreach playbook; NTA Properties estate partnership pitch; beachhead partnership pitch; artisan onboarding campaign; resident-facing messaging (ready for NTAPIC approval)
+30 artisans onboarded by Day 14; NTAPIC estate partnership engaged by Day 7; resident-side campaign live within 48hrs of NTAPIC approval
+Virtual Assistant
+FAQ document (7–10 questions); saved-reply script; artisan onboarding log; admin verification queue coordination; real job completion log
+30 artisans confirmed onboarded and verified by Day 14; zero profiles unreviewed >24hrs in admin queue from Week 2 onward
+9. API Specification
+9.1 Authentication
+Endpoint
+Method
+Description
+Response
+/api/auth/phone/send-otp
+POST
+Request OTP to phone number
+{ success: boolean, message: string }
+/api/auth/phone/verify-otp
+POST
+Verify OTP and create session
+{ token: string, user: User }
+9.2 Artisans
+Endpoint
+Method
+Auth
+Description
+/api/artisans
+POST
+Required
+Create artisan profile (3-step signup payload)
+/api/artisans
+GET
+Optional
+List artisans with filters (trade, location, available)
+/api/artisans/:id
+GET
+Optional
+Get artisan profile detail (excludes nin, id_document_url for non-admin)
+/api/artisans/:id/availability
+PATCH
+Artisan only
+Toggle availability — owner check required
+9.3 Jobs & Matching
+Endpoint
+Method
+Auth
+Description
+/api/jobs
+POST
+Client only
+Create job posting
+/api/jobs/:id
+GET
+Owner only
+Get job details
+/api/jobs/:id/matches
+GET
+Client only
+Get matching artisans (heuristic applied)
+/api/jobs/:id/complete
+POST
+Client only
+Mark job complete + submit rating
+9.4 Payments & Escrow
+Endpoint
+Method
+Auth
+Description
+/api/payments/initialize
+POST
+Client only
+Initialize a single consolidated Paystack payment (job_value + ₦500 platform fee, itemized); start 4-hour no-response timer (v1.9)
+/api/payments/webhook
+POST
+Public (signed)
+Paystack webhook callback; verifies HMAC signature before processing; opens chat thread; sets escrow_status to HELD
+/api/payments/refund
+POST
+Platform only (internal)
+Initiates refund on no-response trigger; updates escrow_status to REFUNDED; flags artisan profile. Not callable by clients or artisans.
+/api/proforma/submit
+POST
+Artisan only
+Upload a supplier proforma invoice for a material-inclusive job (v1.9)
+9.5 Chat & Admin
+Endpoint
+Method
+Auth
+Description
+/api/chat/:matchId/messages
+GET / POST
+Match participants only
+List / send messages in the match thread
+/api/admin/verification-queue
+GET
+Admin only
+List pending artisan verifications
+/api/admin/verify/:artisanId
+POST
+Admin only
+Approve or reject artisan
+/api/admin/analytics
+GET
+Admin only
+Dashboard metrics: users, jobs, matches, revenue, no-response rate
+/api/admin/flags
+GET
+Admin only
+List artisan profiles with no-response flags
+/api/admin/proforma-queue
+GET
+Admin only
+List pending supplier proforma invoices (v1.9)
+/api/admin/proforma/:id/approve
+POST
+Admin only
+Approve a proforma invoice; triggers direct payout to the supplier from escrow (v1.9)
+10. Technical Architecture
+Layer
+Technology
+Rationale
+Frontend
+React 18 + Tailwind CSS + Vite
+Mobile-first, fast builds, credible demo UI
+Backend / API
+Node.js + Express + Firebase Firestore
+Auth/OTP out-of-box, real-time DB, generous free tier
+Authentication
+Firebase Auth (phone OTP)
+SMS OTP for Nigerian numbers without an additional vendor
+Payments / Escrow
+Paystack (sandbox → live)
+Nigerian-native payment rails, sandbox available, judge-friendly; funds held platform-side until Mark Complete
+Chat
+Firestore real-time listeners (simple text threads)
+No separate messaging vendor needed; ties naturally to existing Firestore auth and security rules
+Scheduled functions
+Firebase Cloud Functions (scheduled)
+No-response timer; runs server-side, not dependent on client action
+File Storage
+Firebase Storage
+Integrated with Firestore auth; server-side MIME validation before write
+Supplier payouts (v1.9)
+Manual bank transfer for MVP, initiated by admin on proforma approval; Paystack Transfers API is a Q2 candidate for automation
+No dedicated vendor payout rail exists yet; manual transfer is reliable at the low proforma volume expected in a single-estate beachhead
+Hosting
+Vercel (Frontend) + Firebase Functions (API)
+Free tier, auto-deploy on git push, Nigeria-accessible CDN
+Analytics
+Firebase Analytics + custom events
+Match conversion, time-to-match, job completion rate tracked from Week 2
+Design
+Figma (prototypes) + FigJam (workshops)
+Collaborative, export-ready
+Project Management
+Notion / Trello + daily standups
+Sprint boards; retrospectives
+11. Non-Functional Requirements
+11.1 Performance
+Requirement
+Target
+Measurement Method
+Match list load time
+<3 seconds on 3G mobile connection (approx. 1Mbps)
+Lighthouse + manual test on real Android device over 3G/4G
+API response time (p95)
+<500ms for all P0 endpoints
+Firebase Functions logs; Backend monitoring
+Payment flow (tap to Paystack redirect)
+<10 seconds
+Frontend event timing from match_now_tapped to paystack_opened
+Image loading
+Progressive JPEG; lazy load below fold; max 200KB per photo after compression
+Lighthouse + Firebase Storage upload rule
+Time from job post to first match result
+<5 seconds
+Backend log: job_posted → matches_returned
+Lighthouse performance score
+>85 on mobile
+Lighthouse CI run in Week 3 and Week 4
+API response time — proposed v1.9 target
+<200ms (tightened from <500ms above)
+Proposed in the v1.8 draft; not yet confirmed as achievable within the 4-week build — see Open Question Q14
+11.2 Scalability
+Requirement
+Target
+Notes
+Concurrent users (MVP)
+100 concurrent users without degradation
+Firestore + Vercel free tier handles this without optimization at beachhead scale
+Artisan profiles (MVP)
+Up to 200 profiles
+Firestore free tier: 1GB storage, well within range
+Simultaneous match flows
+Up to 20 concurrent matching requests
+Firebase Functions auto-scales; no custom queue needed for MVP
+Payment concurrency
+Up to 10 simultaneous Paystack transactions
+Paystack handles concurrency; idempotency key prevents double-charge
+File uploads
+Up to 10 concurrent uploads (artisan verification documents)
+Firebase Storage handles concurrency; MIME validation before write
+11.3 Reliability
+Requirement
+Target
+Fallback
+Uptime during demo period (Week 4)
+99% — less than 7 minutes downtime across the demo window
+If live app fails: pre-recorded screen capture of complete demo path ready as backup
+Paystack availability
+Not within team's control — Paystack SLA is >99.9%
+Manual bank transfer fallback documented and tested for first 10 match fees
+No-response timer reliability
+Firebase scheduled function fires within 5 minutes of 4-hour expiry
+Admin manually triggers refund if function fails; monitored via Firebase console
+API cold start time
+<2 seconds for Firebase Functions cold start
+Functions kept warm during demo window via scheduled ping
+Offline behaviour
+Static assets cached via service worker; dynamic content requires connection; loading states on all API-dependent screens
+Error states with retry on all failure paths; never a blank screen
+Data backup
+Firestore automatic daily backups enabled before Week 3 live key activation
+Point-in-time recovery available for up to 7 days
+Overall platform availability — proposed v1.9 target
+99.9% with automated failover (tightened from the 99% demo-period target above)
+Proposed in the v1.8 draft. Automated failover is not realistic given the constraint of no dedicated DevOps (Section 14.1) — see Open Question Q14
+11.4 Security
+Category
+Requirement
+Payments
+Commission calculated server-side from locked_job_value; client-side amount cannot affect commission
+Authentication
+Every endpoint checks requesting user's UID against resource owner before responding (IDOR prevention)
+File uploads
+Server-side MIME type validation; extensions not trusted
+Webhooks
+Paystack HMAC signature verified on every incoming request before processing
+Data privacy
+NIN and ID documents accessible only to admin UID; never in client-facing API responses
+Secrets management
+All keys in environment variables; .env in .gitignore from Day 1; no secrets in git history
+OTP abuse
+Rate limited: 3 requests per hour per phone; 24-hour lockout after 5 failed attempts
+NDPR compliance
+User consent on signup; data handling policy published; ID documents deleted after verification on request
+Encryption in transit (v1.9)
+TLS 1.3 for all client-server and webhook traffic
+Payment credential storage (v1.9)
+No raw card data stored by Artiva; PCI-DSS compliance is inherited via Paystack, which handles and stores card credentials
+Auditability (v1.9)
+Every escrow hold, proforma approval, and payout is written as an immutable transaction log entry — no in-place edits to historical amounts
+11.5 Accessibility & Responsiveness
+Requirement
+Standard / Target
+Contrast ratio
+WCAG AA — 4.5:1 minimum for all text; especially critical for outdoor Nigerian daylight use
+Touch targets
+Minimum 44×44px for all interactive elements
+Font sizes
+Minimum 16px for inputs (prevents iOS zoom)
+Screen reader support
+Alt text on all images; semantic HTML throughout
+Responsive breakpoints tested
+320px (low-end Android), 375px (design baseline), 414px (large Android), 768px (tablet), 1024px (desktop admin panel)
+Test device
+Real Tecno or Infinix phone by Week 2 in addition to browser simulation
+12. Revenue Model
+12.1 Revenue Streams
+As of v1.9, both streams below are collected in a single consolidated Paystack transaction at checkout rather than two separate payments — this changes the checkout UX but not the underlying revenue math.
+Stream
+Amount
+When Collected
+How Enforced
+Client match fee
+₦500 per match
+At booking, in the consolidated checkout, before chat is unlocked
+Paystack payment required; chat unlock gated on successful webhook
+Commission on job value
+10% of locked job value
+Retained automatically on Mark Complete
+Full job value held in escrow from booking; artisan share released minus commission; nothing to invoice or chase
+12.2 Q1 Projections
+Scenario
+Q1 Total
+Multiple of Target
+Conservative
+₦230,000
+1.15×
+Optimistic
+₦362,500
+1.81×
+Downside (85% of conservative volumes)
+≈₦195,500
+0.98×
+Note: Downside case at 0.98× target is within one additional week of Month 3 push. Month 3 network effects have the most room to close the gap.
+12.3 Why Commission Cannot Be Skipped
+The client pays the full job value plus the match fee at booking. The platform holds the entire amount in escrow. On Mark Complete, the platform releases the artisan's share (job value minus 10%) and retains the commission. The artisan cannot receive their share without the job being marked complete, and the commission is never invoiced separately — it is retained automatically from funds already held.
+13. Go-to-Market Strategy
+13.1 Beachhead — Life Camp (NTA Estate), Abuja
+Life Camp is not a randomly selected launch site. NTA Properties and Investment Company (NTAPIC) owns the estate, and Oasis Interbiz participated in its original construction. Gabriel visited NTAPIC headquarters and spoke directly with Mr. Aminu (internal champion). A formal letter was submitted to the Managing Director on Day 3 of the sprint. This is a developer-level relationship, not a cold pitch.
+13.2 Why Beachhead Over City-Wide Launch
+Launching across Abuja with 30 artisans produces approximately one artisan per square kilometre — too thin to guarantee results on any search. Concentrating those same artisans in one estate means every search returns results, every completed job becomes word-of-mouth within the same resident group, and the platform's density advantage compounds before any competitor can copy it.
+13.3 Phase Roadmap
+Phase
+Target
+Timeline
+Revenue Model
+MVP (Q1)
+Life Camp (NTA Estate), Abuja — 200+ households, 30 verified artisans
+Weeks 1–4
+₦500 match fee + 10% commission
+Scale (Q2)
+Karu + Mararaba (NTA Properties); automated payout rail; referral mechanic
+Months 4–6
+Same + referral mechanic
+Platform (Q3)
+City-wide Abuja; artisan tools; ML ranking; full chatbot; Material Suppliers Marketplace (v2.0) with vendor listings and sponsored placements
+Months 7–9
+Match fee + commission + subscription options + supplier subscription/ad revenue
+14. Constraints & Assumptions
+14.1 Constraints
+Constraint
+Impact
+Mitigation
+4-week build timeline
+MVP scope must be genuinely buildable; no feature creep
+Scope line enforced at PM level; ponytail principle applied to every feature discussion
+Student team — no dedicated DevOps
+No auto-scaling, no CI/CD pipeline beyond git push
+Vercel auto-deploy sufficient for MVP; manual monitoring during demo window
+Manual artisan verification
+Admin bandwidth limits verification throughput
+24-hour SLA per submission; admin queue built in Week 1
+Paystack sandbox in Weeks 1–2
+Cannot process real money until live keys enabled
+Live keys enabled before Week 3; manual bank transfer fallback for first 10 match fees
+NTAPIC partnership pending
+Resident-side launch dependent on MD approval
+Mr. Aminu as internal champion; formal letter submitted Day 3; Gabriel relationship active
+Estate-level matching with thin supply
+Zero-result searches possible if artisan pool is thin in specific trades
+See Section 7.2 No-Match Risk Mitigation; minimum 20 artisans across all 6 trades before client launch
+Direct-to-supplier payout has no vendor KYC yet (v1.9)
+Manual admin overhead per proforma; potential payout delay for unfamiliar suppliers
+Suppliers pre-vetted through Gabriel's contractor network initially, the same way seed artisans were sourced; proforma queue reviewed same-day
+14.2 Assumptions
+Life Camp has sufficient household density (200+) to generate 30 match-fee transactions in Month 1
+Gabriel's contractor network can supply at least 15 seed artisans willing to onboard for free in Week 1
+NTAPIC approval for resident outreach arrives before Week 2's client-side launch
+The average job value for urgent home repairs in Life Camp is approximately ₦20,000 — the basis for commission projections
+Artisans are willing to accept 10% commission per job in exchange for leads they would not otherwise receive
+Paystack live keys can be enabled within the 4-week sprint without additional business registration
+The 4-hour no-response window is acceptable to both clients (willing to wait up to 4 hours for a verified artisan rather than immediately refund) and artisans (4 hours is sufficient to respond between jobs) — to be validated with real users in Week 2
+Clients are willing to pay the full estimated job value upfront in a single consolidated checkout, rather than paying incrementally as work progresses (v1.9) — a real behaviour change from typical pay-as-you-go practice, worth validating with early users
+15. Risks & Mitigations
+Risk
+Likelihood
+Impact
+Mitigation
+Owner
+NTAPIC MD does not respond in time for Week 2 client launch
+Medium
+High
+Mr. Aminu as internal champion; Gabriel personal relationship; fallback: direct resident outreach via Gabriel's Life Camp contacts
+Digital Marketing
+Artisans take jobs off-platform after first contact
+Medium
+High
+Commission held in escrow at booking; earned priority makes on-platform history valuable
+Product Management
+Seed artisan count below 30 at client launch
+Medium
+High
+Minimum 20 across all 6 trades before launch; delay 48hrs rather than launch with empty results
+Virtual Assistant + Gabriel
+Frequent zero-result searches due to thin supply
+Medium
+Medium
+No-match risk mitigation (Section 7.2); Data Science identifies zero-result trades weekly; estate-level matching reduces risk vs. city-level
+Data Science + Digital Marketing
+Client pays but artisan never responds in-app
+Medium
+High
+4-hour auto-refund policy (Section 7.3); artisan profile flagged for admin review on non-response; client sees in-app explanation
+Backend + Product Management
+Paystack integration fails during live demo
+Low
+Critical
+Manual bank transfer fallback documented and tested; Paystack sandbox rehearsed 10+ times before demo day
+Backend Development
+Reputation score concentration
+Low — mitigated
+Medium
+Rotation weight validated with 5-location test in Week 1
+Data Science
+AI/ML scope creep into MVP build
+Low — mitigated
+High
+AI/ML track explicitly scoped as research only in Week 1; monitoring only in Week 2; no code in production
+AI/ML + Product Management
+Scope creep on in-app chat feature
+Low — mitigated
+Medium
+Keep messaging text-only and match-gated; no media in MVP
+Frontend + Product Management
+Revenue downside scenario (₦195,500 vs ₦200,000 target)
+Low
+Low
+85% downside is within one additional week of Month 3 push
+Data Analysis
+Consolidated checkout reduces conversion (v1.9)
+Medium
+Medium
+Committing the full job value upfront is a bigger ask than the old ₦500-first flow; clear itemized checkout UI and escrow-protection messaging emphasized at the point of payment
+Frontend + Product Management
+Proforma invoice fraud — fake suppliers or inflated invoices (v1.9)
+Medium
+High
+Admin manually verifies supplier legitimacy against Gabriel's known contractor/supplier network before any first payout to a new supplier; bank details verified before disbursement
+Admin + Cybersecurity
+16. Open Questions for Team Review
+#
+Question
+Status
+Decision / Owner
+Due
+Q01
+What is the exact definition of 'contact' for the no-response timer — must the artisan send an in-app message, or does opening the chat thread count?
+Closed
+Resolved in v1.4: only a sent message counts as contact. Opening the app alone does not.
+Closed
+Q02
+Should the 4-hour no-response window be configurable (e.g., shorter for 'Today' urgency, longer for 'This Week' urgency)?
+Open
+PM + Data Science
+Week 2, Day 2
+Q03
+What happens if a client marks Complete but the artisan disputes the job quality? Who reviews, and what is the outcome — refund, redo, or mediation?
+Open
+PM
+Week 2, Day 2
+Q04
+Should the empty-state Notify Me intent also alert admin when a trade is consistently returning zero results, so onboarding can target that trade proactively?
+Open
+Backend + Virtual Assistant
+Week 2, Day 2
+Q05
+At what artisan count per trade does the rotation weight need to be adjusted — is 5 artisans per trade sufficient for fair rotation, or is a higher minimum needed?
+Open
+Data Science
+Week 2, Day 3
+Q06
+Should the NDPR consent statement on the artisan signup screen be a checkbox or a passive notice? Legal implications differ.
+Open
+PM + Cybersecurity
+Week 2, Day 1
+Q07
+Team Member 2 and Team Member 3 are still placeholders on the pitch deck. Names and roles must be confirmed before any external pitch rehearsal.
+Partially resolved
+Bankole Olayemi + Victor David (Backend), Abraham Oghenemaro Akukuata (Data Analysis), and Reign-El Alajemba (Cybersecurity) are now confirmed. UI/UX, Frontend lead, AI/ML, Virtual Assistant, Digital Marketing, and Brand Design leads are still unnamed on the reviewer sign-off table.
+Week 3
+Q08
+Beachhead estate: Life Camp or an alternative?
+Closed — 2026-08-03
+Life Camp (NTA Estate), Abuja confirmed. Gabriel visited NTAPIC headquarters Day 3; formal letter submitted to MD.
+Closed
+Q09
+Paystack live account approval timeline?
+In progress
+Sandbox ready Day 1. Live account application submitted Day 3. Expected Week 3.
+Week 2, Day 7
+Q10
+Should artisan profiles with 2+ no-response flags be automatically suspended pending admin review, or should this remain a fully manual decision?
+Open
+PM + Backend
+Week 2, Day 3
+Q11
+Google/Apple sign-in buttons appear on the finalized signup wireframes but are not part of the functional MVP auth path — build full OAuth, or keep as a visual affordance only?
+Open
+PM + Backend
+Week 2, Day 1
+Q12
+The v1.8 draft describes 'automated NIN and government ID validation,' but the confirmed MVP mechanism is manual admin review (Section 5.2, reasoned there as faster and more reliable at launch scale). Should the pitch/demo describe verification as manual, or should the team actually pursue an automated KYC vendor within the 4-week build?
+Open — flagged from v1.8 review
+PM + Backend
+Week 3
+Q13
+The v1.8 draft's KPI 'match-to-job completion rate >75%' (Section 3.3) overlaps with the existing Match Conversion Rate and Job Completion Rate KPIs. Merge into one blended metric, or keep tracking separately?
+Open — flagged from v1.8 review
+PM + Data Analysis
+Week 3
+Q14
+The v1.8 draft proposes <200ms API response time and 99.9% uptime with automated failover — meaningfully stricter than the existing <500ms / 99% targets, and in tension with the 'no dedicated DevOps' constraint (Section 14.1). Confirm the tighter targets, or keep the original NFRs?
+Open — flagged from v1.8 review
+PM + Backend
+Week 3
+Q15
+The v1.8 draft's Executive Summary and Scope reference 'dynamic bidding' / inDrive-style price negotiation, and its own document-control history claims this was introduced in v1.5–1.6. That does not match the confirmed v1.5–v1.7 record, which used a rule-based matching heuristic with no bidding mechanic. Is dynamic bidding a genuinely new feature proposal for the MVP, or should this language be removed as inaccurate?
+Open — flagged from v1.8 review
+PM
+Week 3
+17. Brand & Design Tokens
+Name: Artiva   |   Tagline: Verified. Fast. Protected.
+Primary (Sage Teal): #68A9AC
+Accent (Gold): #C9B121
+Text / Navy: #162D4F
+Full Tailwind config + CSS custom properties already delivered to Frontend.
+18. Glossary
+Term
+Definition
+Beachhead
+A single, highly concentrated launch market chosen to prove the model before expanding
+Consolidated checkout (v1.9)
+The single Paystack transaction, introduced in v1.9, that collects the job value and ₦500 platform fee together instead of as two separate payments
+Contact
+The first message sent by the artisan inside the Artiva chat thread. Opening the app alone does not count.
+Earned priority
+Artisan ranking improvement earned through completed jobs and positive ratings — no subscription fee
+Escrow-lite
+The MVP payment mechanism: client's full payment held by the platform, released to artisan on Mark Complete, minus commission
+Escrow status
+The state of a transaction's held funds: HELD, DISBURSED_PARTIAL (a supplier has been paid but labour funds are still held), RELEASED, or REFUNDED (v1.9 schema)
+Material Supplier
+A vendor of construction/trade supplies who is paid directly from escrow via a verified proforma invoice. A Phase 2 stakeholder — no supplier-facing account exists in the v1.9 MVP (see Section 4.5)
+IDOR
+Insecure Direct Object Reference — a security vulnerability where a user can access another user's resources by manipulating IDs
+MIME type
+The actual file format as read from the file's binary signature, not the file extension — used for server-side file upload validation
+NDPR
+Nigeria Data Protection Regulation — the Nigerian equivalent of GDPR governing collection and use of personal data
+NIN
+National Identification Number — captured during artisan verification, stored securely, and never shown to clients
+No-response timer
+A 4-hour server-side countdown started at match confirmation; triggers an automatic refund to the client if the artisan sends no in-app message before expiry
+Proforma invoice
+A supplier-issued cost estimate for materials, uploaded by the artisan and verified by admin before Artiva pays the supplier directly from escrow (v1.9)
+Rotation weight
+A matching heuristic adjustment that prevents the same artisan appearing first for every job posted from the same estate area
+Verified badge
+A visual trust signal on an artisan's profile, issued manually by the platform admin after OTP, NIN, ID, and work-photo review
+19. Appendix A: Screen Inventory (12 MVP Screens, v1.9)
+#
+Screen
+User
+Purpose
+Key Elements
+1
+Splash / Onboarding
+All
+First impression, value prop
+Logo, tagline 'Verified. Fast. Protected.', Get Started, I am an artisan
+2
+Client: Post Job
+Client
+Create urgent job posting
+Trade dropdown, description, location (default: Life Camp), urgency chips (Today/This Week/Flexible)
+3
+Client: Browse Artisans
+Client
+View matched artisans
+Cards with verified badge, rating, response estimate, Match CTA
+4
+Client: Artisan Profile
+Client
+Evaluate artisan before paying
+Photos, stats, reputation score, Match Now — ₦500 CTA (no phone number shown)
+5
+Client: Consolidated Checkout (v1.9)
+Client
+Complete escrow payment in one step
+Paystack inline checkout; itemized breakdown of job value + ₦500 platform fee; single 'total charged' line; 'held until job complete' protection note
+6
+In-App Chat
+Both
+Negotiate and coordinate the job
+Message thread, timestamps, read status, Mark Complete entry point
+7
+Client: Job Complete + Rate
+Client
+Close job and rate artisan
+Mark Complete button, 1–5 star rating, optional text review, confirm release
+8
+Artisan Signup (3-step)
+Artisan
+Create verified profile
+Step 1: phone OTP + name/experience/location (Google/Apple affordance). Step 2: trade + multi-select services. Step 3: NIN + ID upload + 3-5 work photos + NDPR consent → admin queue
+9
+Artisan Dashboard
+Artisan
+View performance and earnings
+Held vs. released funds, jobs completed, reputation score, availability toggle, open chats
+10
+Admin: Verification Queue
+Admin
+Review and approve artisans
+Pending profiles list, NIN/ID viewer, work photo gallery, Approve/Reject buttons, rejection reason text, no-response flags visible
+11
+Artisan: Submit Proforma Invoice (v1.9)
+Artisan
+Request direct material funding
+Upload proforma invoice (PDF/image); supplier name and amount fields; status tracker (Pending / Approved / Paid)
+12
+Admin: Proforma Queue (v1.9)
+Admin
+Approve supplier payouts
+Pending proforma list; invoice viewer; Approve/Reject; approval triggers direct payout to the supplier
+20. Appendix B: Demo Script (10-Minute Pitch)
+Time
+Action
+Speaker
+Screen / Slide
+0:00
+Hook: Mrs. Amaka's kitchen sink is leaking at 7pm...
+Gabriel
+Slide 2
+1:00
+Problem data (80.6%, 23.1%, n=47, n=105)
+PM
+Slide 3
+2:00
+Solution: end-to-end loop, all inside the app
+PM
+Slide 4
+3:00
+LIVE DEMO: Client posts urgent job
+Frontend
+Screen 2: Post Job
+3:30
+LIVE DEMO: Browse available verified artisans
+Frontend
+Screen 3: Browse
+4:00
+LIVE DEMO: Tap Match Now — ₦500
+Frontend
+Screen 4: Profile
+4:30
+LIVE DEMO: Single consolidated payment (job value + fee) succeeds; chat unlocked
+Frontend
+Screen 5: Checkout
+5:00
+LIVE DEMO: In-app chat opens between client and artisan
+Frontend
+Screen 6: In-App Chat
+5:30
+LIVE DEMO: Artisan dashboard (reputation building)
+Frontend
+Screen 9: Dashboard
+6:00
+Revenue model: match fee + commission held in escrow at booking
+PM / Data Analysis
+Slide 7
+7:00
+Q1 projections: ₦230K conservative
+Data Analysis
+Slide 8
+7:30
+Beachhead: Life Camp, NTAPIC, 30 artisans, Phase 2 Karu + Mararaba
+Digital Marketing
+Slide 9
+8:00
+Competitive differentiation: we own the urgent moment, protected inside the app
+PM
+Slide 10
+8:30
+Team: Gabriel's 25 years in Abuja on the very estates we're launching in
+Gabriel
+Slide 11
+9:00
+Evolution roadmap (MVP → Scale → Platform)
+PM
+Slide 12
+9:30
+The ask: commit to this as our capstone direction
+Gabriel
+Close slide
+21. Single Source of Truth
+This document (Artiva PRD v1.9) is the single source of truth for the 4-week sprint. All tracks must reference it for acceptance criteria. Any change requires PM approval and notification to all track owners.
+Artiva · Verified. Fast. Protected. · Group 5, Cohort 8 · August 2026

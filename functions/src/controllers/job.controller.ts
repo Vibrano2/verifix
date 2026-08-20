@@ -238,6 +238,16 @@ export class JobController extends BaseController {
       const { matches, count } = await this.matchingService.matchArtisansToJob(id);
 
       if (count === 0) {
+        // Log zero results for admin visibility (Q04)
+        await db.collection('analytics_events').add({
+          event_type: 'zero_results',
+          job_id: id,
+          trade: jobData.trade_needed || jobData.trade,
+          location: jobData.location,
+          client_uid: req.user.uid,
+          timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
         this.sendSuccess(res, 'No available artisans found for this trade', { matches: [], count: 0 });
         return;
       }
@@ -341,6 +351,25 @@ export class JobController extends BaseController {
       this.sendSuccess(res, 'Artisan arrived');
     } catch (error) {
       this.handleError(error, res, 'Arrive tracking');
+    }
+  }
+
+  async disputeJob(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        return this.sendUnauthorized(res, 'Authentication required');
+      }
+      const { id } = req.params;
+      const { reason } = req.body;
+      
+      if (!reason) {
+        return this.sendBadRequest(res, 'Dispute reason is required');
+      }
+
+      await this.jobService.raiseDispute(id, req.user.uid, reason);
+      this.sendSuccess(res, 'Dispute raised successfully');
+    } catch (error) {
+      this.handleError(error, res, 'Dispute job');
     }
   }
 }

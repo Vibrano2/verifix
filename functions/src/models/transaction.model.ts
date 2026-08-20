@@ -21,12 +21,31 @@ export interface Transaction {
   match_id?: string;
   client_uid: string;
   artisan_uid?: string;
-  amount: number;
+  type: TransactionType;
+  
+  // v1.9 Schema
+  amounts: {
+    job_value: number;
+    platform_match_fee: number;
+    total_charged: number;
+    artisan_net_labor: number;
+  };
+  escrow_status: 'HELD' | 'DISBURSED_PARTIAL' | 'RELEASED' | 'REFUNDED' | 'PENDING' | 'COMPLETED' | 'FAILED';
+  proforma_invoices?: Array<{
+    invoice_id: string;
+    supplier_name: string;
+    amount: number;
+    status: string;
+  }>;
+  paystack_reference: string;
+  refund_reason?: string;
+
+  // Legacy fields (optional if maintaining backward compat in code)
+  amount?: number;
   commission_retained?: number;
   locked_job_value?: number;
-  type: TransactionType;
-  status: TransactionStatus;
-  paystack_reference: string;
+  status?: TransactionStatus;
+
   paystack_authorization?: any;
   metadata?: Record<string, any>;
   created_at: Date | admin.firestore.Timestamp;
@@ -39,10 +58,16 @@ export interface CreateTransactionDTO {
   match_id?: string;
   client_uid: string;
   artisan_uid?: string;
-  amount: number;
-  commission_retained?: number;
-  locked_job_value?: number;
   type: TransactionType;
+  
+  amounts: {
+    job_value: number;
+    platform_match_fee: number;
+    total_charged: number;
+    artisan_net_labor: number;
+  };
+  escrow_status: 'HELD' | 'DISBURSED_PARTIAL' | 'RELEASED' | 'REFUNDED' | 'PENDING' | 'COMPLETED' | 'FAILED';
+  
   paystack_reference: string;
   metadata?: Record<string, any>;
 }

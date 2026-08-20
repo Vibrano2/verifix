@@ -56,8 +56,8 @@ export class AuthController extends BaseController {
 
   async sendOTP(req: Request, res: Response): Promise<void> {
     try {
-      const { email } = req.body;
-      const result = await this.authService.sendOTP(email);
+      const { phone } = req.body;
+      const result = await this.authService.sendOTP(phone);
       this.sendSuccess(res, result.message);
     } catch (error) {
       this.handleError(error, res, 'Send OTP');
@@ -66,8 +66,8 @@ export class AuthController extends BaseController {
 
   async verifyOTP(req: Request, res: Response): Promise<void> {
     try {
-      const { email, otp, role } = req.body;
-      const result = await this.authService.verifyOTP(email, otp, role);
+      const { phone, otp, role } = req.body;
+      const result = await this.authService.verifyOTP(phone, otp, role);
       res.status(200).json(result);
     } catch (error) {
       this.handleError(error, res, 'Verify OTP');

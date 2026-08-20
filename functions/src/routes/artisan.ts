@@ -1,69 +1,29 @@
 import { Router } from 'express';
 import { authenticate, requireOwnership } from '../middleware/auth';
-import { validate } from '../middleware/zodValidation';
-import { CreateArtisanSchema, UpdateArtisanSchema } from '../models/artisan.model';
 import { ArtisanController } from '../controllers';
 
 const router = Router();
 const artisanController = new ArtisanController();
 
-// Unified Registration
-router.post('/', authenticate, (req, res) => artisanController.registerArtisan(req as any, res));
-
-// Public Directory
-router.get('/', (req, res) => artisanController.listArtisans(req, res));
-
 /**
  * @swagger
- * /api/artisans/signup:
+ * /api/artisans:
  *   post:
- *     summary: Complete artisan profile after initial auth
+ *     summary: Create artisan profile
  *     tags: [Artisans]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - trade
- *               - location
- *               - tagline
- *             properties:
- *               trade:
- *                 type: string
- *               location:
- *                 type: object
- *                 properties:
- *                   city:
- *                     type: string
- *                   state:
- *                     type: string
- *                   lga:
- *                     type: string
- *                   address:
- *                     type: string
- *               tagline:
- *                 type: string
- *               id_document_url:
- *                 type: string
- *               work_photos:
- *                 type: array
- *                 items:
- *                   type: string
- *     responses:
- *       201:
- *         description: Artisan profile created
- *       400:
- *         description: Validation error
- *       401:
- *         description: Unauthorized
  */
-router.post('/signup', authenticate, validate(CreateArtisanSchema), (req, res) => 
-  artisanController.completeProfile(req, res)
-);
+router.post('/', authenticate, (req, res) => artisanController.registerArtisan(req as any, res));
+
+/**
+ * @swagger
+ * /api/artisans:
+ *   get:
+ *     summary: List artisans with filters (trade, location, available)
+ *     tags: [Artisans]
+ */
+router.get('/', (req, res) => artisanController.listArtisans(req, res));
 
 /**
  * @swagger
@@ -73,30 +33,6 @@ router.post('/signup', authenticate, validate(CreateArtisanSchema), (req, res) =
  *     tags: [Artisans]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: uid
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - available
- *             properties:
- *               available:
- *                 type: boolean
- *     responses:
- *       200:
- *         description: Availability updated
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden (IDOR)
  */
 router.patch('/:uid/availability', authenticate, requireOwnership, (req, res) => 
   artisanController.updateAvailability(req, res)
@@ -104,70 +40,12 @@ router.patch('/:uid/availability', authenticate, requireOwnership, (req, res) =>
 
 /**
  * @swagger
- * /api/artisans/{uid}/profile:
- *   patch:
- *     summary: Update artisan profile (location, tagline, etc.)
- *     tags: [Artisans]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: uid
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               trade:
- *                 type: string
- *               location:
- *                 type: object
- *               tagline:
- *                 type: string
- *               bio:
- *                 type: string
- *               experience_years:
- *                 type: number
- *               hourly_rate:
- *                 type: number
- *     responses:
- *       200:
- *         description: Profile updated
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- */
-router.patch('/:uid/profile', authenticate, requireOwnership, validate(UpdateArtisanSchema), (req, res) => 
-  artisanController.updateProfile(req, res)
-);
-
-/**
- * @swagger
- * /api/artisans/{uid}:
+ * /api/artisans/{id}:
  *   get:
- *     summary: Get artisan profile details
+ *     summary: Get artisan profile detail (excludes nin, id_document_url for non-admin)
  *     tags: [Artisans]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: uid
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Artisan profile
- *       404:
- *         description: Not found
  */
-router.get('/:uid', authenticate, (req, res) => 
+router.get('/:id', authenticate, (req, res) => 
   artisanController.getProfile(req, res)
 );
 
@@ -179,17 +57,6 @@ router.get('/:uid', authenticate, (req, res) =>
  *     tags: [Artisans]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: uid
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Dashboard data
- *       403:
- *         description: Forbidden
  */
 router.get('/:uid/dashboard', authenticate, requireOwnership, (req, res) => 
   artisanController.getDashboard(req, res)
@@ -197,30 +64,25 @@ router.get('/:uid/dashboard', authenticate, requireOwnership, (req, res) =>
 
 /**
  * @swagger
- * /api/artisans/{uid}/photo:
- *   post:
- *     summary: Upload work photo for artisan
+ * /api/artisans/{uid}/profile:
+ *   patch:
+ *     summary: Update artisan profile
  *     tags: [Artisans]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: uid
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
- *     responses:
- *       200:
- *         description: Photo uploaded
+ */
+router.patch('/:uid/profile', authenticate, requireOwnership, (req, res) => 
+  artisanController.updateProfile(req, res)
+);
+
+/**
+ * @swagger
+ * /api/artisans/{uid}/photo:
+ *   post:
+ *     summary: Upload a work photo
+ *     tags: [Artisans]
+ *     security:
+ *       - bearerAuth: []
  */
 router.post('/:uid/photo', authenticate, requireOwnership, (req, res) => 
   artisanController.addWorkPhoto(req, res)
@@ -230,28 +92,10 @@ router.post('/:uid/photo', authenticate, requireOwnership, (req, res) =>
  * @swagger
  * /api/artisans/{uid}/id-document:
  *   post:
- *     summary: Upload ID document for verification
+ *     summary: Upload an ID document
  *     tags: [Artisans]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: uid
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
- *     responses:
- *       200:
- *         description: ID document uploaded
  */
 router.post('/:uid/id-document', authenticate, requireOwnership, (req, res) => 
   artisanController.uploadIDDocument(req, res)

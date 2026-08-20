@@ -41,18 +41,26 @@ export class MatchingService extends BaseService {
     })) as Artisan[];
     
     artisans.sort((a, b) => {
-      // Primary: completed_jobs (descending)
-      const aCompleted = a.completed_jobs || 0;
-      const bCompleted = b.completed_jobs || 0;
-      if (bCompleted !== aCompleted) {
-        return bCompleted - aCompleted;
-      }
+      // priority_score = (avg_rating × 0.40) + (min(completed_jobs, 50) / 50 × 0.30) + (response_speed_score × 0.20) + (verification_bonus × 0.10)
       
-      // Tiebreaker: reputation_score (descending, nulls last)
-      const aScore = a.reputation_score === null || a.reputation_score === undefined ? -1 : a.reputation_score;
-      const bScore = b.reputation_score === null || b.reputation_score === undefined ? -1 : b.reputation_score;
+      const calcPriority = (artisan: Artisan) => {
+        const avg_rating = artisan.reputation_score || 0;
+        const completed_jobs = Math.min(artisan.completed_jobs || 0, 50);
+        
+        // Defaults: Response speed 1.0 (since not tracked yet), Verification bonus 1.0 (since query filters for verified)
+        const response_speed_score = 1.0; 
+        const verification_bonus = 1.0;
+        
+        return (avg_rating * 0.40) + 
+               ((completed_jobs / 50) * 0.30) + 
+               (response_speed_score * 0.20) + 
+               (verification_bonus * 0.10);
+      };
+
+      const aPriority = calcPriority(a);
+      const bPriority = calcPriority(b);
       
-      return bScore - aScore;
+      return bPriority - aPriority; // Descending
     });
 
     // Return top matches

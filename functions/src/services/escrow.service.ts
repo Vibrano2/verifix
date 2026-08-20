@@ -29,7 +29,7 @@ export class EscrowService extends BaseService {
         .collection(COLLECTIONS.TRANSACTIONS)
         .where('job_id', '==', jobId)
         .where('type', '==', 'escrow')
-        .where('status', '==', 'held')
+        .where('escrow_status', 'in', ['HELD', 'DISBURSED_PARTIAL'])
         .limit(1)
         .get();
 
@@ -40,20 +40,29 @@ export class EscrowService extends BaseService {
       const transactionDoc = transactionSnapshot.docs[0];
       const transaction = transactionDoc.data();
 
-      if (transaction.status === 'released') {
+      if (transaction.escrow_status === 'RELEASED' || transaction.status === 'released') {
         this.logger.warn('Funds already released', { jobId });
         return {
-          artisanReceives: transaction.locked_job_value - transaction.commission_retained,
-          commissionRetained: transaction.commission_retained
+          artisanReceives: transaction.amounts?.artisan_net_labor || (transaction.locked_job_value - transaction.commission_retained),
+          commissionRetained: transaction.commission_retained || (transaction.amounts?.job_value * 0.10)
         };
       }
 
-      const lockedJobValue = transaction.locked_job_value || 0;
-      const commissionRetained = lockedJobValue * 0.10;
-      const artisanReceives = lockedJobValue - commissionRetained;
+      const lockedJobValue = transaction.amounts?.job_value || transaction.locked_job_value || 0;
+      const commissionRetained = transaction.commission_retained || (lockedJobValue * 0.10);
+      let artisanReceives = transaction.amounts?.artisan_net_labor || (lockedJobValue - commissionRetained);
+
+      // Deduct any proforma amounts already disbursed from the artisan's final payout
+      if (transaction.proforma_invoices && Array.isArray(transaction.proforma_invoices)) {
+        const disbursedProformas = transaction.proforma_invoices
+          .filter((inv: any) => inv.status === 'approved')
+          .reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0);
+        artisanReceives -= disbursedProformas;
+      }
 
       await transactionDoc.ref.update({
-        status: 'released',
+        escrow_status: 'RELEASED',
+        status: 'released', // keep legacy field in sync
         commission_retained: commissionRetained,
         released_at: admin.firestore.FieldValue.serverTimestamp(),
         updated_at: admin.firestore.FieldValue.serverTimestamp()
@@ -116,13 +125,24 @@ export class EscrowService extends BaseService {
 
       snapshot.forEach(doc => {
         const data = doc.data();
-        const lockedValue = data.locked_job_value || 0;
+        const lockedValue = data.amounts?.job_value || data.locked_job_value || 0;
         const commission = data.commission_retained || (lockedValue * 0.10);
-        const artisanAmount = lockedValue - commission;
+        let artisanAmount = data.amounts?.artisan_net_labor || (lockedValue - commission);
+        
+        // Deduct proformas from held/released earnings correctly
+        if (data.proforma_invoices && Array.isArray(data.proforma_invoices)) {
+          const disbursedProformas = data.proforma_invoices
+            .filter((inv: any) => inv.status === 'approved')
+            .reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0);
+          artisanAmount -= disbursedProformas;
+        }
 
-        if (data.status === 'held') {
+        const isHeld = data.escrow_status === 'HELD' || data.escrow_status === 'DISBURSED_PARTIAL' || data.status === 'held';
+        const isReleased = data.escrow_status === 'RELEASED' || data.status === 'released';
+
+        if (isHeld) {
           held += artisanAmount;
-        } else if (data.status === 'released') {
+        } else if (isReleased) {
           released += artisanAmount;
           totalCommission += commission;
         }
@@ -156,12 +176,15 @@ export class EscrowService extends BaseService {
 
       snapshot.forEach(doc => {
         const data = doc.data();
-        const amount = data.amount || 0;
-        const commission = data.commission_retained || 0;
+        const amount = data.amounts?.total_charged || data.amount || 0;
+        const commission = data.amounts?.platform_match_fee || data.commission_retained || 0;
 
-        if (data.status === 'held') {
+        const isHeld = data.escrow_status === 'HELD' || data.escrow_status === 'DISBURSED_PARTIAL' || data.status === 'held';
+        const isReleased = data.escrow_status === 'RELEASED' || data.status === 'released';
+
+        if (isHeld) {
           totalHeld += amount;
-        } else if (data.status === 'released') {
+        } else if (isReleased) {
           totalReleased += amount;
           totalCommission += commission;
         }
@@ -189,12 +212,13 @@ export class EscrowService extends BaseService {
       }
 
       const transaction = transactionDoc.data();
-      if (transaction?.status !== 'held') {
+      if (transaction?.escrow_status !== 'HELD' && transaction?.status !== 'held') {
         throw new Error('Can only refund held transactions');
       }
 
       await transactionDoc.ref.update({
-        status: 'refunded',
+        escrow_status: 'REFUNDED',
+        status: 'refunded', // keep legacy field in sync
         metadata: {
           ...transaction?.metadata,
           refund_reason: reason

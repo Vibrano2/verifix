@@ -4,7 +4,6 @@ import { ArtisanRepository, UserRepository } from '../repositories';
 import { COLLECTIONS } from '../constants';
 import { Artisan } from '../models/artisan.model';
 import { AdminAnalytics } from '../models/analytics.model';
-import { Trade, getCategoryForTrade, isValidTrade } from '../constants/trades';
 
 export class AdminService extends BaseService {
   private artisanRepo: ArtisanRepository;
@@ -99,89 +98,19 @@ export class AdminService extends BaseService {
     }
   }
 
-  async addArtisanManually(data: {
-    first_name: string;
-    last_name: string;
-    phone: string;
-    trade: string;
-    location: {
-      city: string;
-      state: string;
-      lga: string;
-      address?: string;
-    };
-    tagline: string;
-    hourly_rate?: number;
-  }): Promise<{ uid: string }> {
+  async getArtisansWithFlags(): Promise<Artisan[]> {
     try {
-      if (!isValidTrade(data.trade)) {
-        throw new Error('Invalid trade. Must be one of the 24 locked trades.');
-      }
+      const snapshot = await this.db.collection(COLLECTIONS.ARTISANS)
+        .where('no_response_flags', '>', 0)
+        .orderBy('no_response_flags', 'desc')
+        .get();
 
-      // Format phone to E.164 if needed
-      let formattedPhone = data.phone;
-      if (!formattedPhone.startsWith('+')) {
-        formattedPhone = `+234${formattedPhone.replace(/^0/, '')}`;
-      }
-
-      // Create Auth User
-      let authUser;
-      try {
-        authUser = await admin.auth().createUser({
-          phoneNumber: formattedPhone,
-          displayName: `${data.first_name} ${data.last_name}`,
-        });
-      } catch (authErr: any) {
-        if (authErr.code === 'auth/phone-number-already-exists') {
-          throw new Error('An account with this phone number already exists.');
-        }
-        throw authErr;
-      }
-
-      const uid = authUser.uid;
-      const category = getCategoryForTrade(data.trade as Trade);
-
-      // Create User Doc
-      const userRef = this.db.collection(COLLECTIONS.USERS).doc(uid);
-      await userRef.set({
-        uid,
-        phone: formattedPhone,
-        role: 'artisan',
-        first_name: data.first_name,
-        last_name: data.last_name,
-        is_active: true,
-        created_at: admin.firestore.FieldValue.serverTimestamp(),
-        last_login: admin.firestore.FieldValue.serverTimestamp()
-      });
-
-      // Create Artisan Doc
-      const artisanData: Partial<Artisan> = {
-        uid,
-        trade: data.trade as Trade,
-        category,
-        location: data.location,
-        tagline: data.tagline,
-        bio: `${data.trade} based in ${data.location.city}`,
-        experience_years: 1, // Default
-        hourly_rate: data.hourly_rate || 2000,
-        skills: [],
-        portfolio: [],
-        is_available: true,
-        is_verified: true, // Pre-verified!
-        verification_status: 'approved',
-        created_at: new Date()
-      };
-
-      await this.artisanRepo.create(uid, artisanData as Artisan);
-
-      this.logOperation('artisan-added-manually', { uid, trade: data.trade, phone: formattedPhone });
-
-      return { uid };
+      return snapshot.docs.map(doc => doc.data() as Artisan);
     } catch (error) {
-      this.handleError(error, 'Add Artisan Manually');
-      throw error;
+      this.handleError(error, 'Get artisans with flags');
     }
   }
+
 
   async getStatistics(): Promise<{
     users: { total: number; clients: number; artisans: number };

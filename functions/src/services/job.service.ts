@@ -33,9 +33,6 @@ export class JobService extends BaseService {
         description: data.description,
         location: data.location,
         urgency: data.urgency,
-        budget: data.budget,
-        budget_min: data.budget_min,
-        budget_max: data.budget_max,
         match_fee: data.match_fee || 500,
         status: 'open',
         created_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -103,6 +100,61 @@ export class JobService extends BaseService {
       } as unknown as Job));
     } catch (error) {
       this.handleError(error, 'Get jobs by client');
+    }
+  }
+
+  async raiseDispute(jobId: string, uid: string, reason: string): Promise<void> {
+    try {
+      // Allow client or artisan to raise a dispute
+      const job = await this.getJobById(jobId);
+      if (!job) throw new Error('Job not found');
+
+      const isClient = job.client_uid === uid;
+      const isArtisan = job.matched_artisan_uid === uid;
+      if (!isClient && !isArtisan) {
+        throw new Error('Unauthorized: You must be the client or assigned artisan to dispute this job');
+      }
+
+      await this.db.runTransaction(async (transaction) => {
+        const jobRef = this.db.collection(COLLECTIONS.JOBS).doc(jobId);
+        
+        // Find associated escrow transaction
+        const txSnapshot = await transaction.get(
+          this.db.collection(COLLECTIONS.TRANSACTIONS)
+            .where('job_id', '==', jobId)
+            .where('type', '==', 'escrow')
+            .limit(1)
+        );
+
+        if (!txSnapshot.empty) {
+          const txDoc = txSnapshot.docs[0];
+          // Freeze funds
+          transaction.update(txDoc.ref, {
+            escrow_status: 'DISPUTED',
+            status: 'disputed', // legacy sync
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+
+        transaction.update(jobRef, {
+          status: 'disputed',
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Log the dispute event for admins
+        const disputeRef = this.db.collection('disputes').doc();
+        transaction.set(disputeRef, {
+          job_id: jobId,
+          raised_by_uid: uid,
+          reason: reason,
+          status: 'open',
+          created_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+      });
+
+      this.logOperation('job-disputed', { jobId, raisedBy: uid, reason });
+    } catch (error) {
+      this.handleError(error, 'Raise dispute');
     }
   }
 
@@ -338,4 +390,6 @@ export class JobService extends BaseService {
       this.handleError(error, 'Search jobs');
     }
   }
+
+
 }

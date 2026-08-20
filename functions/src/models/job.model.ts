@@ -35,9 +35,6 @@ export const CreateJobSchema = z.object({
     location: z.union([LocationSchema, z.string()]),
     urgency: z.enum(['Today', 'This Week', 'Flexible']).optional(),
     timing: z.string().optional(),
-    budget: z.number().positive().optional(),
-    budget_min: z.number().positive().optional(),
-    budget_max: z.number().positive().optional(),
     match_fee: z.number().positive().optional()
   })
 });
@@ -48,7 +45,6 @@ export const UpdateJobSchema = z.object({
     description: z.string().min(10).max(1000).optional(),
     location: LocationSchema.optional(),
     urgency: z.enum(['Today', 'This Week', 'Flexible']).optional(),
-    budget: z.number().positive().optional(),
     status: z.enum(['open', 'matched', 'in_progress', 'completed', 'cancelled']).optional()
   })
 });
@@ -61,9 +57,6 @@ export interface Job {
   description: string;
   location: Location;
   urgency: Urgency;
-  budget?: number;
-  budget_min?: number;
-  budget_max?: number;
   status: JobStatus;
   matched_artisan_uid?: string;
   locked_job_value?: number;

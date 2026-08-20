@@ -12,12 +12,13 @@ const adminController = new AdminController();
 router.get('/verification-queue', authenticate, requireAdmin, (req, res) => 
   adminController.getVerificationQueue(req, res)
 );
+
 /**
- * POST /api/admin/artisans
- * Manually add and pre-verify an artisan
+ * GET /api/admin/flags
+ * List artisan profiles with no-response flags
  */
-router.post('/artisans', authenticate, requireAdmin, (req, res) => 
-  adminController.createArtisan(req, res)
+router.get('/flags', authenticate, requireAdmin, (req, res) => 
+  adminController.getFlags(req, res)
 );
 
 /**
@@ -37,16 +38,8 @@ router.post('/reject/:uid', authenticate, requireAdmin, (req, res) =>
 );
 
 /**
- * GET /api/admin/stats
- * Get platform statistics
- */
-router.get('/stats', authenticate, requireAdmin, (req, res) => 
-  adminController.getStatistics(req, res)
-);
-
-/**
  * GET /api/admin/analytics
- * Get comprehensive analytics data
+ * Dashboard metrics: users, jobs, matches, revenue, no-response rate
  */
 router.get('/analytics', authenticate, requireAdmin, (req, res) => 
   adminController.getAnalytics(req, res)

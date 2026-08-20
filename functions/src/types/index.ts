@@ -94,7 +94,6 @@ export interface Job {
   trade: TradeName;
   location: string;
   urgency: Urgency;
-  budget: number | null;
   description: string;
   match_fee: number;
   status: JobStatus;

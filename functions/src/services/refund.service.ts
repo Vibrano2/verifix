@@ -89,7 +89,7 @@ export class RefundService {
     // 1. Retrieve transaction details
     const txSnapshot = await this.db.collection('transactions')
       .where('match_id', '==', matchId)
-      .where('status', '==', 'held')
+      .where('escrow_status', '==', 'HELD')
       .limit(1)
       .get();
 
@@ -99,7 +99,9 @@ export class RefundService {
 
     const txDoc = txSnapshot.docs[0];
     const txData = txDoc.data();
-    const { paystack_reference, total_amount, locked_job_value } = txData;
+    const { paystack_reference, amounts } = txData;
+    const total_amount = amounts?.total_charged || txData.total_amount || 0;
+    const locked_job_value = amounts?.job_value || txData.locked_job_value || 0;
 
     // 2. Call Paystack Refund API
     try {
@@ -133,9 +135,9 @@ export class RefundService {
       const txRef = this.db.collection('transactions').doc(txDoc.id);
       const artisanRef = this.db.collection('artisan_profiles').doc(artisanUid);
 
-      // Update Transaction status
       transaction.update(txRef, {
-        status: 'refunded',
+        escrow_status: 'REFUNDED',
+        status: 'refunded', // keep legacy field in sync
         refund_reason: 'Auto-refund: 4-hour no response timer expired',
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
@@ -157,11 +159,20 @@ export class RefundService {
       if (artisanDoc.exists) {
         const currentFlags = artisanDoc.data()?.no_response_flags || 0;
         const currentLocked = artisanDoc.data()?.locked_job_value || 0;
+        const newFlags = currentFlags + 1;
+        const isSuspended = newFlags >= 2;
+
         transaction.update(artisanRef, {
-          no_response_flags: currentFlags + 1,
+          no_response_flags: newFlags,
           locked_job_value: Math.max(0, currentLocked - (locked_job_value || 0)),
+          verified: isSuspended ? false : artisanDoc.data()?.verified,
+          available: isSuspended ? false : artisanDoc.data()?.available,
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
+
+        if (isSuspended) {
+          Logger.warn(`Artisan ${artisanUid} automatically suspended due to ${newFlags} no-response flags.`);
+        }
       }
     });
   }

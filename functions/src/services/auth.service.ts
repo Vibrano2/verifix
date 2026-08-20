@@ -179,86 +179,88 @@ export class AuthService extends BaseService {
     }
   }
 
-  async sendOTP(email: string): Promise<{ message: string }> {
+  async sendOTP(phone: string): Promise<{ message: string }> {
     try {
-      this.validateRequired({ email }, ['email']);
-      const formattedEmail = email.trim().toLowerCase();
+      this.validateRequired({ phone }, ['phone']);
+      const formattedPhone = phone.trim();
 
-      const rateLimitResult = await checkOTPRateLimit(formattedEmail);
+      const rateLimitResult = await checkOTPRateLimit(formattedPhone);
       if (!rateLimitResult.allowed) {
         throw new Error(rateLimitResult.reason || 'Too many OTP requests. Please try again later.');
       }
 
+      // In development/mock mode, we'll just log the OTP. 
+      // In production, this would integrate with Termii/Twilio.
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const expiration = new Date();
       expiration.setMinutes(expiration.getMinutes() + 15);
 
-      await admin.firestore().collection('otps').doc(formattedEmail).set({
+      await admin.firestore().collection('otps').doc(formattedPhone).set({
         otp,
         expiresAt: admin.firestore.Timestamp.fromDate(expiration),
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      await recordOTPAttempt(formattedEmail, true);
-      this.logger.info(`[MOCK EMAIL] To: ${formattedEmail}, Subject: Your Artiva Login Code, Body: Your OTP is ${otp}`);
+      await recordOTPAttempt(formattedPhone, true);
+      this.logger.info(`[MOCK SMS] To: ${formattedPhone}, Body: Your Artiva Login Code is ${otp}`);
       return { message: 'OTP sent successfully' };
     } catch (error) {
       this.handleError(error, 'Send OTP');
     }
   }
 
-  async verifyOTP(email: string, otp: string, role: string): Promise<{ token: string, user: User }> {
+  async verifyOTP(phone: string, otp: string, role: string): Promise<{ token: string, user: User }> {
     try {
-      this.validateRequired({ email, otp, role }, ['email', 'otp', 'role']);
-      const formattedEmail = email.trim().toLowerCase();
+      this.validateRequired({ phone, otp, role }, ['phone', 'otp', 'role']);
+      const formattedPhone = phone.trim();
 
-      const rateLimitResult = await checkOTPRateLimit(formattedEmail);
+      const rateLimitResult = await checkOTPRateLimit(formattedPhone);
       if (!rateLimitResult.allowed) {
         throw new Error(rateLimitResult.reason || 'Too many failed attempts. Account temporarily locked.');
       }
 
-      const otpDoc = await admin.firestore().collection('otps').doc(formattedEmail).get();
+      const otpDoc = await admin.firestore().collection('otps').doc(formattedPhone).get();
       if (!otpDoc.exists) {
-        await recordOTPAttempt(formattedEmail, false);
+        await recordOTPAttempt(formattedPhone, false);
         throw new Error('Invalid or expired OTP');
       }
 
       const otpData = otpDoc.data();
       if (otpData?.otp !== otp) {
-        await recordOTPAttempt(formattedEmail, false);
+        await recordOTPAttempt(formattedPhone, false);
         throw new Error('Invalid OTP');
       }
 
       if (otpData?.expiresAt.toDate() < new Date()) {
-        await recordOTPAttempt(formattedEmail, false);
+        await recordOTPAttempt(formattedPhone, false);
         throw new Error('OTP has expired');
       }
 
-      await admin.firestore().collection('otps').doc(formattedEmail).delete();
-      await recordOTPAttempt(formattedEmail, true);
-
+      await admin.firestore().collection('otps').doc(formattedPhone).delete();
+      await recordOTPAttempt(formattedPhone, true);
 
       let uid: string;
       try {
-        const userRecord = await admin.auth().getUserByEmail(formattedEmail);
+        const userRecord = await admin.auth().getUserByPhoneNumber(formattedPhone);
         uid = userRecord.uid;
       } catch (err: any) {
         if (err.code === 'auth/user-not-found') {
-          const newUserRecord = await admin.auth().createUser({ email: formattedEmail });
+          const newUserRecord = await admin.auth().createUser({ phoneNumber: formattedPhone });
           uid = newUserRecord.uid;
         } else {
           throw err;
         }
       }
 
-      let user = await this.userRepo.findByEmail(formattedEmail);
+      let user = await this.userRepo.findByPhone(formattedPhone);
       if (!user) {
         user = await this.userRepo.createUser({
           uid,
           first_name: '',
           last_name: '',
-          email: formattedEmail,
-          role,
+          phone: formattedPhone,
+          email: '',
+          role: role as "client" | "artisan" | "admin",
           created_at: new Date()
         });
         
@@ -295,7 +297,7 @@ export class AuthService extends BaseService {
           first_name: decodedToken.name?.split(' ')[0] || '',
           last_name: decodedToken.name?.split(' ').slice(1).join(' ') || '',
           email: email,
-          role,
+          role: role as "client" | "artisan" | "admin",
           created_at: new Date()
         });
 

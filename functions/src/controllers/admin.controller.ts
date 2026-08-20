@@ -60,27 +60,6 @@ export class AdminController extends BaseController {
     }
   }
   /**
-   * POST /api/admin/artisans
-   */
-  async createArtisan(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      const requiredFields = ['first_name', 'last_name', 'phone', 'trade', 'location', 'tagline'];
-      const missingFields = requiredFields.filter(field => !req.body[field]);
-      
-      if (missingFields.length > 0) {
-        this.sendBadRequest(res, `Missing required fields: ${missingFields.join(', ')}`);
-        return;
-      }
-
-      const result = await this.adminService.addArtisanManually(req.body);
-
-      this.sendSuccess(res, 'Artisan created and pre-verified successfully', result);
-    } catch (error) {
-      this.handleError(error, res, 'Create artisan');
-    }
-  }
-
-  /**
    * POST /api/admin/reject/:uid
    */
   async rejectArtisan(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -131,6 +110,18 @@ export class AdminController extends BaseController {
       this.sendSuccess(res, 'Proforma queue fetched successfully', { queue });
     } catch (error) {
       this.handleError(error, res, 'Get proforma queue');
+    }
+  }
+
+  /**
+   * GET /api/admin/flags
+   */
+  async getFlags(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const flags = await this.adminService.getArtisansWithFlags();
+      this.sendSuccess(res, 'Artisans with no-response flags fetched successfully', flags);
+    } catch (error) {
+      this.handleError(error, res, 'Get flags');
     }
   }
 

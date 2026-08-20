@@ -17,9 +17,6 @@ export interface CreateJobRequest {
     address?: string;
   };
   urgency: 'Today' | 'This Week' | 'Flexible';
-  budget?: number;
-  budget_min?: number;
-  budget_max?: number;
   match_fee?: number;
 }
 
@@ -33,7 +30,7 @@ const MAX_LOCATION_LENGTH = 100;
  * Per PRD: validate trade is non-empty and in locked enum, location has reasonable max length, urgency is one of 3 locked values
  */
 export function validateCreateJob(req: Request, res: Response, next: NextFunction): void {
-  const { trade_needed, title, description, location, urgency, budget } = req.body;
+  const { trade_needed, title, description, location, urgency } = req.body;
 
   // Validate trade
   if (!trade_needed || typeof trade_needed !== 'string' || trade_needed.trim().length === 0) {
@@ -139,16 +136,7 @@ export function validateCreateJob(req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  // Validate budget if provided
-  if (budget !== undefined && budget !== null) {
-    if (typeof budget !== 'number' || budget < 0) {
-      res.status(400).json({
-        success: false,
-        message: 'Budget must be a positive number'
-      });
-    return;
-    }
-  }
+
 
   next();
 }

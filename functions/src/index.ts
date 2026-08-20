@@ -1,5 +1,4 @@
 import './initFirebase';
-import * as functions from 'firebase-functions';
 import express from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
@@ -83,13 +82,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/proforma', proformaRoutes);
 
-app.use('/v1/auth', authRoutes);
-app.use('/v1/artisans', artisanRoutes);
-app.use('/v1/jobs', jobRoutes);
-app.use('/v1/payments', paymentRoutes);
-app.use('/v1/admin', adminRoutes);
-app.use('/v1/chat', chatRoutes);
-app.use('/v1/proforma', proformaRoutes);
+
 
 app.get('/health', (req, res) => {
   res.json({
@@ -112,7 +105,7 @@ export const api = onRequest({
 export const processNoResponseRefundsScheduler = onSchedule('every 15 minutes', async () => {
   Logger.info('Triggering processNoResponseRefundsScheduler cron task...');
   const refundService = new RefundService();
-  return await refundService.processNoResponseRefunds();
+  await refundService.processNoResponseRefunds();
 });
 
 

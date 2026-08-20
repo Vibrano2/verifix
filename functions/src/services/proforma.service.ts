@@ -26,7 +26,7 @@ export class ProformaService extends BaseService {
         ...data,
         artisan_uid: artisanUid,
         status: 'pending',
-        created_at: admin.firestore.FieldValue.serverTimestamp()
+        created_at: admin.firestore.FieldValue.serverTimestamp() as any
       };
 
       const docRef = await this.db.collection('proformas').add(invoiceData);
@@ -101,13 +101,44 @@ export class ProformaService extends BaseService {
   async approveProforma(proformaId: string, notes?: string): Promise<void> {
     try {
       const docRef = this.db.collection('proformas').doc(proformaId);
+      const doc = await docRef.get();
+      
+      if (!doc.exists) {
+        throw new Error('Proforma invoice not found');
+      }
+      
+      const proformaData = doc.data()!;
+
       await docRef.update({
         status: 'approved',
         admin_notes: notes || null,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       });
       
-      this.logOperation('proforma-approved', { proformaId });
+      // Fetch corresponding escrow transaction
+      const txSnapshot = await this.db.collection('transactions')
+        .where('job_id', '==', proformaData.job_id)
+        .where('type', '==', 'escrow')
+        .where('escrow_status', '==', 'HELD')
+        .limit(1)
+        .get();
+
+      if (!txSnapshot.empty) {
+        const txDoc = txSnapshot.docs[0];
+        
+        await txDoc.ref.update({
+          escrow_status: 'DISBURSED_PARTIAL',
+          proforma_invoices: admin.firestore.FieldValue.arrayUnion({
+            invoice_id: proformaId,
+            supplier_name: proformaData.supplier_name,
+            amount: proformaData.total_amount,
+            status: 'approved'
+          }),
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
+
+      this.logOperation('proforma-approved', { proformaId, jobId: proformaData.job_id });
       
       // Note: A real implementation would trigger Paystack Transfer here
       // to release the partial escrow to the supplier's bank account.

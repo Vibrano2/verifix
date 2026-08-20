@@ -4,7 +4,9 @@
  * Provides common service patterns and dependency injection
  */
 
+import * as admin from 'firebase-admin';
 import { Logger } from '../utils/logger';
+import { COLLECTIONS } from '../constants';
 
 export abstract class BaseService {
   protected logger = Logger;
@@ -28,9 +30,24 @@ export abstract class BaseService {
   }
 
   /**
-   * Log service operation
+   * Log service operation to console and Firestore (Analytics)
    */
   protected logOperation(operation: string, data?: any): void {
     this.logger.info(`Service operation: ${operation}`, data);
+    
+    // Save to analytics_events collection per PRD Section 7.5
+    try {
+      const db = admin.firestore();
+      db.collection(COLLECTIONS.ANALYTICS_EVENTS).add({
+        event_type: operation,
+        user_id: data?.uid || data?.clientUid || data?.artisanUid || 'system',
+        metadata: data || {},
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+      }).catch(err => {
+        this.logger.error('Failed to write analytics event to Firestore', err);
+      });
+    } catch (e) {
+      // Ignore if admin is not initialized (e.g. in some tests)
+    }
   }
 }

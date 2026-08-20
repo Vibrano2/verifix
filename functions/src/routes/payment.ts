@@ -43,10 +43,15 @@ router.post(['/initialise', '/initialize'], authenticate, async (req: Authentica
       return;
     }
 
-    const { match_id } = req.body;
+    const { match_id, job_value } = req.body;
 
     if (!match_id) {
       res.status(400).json({ error: 'Match ID is required' });
+      return;
+    }
+    
+    if (typeof job_value !== 'number' || job_value <= 0) {
+      res.status(400).json({ error: 'Valid job_value is required' });
       return;
     }
 
@@ -90,7 +95,7 @@ router.post(['/initialise', '/initialize'], authenticate, async (req: Authentica
 
     // Lock the job value at payment initialization
     // This value is immutable and used for commission calculation
-    const lockedJobValue = jobData!.budget || 0;
+    const lockedJobValue = job_value;
 
     // Backend-authoritative amount calculation: JOB VALUE + ₦500 Artiva Fee
     const platformFee = 500;
@@ -124,15 +129,26 @@ router.post(['/initialise', '/initialize'], authenticate, async (req: Authentica
       return;
     }
 
-    // Create transaction record with locked_job_value
+    // Create transaction record with v1.9 schema
     const transactionData = {
       match_id,
       artisan_uid: matchData!.artisan_uid,
-      amount: totalAmount,
-      status: 'pending', // Will be updated to 'held' by webhook
+      type: 'escrow',
+      amounts: {
+        job_value: lockedJobValue,
+        platform_match_fee: platformFee,
+        total_charged: totalAmount,
+        artisan_net_labor: lockedJobValue - commissionRetained
+      },
+      escrow_status: 'PENDING', // Will be updated to 'HELD' by webhook
       paystack_reference: reference,
+      
+      // Legacy fields for backward compatibility
+      amount: totalAmount,
+      status: 'pending',
       locked_job_value: lockedJobValue,
       commission_retained: commissionRetained,
+      
       released_at: null,
       created_at: admin.firestore.FieldValue.serverTimestamp()
     };
@@ -171,188 +187,16 @@ router.post('/webhook', (req, res) =>
 
 /**
  * @swagger
- * /api/jobs/{id}/reveal-contact:
+ * /api/payments/refund:
  *   post:
- *     summary: Reveal artisan contact details after payment
- *     tags: [Jobs]
+ *     summary: Initiates refund on no-response trigger (Internal)
+ *     tags: [Payments]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - match_id
- *             properties:
- *               match_id:
- *                 type: string
- *     responses:
- *       200:
- *         description: Contact details revealed
- *       402:
- *         description: Payment required
  */
-router.post('/:id/reveal-contact', authenticate, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    const { id } = req.params; // job_id
-    const { match_id } = req.body;
-
-    if (!match_id) {
-      res.status(400).json({ error: 'Match ID is required' });
-      return;
-    }
-
-    const db = admin.firestore();
-
-    // Get job details
-    const jobRef = db.collection('jobs').doc(id);
-    const jobDoc = await jobRef.get();
-
-    if (!jobDoc.exists) {
-      res.status(404).json({ error: 'Job not found' });
-      return;
-    }
-
-    const jobData = jobDoc.data();
-
-    // Verify ownership
-    if (jobData?.client_uid !== req.user.uid) {
-      res.status(403).json({ error: 'Forbidden: You do not own this job' });
-      return;
-    }
-
-    // Get match details
-    const matchRef = db.collection('matches').doc(match_id);
-    const matchDoc = await matchRef.get();
-
-    if (!matchDoc.exists) {
-      res.status(404).json({ error: 'Match not found' });
-      return;
-    }
-
-    const matchData = matchDoc.data();
-
-    // Verify match belongs to this job
-    if (matchData?.job_id !== id) {
-      res.status(400).json({ error: 'Match does not belong to this job' });
-      return;
-    }
-
-    // CRITICAL PAYMENT GATE: Check for held transaction
-    const transactionsSnapshot = await db.collection('transactions')
-      .where('match_id', '==', match_id)
-      .where('status', '==', 'held')
-      .limit(1)
-      .get();
-
-    if (transactionsSnapshot.empty) {
-      res.status(402).json({ 
-        error: 'Payment required: No valid payment found for this match' 
-      });
-      return;
-    }
-
-    // Get artisan contact details
-    const artisanUid = matchData!.artisan_uid;
-    const artisanRef = db.collection('artisan_profiles').doc(artisanUid);
-    const artisanDoc = await artisanRef.get();
-
-    if (!artisanDoc.exists) {
-      res.status(404).json({ error: 'Artisan not found' });
-      return;
-    }
-
-    // Get artisan user details for phone
-    const artisanUserRef = db.collection('users').doc(artisanUid);
-    const artisanUserDoc = await artisanUserRef.get();
-    const artisanUserData = artisanUserDoc.data();
-
-    const artisanData = artisanDoc.data();
-
-    res.status(200).json({
-      message: 'Contact details revealed',
-      artisan: {
-        uid: artisanUid,
-        first_name: artisanUserData?.first_name,
-        last_name: artisanUserData?.last_name,
-        phone: artisanUserData?.phone,
-        whatsapp: artisanUserData?.phone, // Assuming phone is WhatsApp
-        trade: artisanData?.trade,
-        location: artisanData?.location,
-        tagline: artisanData?.tagline,
-        completed_jobs: artisanData?.completed_jobs,
-        reputation_score: artisanData?.reputation_score
-      }
-    });
-
-  } catch (error: any) {
-    Logger.error('Reveal contact error:', error);
-    res.status(500).json({ 
-      error: 'Failed to reveal contact details'
-    });
-  }
+router.post('/refund', authenticate, async (req, res) => {
+  // PRD §9.4: Platform only (internal). Initiates refund on no-response trigger
+  res.status(501).json({ error: 'Not implemented - handled by scheduler' });
 });
-
-/**
- * @swagger
- * /api/payments/verify/{reference}:
- *   get:
- *     summary: Verify a payment transaction
- *     tags: [Payments]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: reference
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Payment verification status
- */
-router.get('/verify/:reference', authenticate, (req, res) => 
-  paymentController.verifyPayment(req, res)
-);
-
-/**
- * @swagger
- * /api/payments/verify:
- *   post:
- *     summary: Verify a payment transaction
- *     tags: [Payments]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - reference
- *             properties:
- *               reference:
- *                 type: string
- *     responses:
- *       200:
- *         description: Payment verification status
- */
-router.post('/verify', authenticate, (req, res) => 
-  paymentController.verifyPayment(req, res)
-);
 
 export default router;
