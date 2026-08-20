@@ -36,13 +36,6 @@ jobs:
       #   working-directory: functions
       #   run: npm test
 
-      - name: Google Auth
-        id: auth
-        uses: 'google-github-actions/auth@v2'
-        with:
-          workload_identity_provider: '${{ secrets.WIF_PROVIDER }}'
-          service_account: '${{ secrets.WIF_SERVICE_ACCOUNT }}'
-
       - name: Deploy to Firebase
         working-directory: functions
-        run: npx firebase-tools deploy --only functions --project ${{ secrets.GCP_PROJECT_ID }}
+        run: npx firebase-tools deploy --only functions --project ${{ secrets.GCP_PROJECT_ID }} --token ${{ secrets.FIREBASE_TOKEN }}
