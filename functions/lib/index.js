@@ -74061,11 +74061,12 @@ var init_job_service = __esm({
 });
 
 // src/services/payment.service.ts
-var admin13, PaymentService;
+var admin13, import_firestore2, PaymentService;
 var init_payment_service = __esm({
   "src/services/payment.service.ts"() {
     "use strict";
     admin13 = __toESM(require("firebase-admin"));
+    import_firestore2 = require("firebase-admin/firestore");
     init_axios2();
     init_base_service();
     init_constants();
@@ -74076,7 +74077,11 @@ var init_payment_service = __esm({
         this.paystackSecretKey = process.env.PAYSTACK_SECRET_KEY || "";
       }
       get db() {
-        return admin13.firestore();
+        try {
+          return (0, import_firestore2.getFirestore)();
+        } catch {
+          return admin13.firestore ? admin13.firestore() : {};
+        }
       }
       /**
        * Verify Paystack webhook signature
@@ -74106,7 +74111,7 @@ var init_payment_service = __esm({
           await transactionDoc.ref.update({
             status: newStatus,
             escrow_status: transaction.type === "escrow" ? "HELD" : void 0,
-            updated_at: admin13.firestore.FieldValue.serverTimestamp()
+            updated_at: import_firestore2.FieldValue.serverTimestamp()
           });
           if (transaction.type === "escrow" && transaction.match_id) {
             const matchRef = this.db.collection(COLLECTIONS.MATCHES).doc(transaction.match_id);
@@ -74131,8 +74136,8 @@ var init_payment_service = __esm({
               await matchRef.update({
                 status: "paid",
                 // Active/Paid
-                no_response_timer_expiry: admin13.firestore.Timestamp.fromDate(expiryDate),
-                updated_at: admin13.firestore.FieldValue.serverTimestamp()
+                no_response_timer_expiry: import_firestore2.Timestamp.fromDate(expiryDate),
+                updated_at: import_firestore2.FieldValue.serverTimestamp()
               });
             }
           }

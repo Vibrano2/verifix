@@ -15,6 +15,21 @@ jest.mock('firebase-admin', () => {
   };
 });
 
+jest.mock('firebase-admin/firestore', () => {
+  const dbMock = {
+    collection: jest.fn()
+  };
+  return {
+    getFirestore: jest.fn(() => dbMock),
+    FieldValue: {
+      serverTimestamp: jest.fn(() => 'mock_timestamp')
+    },
+    Timestamp: {
+      fromDate: jest.fn((date) => ({ toDate: () => date }))
+    }
+  };
+});
+
 describe('PaymentService', () => {
   let paymentService: PaymentService;
 

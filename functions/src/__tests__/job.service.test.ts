@@ -57,11 +57,11 @@ jest.mock('firebase-admin', () => {
 
 describe('JobService', () => {
   let jobService: JobService;
-  let db: admin.firestore.Firestore;
+  let db: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    db = admin.firestore();
+    db = (admin as any).firestore();
     jobService = new JobService();
   });
 

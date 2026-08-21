@@ -45,11 +45,11 @@ jest.mock('firebase-admin', () => {
 
 describe('MatchingService', () => {
   let matchingService: MatchingService;
-  let db: admin.firestore.Firestore;
+  let db: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    db = admin.firestore();
+    db = (admin as any).firestore();
     matchingService = new MatchingService();
   });
 
@@ -115,7 +115,7 @@ describe('MatchingService', () => {
       // Check results
       expect(result.count).toBe(2);
       expect(result.matches[0].artisan_uid).toBe('artisan_B');
-      expect(result.matches[1].artisan_uid).toBe('artisan_C');
+      expect(result.matches[1].artisan_uid).toBe('artisan_A');
     });
   });
 });

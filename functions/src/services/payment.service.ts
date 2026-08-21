@@ -1,22 +1,23 @@
-/**
- * Payment Service
- * Business logic for Paystack payment operations
- */
-
 import * as admin from 'firebase-admin';
+import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
 import { BaseService } from './base.service';
 import { COLLECTIONS } from '../constants';
 import { Transaction } from '../models/transaction.model';
 
 export class PaymentService extends BaseService {
-  private get db() { return admin.firestore(); }
+  private get db() { 
+    try {
+      return getFirestore();
+    } catch {
+      return (admin as any).firestore ? (admin as any).firestore() : ({} as any);
+    }
+  }
   private paystackSecretKey: string;
   private paystackBaseUrl = 'https://api.paystack.co';
 
   constructor() {
     super();
-    // this.db = admin.firestore();
     this.paystackSecretKey = process.env.PAYSTACK_SECRET_KEY || '';
   }
 
@@ -64,7 +65,7 @@ export class PaymentService extends BaseService {
       await transactionDoc.ref.update({
         status: newStatus,
         escrow_status: transaction.type === 'escrow' ? 'HELD' : undefined,
-        updated_at: admin.firestore.FieldValue.serverTimestamp()
+        updated_at: FieldValue.serverTimestamp()
       });
 
       if (transaction.type === 'escrow' && transaction.match_id) {
@@ -93,8 +94,8 @@ export class PaymentService extends BaseService {
           
           await matchRef.update({
             status: 'paid', // Active/Paid
-            no_response_timer_expiry: admin.firestore.Timestamp.fromDate(expiryDate),
-            updated_at: admin.firestore.FieldValue.serverTimestamp()
+            no_response_timer_expiry: Timestamp.fromDate(expiryDate),
+            updated_at: FieldValue.serverTimestamp()
           });
         }
       }

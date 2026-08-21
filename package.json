@@ -1,13 +1,20 @@
 {
-  "name": "verifix-root",
+  "name": "verifix-artiva-monorepo",
   "version": "1.0.0",
-  "description": "Verifix Artisan Marketplace Root Project",
+  "description": "Verifix & Artiva Monorepo (Backend Cloud Functions + Frontend React Web App)",
   "scripts": {
-    "build": "npm --prefix functions run build",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "npm --prefix functions run build",
+    "build:frontend": "npm --prefix artiva run build",
+    "dev:frontend": "npm --prefix artiva run dev",
+    "dev:backend": "npm --prefix functions run serve",
     "test": "npm --prefix functions test",
     "serve": "npm --prefix functions run serve",
-    "deploy": "firebase deploy --only functions",
-    "functions": "npm --prefix functions"
+    "deploy": "firebase deploy",
+    "deploy:functions": "firebase deploy --only functions",
+    "deploy:hosting": "firebase deploy --only hosting",
+    "functions": "npm --prefix functions",
+    "artiva": "npm --prefix artiva"
   },
   "private": true
 }
