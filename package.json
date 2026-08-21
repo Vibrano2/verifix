@@ -1,0 +1,13 @@
+{
+  "name": "verifix-root",
+  "version": "1.0.0",
+  "description": "Verifix Artisan Marketplace Root Project",
+  "scripts": {
+    "build": "npm --prefix functions run build",
+    "test": "npm --prefix functions test",
+    "serve": "npm --prefix functions run serve",
+    "deploy": "firebase deploy --only functions",
+    "functions": "npm --prefix functions"
+  },
+  "private": true
+}

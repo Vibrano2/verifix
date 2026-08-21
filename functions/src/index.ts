@@ -67,12 +67,14 @@ app.use(ndprMaskingMiddleware as any);
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/api/auth', authRoutes);
+app.use('/api/users', authRoutes);
 app.use('/api/artisans', artisanRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/proforma', proformaRoutes);
+app.use('/api/proformas', proformaRoutes);
 
 
 

@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import * as admin from 'firebase-admin';
 import { BaseController } from './base.controller';
 import { ChatService } from '../services/chat.service';
 import { AuthenticatedRequest } from '../types';
@@ -17,7 +18,13 @@ export class ChatController extends BaseController {
         return this.sendUnauthorized(res, 'Authentication required');
       }
 
-      const { jobId } = req.params;
+      const { matchId } = req.params;
+      if (!matchId) return this.sendBadRequest(res, 'Match ID is required');
+
+      const matchDoc = await admin.firestore().collection('matches').doc(matchId).get();
+      if (!matchDoc.exists) return this.sendNotFound(res, 'Match not found');
+      
+      const jobId = matchDoc.data()?.job_id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
 
       const messages = await this.chatService.getMessages(jobId, req.user.uid, limit);
@@ -37,7 +44,13 @@ export class ChatController extends BaseController {
         return this.sendUnauthorized(res, 'Authentication required');
       }
 
-      const { jobId } = req.params;
+      const { matchId } = req.params;
+      if (!matchId) return this.sendBadRequest(res, 'Match ID is required');
+
+      const matchDoc = await admin.firestore().collection('matches').doc(matchId).get();
+      if (!matchDoc.exists) return this.sendNotFound(res, 'Match not found');
+      
+      const jobId = matchDoc.data()?.job_id;
       const { content } = req.body;
 
       const message = await this.chatService.sendMessage(jobId, req.user.uid, content);

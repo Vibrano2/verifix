@@ -16,6 +16,9 @@ const proformaController = new ProformaController();
  *     security:
  *       - bearerAuth: []
  */
+router.post('/', authenticate, validate(CreateProformaSchema), (req, res) => 
+  proformaController.submitProforma(req, res)
+);
 router.post('/submit', authenticate, validate(CreateProformaSchema), (req, res) => 
   proformaController.submitProforma(req, res)
 );
@@ -32,5 +35,26 @@ router.post('/submit', authenticate, validate(CreateProformaSchema), (req, res) 
 router.get('/job/:jobId', authenticate, (req, res) => 
   proformaController.getJobProformas(req, res)
 );
+
+/**
+ * @swagger
+ * /api/proforma/{id}/status:
+ *   put:
+ *     summary: Update proforma status
+ *     tags: [Proforma]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.put(['/:id/status', '/:id/review'], authenticate, async (req: any, res) => {
+  const { status, reason, notes } = req.body;
+  const { AdminController } = require('../controllers');
+  const adminController = new AdminController();
+  if (status === 'approved') {
+    return adminController.approveProforma(req, res);
+  } else {
+    req.body.reason = reason || notes || 'Rejected';
+    return adminController.rejectProforma(req, res);
+  }
+});
 
 export default router;

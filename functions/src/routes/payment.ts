@@ -187,6 +187,50 @@ router.post('/webhook', (req, res) =>
 
 /**
  * @swagger
+ * /api/payments/verify:
+ *   post:
+ *     summary: Verify Paystack payment with body reference
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/verify', authenticate, (req, res) => 
+  paymentController.verifyPayment(req as any, res)
+);
+
+/**
+ * @swagger
+ * /api/payments/verify/{reference}:
+ *   get:
+ *     summary: Verify Paystack payment
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/verify/:reference', authenticate, (req, res) => 
+  paymentController.verifyPayment(req as any, res)
+);
+
+/**
+ * @swagger
+ * /api/payments/payout:
+ *   post:
+ *     summary: Release escrow funds to artisan
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/payout', authenticate, (req: any, res) => {
+  const jobId = req.body.job_id || req.body.jobId;
+  req.params = { ...req.params, jobId };
+  return paymentController.releaseEscrow(req, res);
+});
+router.post('/release/:jobId', authenticate, (req, res) => 
+  paymentController.releaseEscrow(req as any, res)
+);
+
+/**
+ * @swagger
  * /api/payments/refund:
  *   post:
  *     summary: Initiates refund on no-response trigger (Internal)

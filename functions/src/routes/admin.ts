@@ -6,10 +6,30 @@ const router = Router();
 const adminController = new AdminController();
 
 /**
+ * GET /api/admin/stats
+ * Dashboard summary statistics
+ */
+router.get('/stats', authenticate, requireAdmin, (req, res) => 
+  adminController.getStatistics(req, res)
+);
+
+/**
+ * GET /api/admin/analytics
+ * Dashboard metrics: users, jobs, matches, revenue, no-response rate
+ */
+router.get('/analytics', authenticate, requireAdmin, (req, res) => 
+  adminController.getAnalytics(req, res)
+);
+
+/**
  * GET /api/admin/verification-queue
+ * GET /api/admin/queue/artisans
  * List all unverified artisans
  */
 router.get('/verification-queue', authenticate, requireAdmin, (req, res) => 
+  adminController.getVerificationQueue(req, res)
+);
+router.get('/queue/artisans', authenticate, requireAdmin, (req, res) => 
   adminController.getVerificationQueue(req, res)
 );
 
@@ -23,9 +43,16 @@ router.get('/flags', authenticate, requireAdmin, (req, res) =>
 
 /**
  * POST /api/admin/verify/:uid
+ * PUT /api/admin/verify/artisan/:uid
  * Verify an artisan
  */
 router.post('/verify/:uid', authenticate, requireAdmin, (req, res) => 
+  adminController.verifyArtisan(req, res)
+);
+router.put('/verify/artisan/:uid', authenticate, requireAdmin, (req, res) => 
+  adminController.verifyArtisan(req, res)
+);
+router.post('/verify/artisan/:uid', authenticate, requireAdmin, (req, res) => 
   adminController.verifyArtisan(req, res)
 );
 
@@ -38,18 +65,14 @@ router.post('/reject/:uid', authenticate, requireAdmin, (req, res) =>
 );
 
 /**
- * GET /api/admin/analytics
- * Dashboard metrics: users, jobs, matches, revenue, no-response rate
- */
-router.get('/analytics', authenticate, requireAdmin, (req, res) => 
-  adminController.getAnalytics(req, res)
-);
-
-/**
  * GET /api/admin/proforma-queue
+ * GET /api/admin/queue/proformas
  * Get pending proforma invoices
  */
 router.get('/proforma-queue', authenticate, requireAdmin, (req, res) => 
+  adminController.getProformaQueue(req, res)
+);
+router.get('/queue/proformas', authenticate, requireAdmin, (req, res) => 
   adminController.getProformaQueue(req, res)
 );
 

@@ -53409,11 +53409,11 @@ var init_constants = __esm({
 });
 
 // src/services/base.service.ts
-var admin4, BaseService;
+var admin3, BaseService;
 var init_base_service = __esm({
   "src/services/base.service.ts"() {
     "use strict";
-    admin4 = __toESM(require("firebase-admin"));
+    admin3 = __toESM(require("firebase-admin"));
     init_logger();
     init_constants();
     BaseService = class {
@@ -53442,12 +53442,12 @@ var init_base_service = __esm({
       logOperation(operation, data) {
         this.logger.info(`Service operation: ${operation}`, data);
         try {
-          const db = admin4.firestore();
+          const db = admin3.firestore();
           db.collection(COLLECTIONS.ANALYTICS_EVENTS).add({
             event_type: operation,
             user_id: data?.uid || data?.clientUid || data?.artisanUid || "system",
             metadata: data || {},
-            timestamp: admin4.firestore.FieldValue.serverTimestamp()
+            timestamp: admin3.firestore.FieldValue.serverTimestamp()
           }).catch((err) => {
             this.logger.error("Failed to write analytics event to Firestore", err);
           });
@@ -53612,11 +53612,11 @@ var init_base_repository = __esm({
 });
 
 // src/repositories/user.repository.ts
-var admin5, UserRepository;
+var admin4, UserRepository;
 var init_user_repository = __esm({
   "src/repositories/user.repository.ts"() {
     "use strict";
-    admin5 = __toESM(require("firebase-admin"));
+    admin4 = __toESM(require("firebase-admin"));
     init_base_repository();
     init_constants();
     init_encryption();
@@ -53703,7 +53703,7 @@ var init_user_repository = __esm({
           const userData = {
             ...user,
             email_hash: hashData(user.email),
-            created_at: admin5.firestore.FieldValue.serverTimestamp()
+            created_at: admin4.firestore.FieldValue.serverTimestamp()
           };
           if (user.phone) {
             userData.phone_hash = hashData(user.phone);
@@ -53720,14 +53720,14 @@ var init_user_repository = __esm({
 });
 
 // src/repositories/artisan.repository.ts
-var admin6, ArtisanRepository;
+var admin5, ArtisanRepository;
 var init_artisan_repository = __esm({
   "src/repositories/artisan.repository.ts"() {
     "use strict";
     init_base_repository();
     init_constants();
     init_logger();
-    admin6 = __toESM(require("firebase-admin"));
+    admin5 = __toESM(require("firebase-admin"));
     ArtisanRepository = class extends BaseRepository {
       constructor() {
         super(COLLECTIONS.ARTISANS);
@@ -53860,7 +53860,7 @@ var init_artisan_repository = __esm({
           const updatedRating = (currentRating * totalJobs + newRating) / (totalJobs + 1);
           await this.getCollection().doc(uid).update({
             rating: updatedRating,
-            total_jobs: admin6.firestore.FieldValue.increment(1)
+            total_jobs: admin5.firestore.FieldValue.increment(1)
           });
           return await this.findById(uid);
         } catch (error51) {
@@ -53890,14 +53890,14 @@ var init_artisan_repository = __esm({
 });
 
 // src/repositories/rating.repository.ts
-var admin7, RatingRepository;
+var admin6, RatingRepository;
 var init_rating_repository = __esm({
   "src/repositories/rating.repository.ts"() {
     "use strict";
     init_base_repository();
     init_constants();
     init_logger();
-    admin7 = __toESM(require("firebase-admin"));
+    admin6 = __toESM(require("firebase-admin"));
     RatingRepository = class extends BaseRepository {
       constructor() {
         super(COLLECTIONS.RATINGS);
@@ -53976,7 +53976,7 @@ var init_rating_repository = __esm({
           }
           const ratingData = {
             ...data,
-            created_at: admin7.firestore.FieldValue.serverTimestamp()
+            created_at: admin6.firestore.FieldValue.serverTimestamp()
           };
           const docRef = await this.getCollection().add(ratingData);
           return {
@@ -54024,14 +54024,14 @@ var init_rating_repository = __esm({
 });
 
 // src/repositories/analytics.repository.ts
-var admin8;
+var admin7;
 var init_analytics_repository = __esm({
   "src/repositories/analytics.repository.ts"() {
     "use strict";
     init_base_repository();
     init_constants();
     init_logger();
-    admin8 = __toESM(require("firebase-admin"));
+    admin7 = __toESM(require("firebase-admin"));
   }
 });
 
@@ -54062,7 +54062,7 @@ async function checkOTPRateLimit(phone) {
     const data = doc.data();
     const now = /* @__PURE__ */ new Date();
     if (data.locked_until) {
-      const lockedUntil = data.locked_until instanceof admin9.firestore.Timestamp ? data.locked_until.toDate() : new Date(data.locked_until);
+      const lockedUntil = data.locked_until instanceof admin8.firestore.Timestamp ? data.locked_until.toDate() : new Date(data.locked_until);
       if (now < lockedUntil) {
         return {
           allowed: false,
@@ -54073,11 +54073,11 @@ async function checkOTPRateLimit(phone) {
     }
     const oneHourAgo = new Date(now.getTime() - RATE_LIMIT_WINDOW_MS);
     const recentAttempts = data.attempts.filter((attempt) => {
-      const attemptTime = attempt.timestamp instanceof admin9.firestore.Timestamp ? attempt.timestamp.toDate() : new Date(attempt.timestamp);
+      const attemptTime = attempt.timestamp instanceof admin8.firestore.Timestamp ? attempt.timestamp.toDate() : new Date(attempt.timestamp);
       return attemptTime > oneHourAgo;
     });
     if (recentAttempts.length >= MAX_REQUESTS_PER_HOUR) {
-      const oldestAttempt = recentAttempts[0].timestamp instanceof admin9.firestore.Timestamp ? recentAttempts[0].timestamp.toDate() : new Date(recentAttempts[0].timestamp);
+      const oldestAttempt = recentAttempts[0].timestamp instanceof admin8.firestore.Timestamp ? recentAttempts[0].timestamp.toDate() : new Date(recentAttempts[0].timestamp);
       const resetAt = new Date(oldestAttempt.getTime() + RATE_LIMIT_WINDOW_MS);
       return {
         allowed: false,
@@ -54111,7 +54111,7 @@ async function recordOTPAttempt(phone, success2) {
     const data = doc.data();
     const twentyFourHoursAgo = new Date(Date.now() - LOCKOUT_DURATION_MS);
     const recentAttempts = data.attempts.filter((a) => {
-      const attemptTime = a.timestamp instanceof admin9.firestore.Timestamp ? a.timestamp.toDate() : new Date(a.timestamp);
+      const attemptTime = a.timestamp instanceof admin8.firestore.Timestamp ? a.timestamp.toDate() : new Date(a.timestamp);
       return attemptTime > twentyFourHoursAgo;
     });
     recentAttempts.push(attempt);
@@ -54121,7 +54121,7 @@ async function recordOTPAttempt(phone, success2) {
         const lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
         await docRef.update({
           attempts: recentAttempts,
-          locked_until: admin9.firestore.Timestamp.fromDate(lockedUntil)
+          locked_until: admin8.firestore.Timestamp.fromDate(lockedUntil)
         });
         Logger.warn("Phone number locked due to failed OTP attempts", {
           phone: hashPII(phone),
@@ -54138,11 +54138,11 @@ async function recordOTPAttempt(phone, success2) {
     Logger.error("Error recording OTP attempt", { phone: hashPII(phone), success: success2, error: error51 });
   }
 }
-var admin9, crypto3, OTP_RATE_LIMIT_COLLECTION, MAX_REQUESTS_PER_HOUR, MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MS, RATE_LIMIT_WINDOW_MS, getDb;
+var admin8, crypto3, OTP_RATE_LIMIT_COLLECTION, MAX_REQUESTS_PER_HOUR, MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MS, RATE_LIMIT_WINDOW_MS, getDb;
 var init_rateLimit = __esm({
   "src/utils/rateLimit.ts"() {
     "use strict";
-    admin9 = __toESM(require("firebase-admin"));
+    admin8 = __toESM(require("firebase-admin"));
     crypto3 = __toESM(require("crypto"));
     init_logger();
     OTP_RATE_LIMIT_COLLECTION = "otp_rate_limits";
@@ -54150,7 +54150,7 @@ var init_rateLimit = __esm({
     MAX_FAILED_ATTEMPTS = 5;
     LOCKOUT_DURATION_MS = 24 * 60 * 60 * 1e3;
     RATE_LIMIT_WINDOW_MS = 60 * 60 * 1e3;
-    getDb = () => admin9.firestore();
+    getDb = () => admin8.firestore();
   }
 });
 
@@ -54159,11 +54159,11 @@ function hashPII2(data) {
   if (!data) return "";
   return crypto4.createHash("sha256").update(data).digest("hex").substring(0, 16);
 }
-var admin10, crypto4, AuthService;
+var admin9, crypto4, AuthService;
 var init_auth_service = __esm({
   "src/services/auth.service.ts"() {
     "use strict";
-    admin10 = __toESM(require("firebase-admin"));
+    admin9 = __toESM(require("firebase-admin"));
     init_base_service();
     init_repositories();
     init_constants();
@@ -54182,7 +54182,7 @@ var init_auth_service = __esm({
           if (role !== ROLES.CLIENT && role !== ROLES.ARTISAN) {
             throw new Error(`Invalid role. Must be "${ROLES.CLIENT}" or "${ROLES.ARTISAN}"`);
           }
-          const decodedToken = await admin10.auth().verifyIdToken(idToken);
+          const decodedToken = await admin9.auth().verifyIdToken(idToken);
           const uid = decodedToken.uid;
           const email3 = decodedToken.email;
           const phone = decodedToken.phone_number;
@@ -54239,7 +54239,7 @@ var init_auth_service = __esm({
         try {
           this.validateRequired(data, ["email", "password", "first_name", "last_name"]);
           const { email: email3, password, first_name, last_name } = data;
-          const userRecord = await admin10.auth().createUser({
+          const userRecord = await admin9.auth().createUser({
             email: email3,
             password,
             displayName: `${first_name} ${last_name}`
@@ -54264,7 +54264,7 @@ var init_auth_service = __esm({
       }
       async requestPasswordReset(email3) {
         try {
-          await admin10.auth().generatePasswordResetLink(email3);
+          await admin9.auth().generatePasswordResetLink(email3);
           this.logOperation("password-reset-requested", { email: hashPII2(email3) });
           return { message: "If this email exists, a reset link has been sent" };
         } catch (error51) {
@@ -54282,10 +54282,10 @@ var init_auth_service = __esm({
           if (existingUser) {
             uid = existingUser.uid;
           } else {
-            const userRecord = await admin10.auth().createUser({ phoneNumber: phone });
+            const userRecord = await admin9.auth().createUser({ phoneNumber: phone });
             uid = userRecord.uid;
           }
-          const customToken = await admin10.auth().createCustomToken(uid);
+          const customToken = await admin9.auth().createCustomToken(uid);
           this.logOperation("custom-token-created", { uid });
           return { customToken, uid };
         } catch (error51) {
@@ -54294,7 +54294,7 @@ var init_auth_service = __esm({
       }
       async verifyToken(idToken) {
         try {
-          return await admin10.auth().verifyIdToken(idToken);
+          return await admin9.auth().verifyIdToken(idToken);
         } catch (error51) {
           this.handleError(error51, "Verify token");
         }
@@ -54310,10 +54310,10 @@ var init_auth_service = __esm({
           const otp = Math.floor(1e5 + Math.random() * 9e5).toString();
           const expiration = /* @__PURE__ */ new Date();
           expiration.setMinutes(expiration.getMinutes() + 15);
-          await admin10.firestore().collection("otps").doc(formattedPhone).set({
+          await admin9.firestore().collection("otps").doc(formattedPhone).set({
             otp,
-            expiresAt: admin10.firestore.Timestamp.fromDate(expiration),
-            createdAt: admin10.firestore.FieldValue.serverTimestamp()
+            expiresAt: admin9.firestore.Timestamp.fromDate(expiration),
+            createdAt: admin9.firestore.FieldValue.serverTimestamp()
           });
           await recordOTPAttempt(formattedPhone, true);
           this.logger.info(`[MOCK SMS] To: ${formattedPhone}, Body: Your Artiva Login Code is ${otp}`);
@@ -54330,7 +54330,7 @@ var init_auth_service = __esm({
           if (!rateLimitResult.allowed) {
             throw new Error(rateLimitResult.reason || "Too many failed attempts. Account temporarily locked.");
           }
-          const otpDoc = await admin10.firestore().collection("otps").doc(formattedPhone).get();
+          const otpDoc = await admin9.firestore().collection("otps").doc(formattedPhone).get();
           if (!otpDoc.exists) {
             await recordOTPAttempt(formattedPhone, false);
             throw new Error("Invalid or expired OTP");
@@ -54344,15 +54344,15 @@ var init_auth_service = __esm({
             await recordOTPAttempt(formattedPhone, false);
             throw new Error("OTP has expired");
           }
-          await admin10.firestore().collection("otps").doc(formattedPhone).delete();
+          await admin9.firestore().collection("otps").doc(formattedPhone).delete();
           await recordOTPAttempt(formattedPhone, true);
           let uid;
           try {
-            const userRecord = await admin10.auth().getUserByPhoneNumber(formattedPhone);
+            const userRecord = await admin9.auth().getUserByPhoneNumber(formattedPhone);
             uid = userRecord.uid;
           } catch (err) {
             if (err.code === "auth/user-not-found") {
-              const newUserRecord = await admin10.auth().createUser({ phoneNumber: formattedPhone });
+              const newUserRecord = await admin9.auth().createUser({ phoneNumber: formattedPhone });
               uid = newUserRecord.uid;
             } else {
               throw err;
@@ -54373,7 +54373,7 @@ var init_auth_service = __esm({
               await this.createArtisanPlaceholder(uid);
             }
           }
-          const token = await admin10.auth().createCustomToken(uid);
+          const token = await admin9.auth().createCustomToken(uid);
           this.logOperation("otp-verified-login", { uid, role: user?.role });
           return { token, user };
         } catch (error51) {
@@ -54383,7 +54383,7 @@ var init_auth_service = __esm({
       async verifyEmailLogin(idToken, role) {
         try {
           this.validateRequired({ idToken, role }, ["idToken", "role"]);
-          const decodedToken = await admin10.auth().verifyIdToken(idToken);
+          const decodedToken = await admin9.auth().verifyIdToken(idToken);
           const uid = decodedToken.uid;
           const email3 = decodedToken.email;
           if (!email3) {
@@ -54403,7 +54403,7 @@ var init_auth_service = __esm({
               await this.createArtisanPlaceholder(uid);
             }
           }
-          const token = await admin10.auth().createCustomToken(uid);
+          const token = await admin9.auth().createCustomToken(uid);
           this.logOperation("email-password-login-verified", { uid, role: user?.role });
           return { token, user };
         } catch (error51) {
@@ -73424,7 +73424,7 @@ async function uploadFile(req, folder, maxSizeBytes = 5 * 1024 * 1024) {
         const ext = path.extname(filename);
         const uniqueFilename = `${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
         const filePath = `${folder}/${uniqueFilename}`;
-        const bucket = admin11.storage().bucket();
+        const bucket = admin10.storage().bucket();
         const file2 = bucket.file(filePath);
         await file2.save(fileBuffer, {
           metadata: {
@@ -73445,12 +73445,12 @@ async function uploadFile(req, folder, maxSizeBytes = 5 * 1024 * 1024) {
     req.pipe(busboy);
   });
 }
-var import_busboy, admin11, path, ALLOWED_IMAGE_TYPES, FILE_SIGNATURES;
+var import_busboy, admin10, path, ALLOWED_IMAGE_TYPES, FILE_SIGNATURES;
 var init_fileUpload = __esm({
   "src/utils/fileUpload.ts"() {
     "use strict";
     import_busboy = __toESM(require_lib6());
-    admin11 = __toESM(require("firebase-admin"));
+    admin10 = __toESM(require("firebase-admin"));
     path = __toESM(require("path"));
     init_logger();
     ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -73472,11 +73472,11 @@ var init_fileUpload = __esm({
 });
 
 // src/services/artisan.service.ts
-var admin12, ArtisanService;
+var admin11, ArtisanService;
 var init_artisan_service = __esm({
   "src/services/artisan.service.ts"() {
     "use strict";
-    admin12 = __toESM(require("firebase-admin"));
+    admin11 = __toESM(require("firebase-admin"));
     init_base_service();
     init_repositories();
     init_artisan_model();
@@ -73554,7 +73554,7 @@ var init_artisan_service = __esm({
               data.bank_details.bank_code
             );
           }
-          const bucket = admin12.storage().bucket();
+          const bucket = admin11.storage().bucket();
           let id_document_url = data.id_photo || "";
           if (data.id_document_base64) {
             const buffer = Buffer.from(data.id_document_base64, "base64");
@@ -73681,7 +73681,7 @@ var init_artisan_service = __esm({
         try {
           const artisan = await this.artisanRepo.findById(uid);
           if (!artisan) throw new Error("Artisan profile not found");
-          const db = admin12.firestore();
+          const db = admin11.firestore();
           const matchesSnapshot = await db.collection("matches").where("artisan_uid", "==", uid).get();
           let pending = 0, accepted = 0, completed = 0;
           matchesSnapshot.docs.forEach((doc) => {
@@ -73735,7 +73735,7 @@ var init_artisan_service = __esm({
             const availableArtisans = await this.artisanRepo.findAvailable(filters.trade, filters.location);
             return availableArtisans.map(mapToPublicArtisan);
           }
-          let query = admin12.firestore().collection("artisan_profiles").where("is_verified", "==", true);
+          let query = admin11.firestore().collection("artisan_profiles").where("is_verified", "==", true);
           if (filters.trade) {
             query = query.where("trade", "==", filters.trade);
           }
@@ -73757,18 +73757,18 @@ var init_artisan_service = __esm({
 });
 
 // src/services/job.service.ts
-var admin13, JobService;
+var admin12, JobService;
 var init_job_service = __esm({
   "src/services/job.service.ts"() {
     "use strict";
-    admin13 = __toESM(require("firebase-admin"));
+    admin12 = __toESM(require("firebase-admin"));
     init_base_service();
     init_constants();
     init_trades();
     init_paystack();
     JobService = class extends BaseService {
       get db() {
-        return admin13.firestore();
+        return admin12.firestore();
       }
       constructor() {
         super();
@@ -73792,8 +73792,8 @@ var init_job_service = __esm({
             urgency: data.urgency,
             match_fee: data.match_fee || 500,
             status: "open",
-            created_at: admin13.firestore.FieldValue.serverTimestamp(),
-            updated_at: admin13.firestore.FieldValue.serverTimestamp()
+            created_at: admin12.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin12.firestore.FieldValue.serverTimestamp()
           };
           const docRef = await this.db.collection(COLLECTIONS.JOBS).add(jobData);
           this.logOperation("job-created", { jobId: docRef.id, clientUid, trade: data.trade_needed });
@@ -73825,7 +73825,7 @@ var init_job_service = __esm({
           if (!job) throw new Error("Job not found");
           const updateData = {
             ...updates,
-            updated_at: admin13.firestore.FieldValue.serverTimestamp()
+            updated_at: admin12.firestore.FieldValue.serverTimestamp()
           };
           await this.db.collection(COLLECTIONS.JOBS).doc(jobId).update(updateData);
           this.logOperation("job-updated", { jobId });
@@ -73865,12 +73865,12 @@ var init_job_service = __esm({
                 escrow_status: "DISPUTED",
                 status: "disputed",
                 // legacy sync
-                updated_at: admin13.firestore.FieldValue.serverTimestamp()
+                updated_at: admin12.firestore.FieldValue.serverTimestamp()
               });
             }
             transaction.update(jobRef, {
               status: "disputed",
-              updated_at: admin13.firestore.FieldValue.serverTimestamp()
+              updated_at: admin12.firestore.FieldValue.serverTimestamp()
             });
             const disputeRef = this.db.collection("disputes").doc();
             transaction.set(disputeRef, {
@@ -73878,7 +73878,7 @@ var init_job_service = __esm({
               raised_by_uid: uid,
               reason,
               status: "open",
-              created_at: admin13.firestore.FieldValue.serverTimestamp()
+              created_at: admin12.firestore.FieldValue.serverTimestamp()
             });
           });
           this.logOperation("job-disputed", { jobId, raisedBy: uid, reason });
@@ -73939,20 +73939,20 @@ var init_job_service = __esm({
             transaction.update(transactionDoc.ref, {
               status: "released",
               commission_retained: commissionRetained,
-              released_at: admin13.firestore.FieldValue.serverTimestamp()
+              released_at: admin12.firestore.FieldValue.serverTimestamp()
             });
             const jobRef = this.db.collection("jobs").doc(jobId);
             transaction.update(jobRef, {
               status: "completed",
-              updated_at: admin13.firestore.FieldValue.serverTimestamp()
+              updated_at: admin12.firestore.FieldValue.serverTimestamp()
             });
             transaction.update(matchRef, {
               status: "completed",
-              updated_at: admin13.firestore.FieldValue.serverTimestamp()
+              updated_at: admin12.firestore.FieldValue.serverTimestamp()
             });
             transaction.update(artisanRef, {
-              completed_jobs: admin13.firestore.FieldValue.increment(1),
-              updated_at: admin13.firestore.FieldValue.serverTimestamp()
+              completed_jobs: admin12.firestore.FieldValue.increment(1),
+              updated_at: admin12.firestore.FieldValue.serverTimestamp()
             });
           });
           const netAmount = lockedJobValue - commissionRetained;
@@ -73994,7 +73994,7 @@ var init_job_service = __esm({
           }
           await this.db.collection(COLLECTIONS.JOBS).doc(jobId).update({
             status: "cancelled",
-            updated_at: admin13.firestore.FieldValue.serverTimestamp()
+            updated_at: admin12.firestore.FieldValue.serverTimestamp()
           });
           this.logOperation("job-cancelled", { jobId, clientUid });
         } catch (error51) {
@@ -74014,7 +74014,7 @@ var init_job_service = __esm({
           }
           await this.db.collection(COLLECTIONS.JOBS).doc(jobId).update({
             tracking_state: state,
-            updated_at: admin13.firestore.FieldValue.serverTimestamp()
+            updated_at: admin12.firestore.FieldValue.serverTimestamp()
           });
           this.logOperation("job-tracking-updated", { jobId, artisanUid, state });
         } catch (error51) {
@@ -74061,11 +74061,11 @@ var init_job_service = __esm({
 });
 
 // src/services/payment.service.ts
-var admin14, PaymentService;
+var admin13, PaymentService;
 var init_payment_service = __esm({
   "src/services/payment.service.ts"() {
     "use strict";
-    admin14 = __toESM(require("firebase-admin"));
+    admin13 = __toESM(require("firebase-admin"));
     init_axios2();
     init_base_service();
     init_constants();
@@ -74076,7 +74076,7 @@ var init_payment_service = __esm({
         this.paystackSecretKey = process.env.PAYSTACK_SECRET_KEY || "";
       }
       get db() {
-        return admin14.firestore();
+        return admin13.firestore();
       }
       /**
        * Verify Paystack webhook signature
@@ -74106,7 +74106,7 @@ var init_payment_service = __esm({
           await transactionDoc.ref.update({
             status: newStatus,
             escrow_status: transaction.type === "escrow" ? "HELD" : void 0,
-            updated_at: admin14.firestore.FieldValue.serverTimestamp()
+            updated_at: admin13.firestore.FieldValue.serverTimestamp()
           });
           if (transaction.type === "escrow" && transaction.match_id) {
             const matchRef = this.db.collection(COLLECTIONS.MATCHES).doc(transaction.match_id);
@@ -74131,8 +74131,8 @@ var init_payment_service = __esm({
               await matchRef.update({
                 status: "paid",
                 // Active/Paid
-                no_response_timer_expiry: admin14.firestore.Timestamp.fromDate(expiryDate),
-                updated_at: admin14.firestore.FieldValue.serverTimestamp()
+                no_response_timer_expiry: admin13.firestore.Timestamp.fromDate(expiryDate),
+                updated_at: admin13.firestore.FieldValue.serverTimestamp()
               });
             }
           }
@@ -74188,16 +74188,16 @@ var init_payment_service = __esm({
 });
 
 // src/services/escrow.service.ts
-var admin15, EscrowService;
+var admin14, EscrowService;
 var init_escrow_service = __esm({
   "src/services/escrow.service.ts"() {
     "use strict";
-    admin15 = __toESM(require("firebase-admin"));
+    admin14 = __toESM(require("firebase-admin"));
     init_base_service();
     init_constants();
     EscrowService = class extends BaseService {
       get db() {
-        return admin15.firestore();
+        return admin14.firestore();
       }
       constructor() {
         super();
@@ -74237,13 +74237,13 @@ var init_escrow_service = __esm({
             status: "released",
             // keep legacy field in sync
             commission_retained: commissionRetained,
-            released_at: admin15.firestore.FieldValue.serverTimestamp(),
-            updated_at: admin15.firestore.FieldValue.serverTimestamp()
+            released_at: admin14.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin14.firestore.FieldValue.serverTimestamp()
           });
           await jobDoc.ref.update({
             status: "completed",
-            completed_at: admin15.firestore.FieldValue.serverTimestamp(),
-            updated_at: admin15.firestore.FieldValue.serverTimestamp()
+            completed_at: admin14.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin14.firestore.FieldValue.serverTimestamp()
           });
           this.logOperation("escrow-released", {
             jobId,
@@ -74347,7 +74347,7 @@ var init_escrow_service = __esm({
               ...transaction?.metadata,
               refund_reason: reason
             },
-            updated_at: admin15.firestore.FieldValue.serverTimestamp()
+            updated_at: admin14.firestore.FieldValue.serverTimestamp()
           });
           this.logOperation("escrow-refunded", {
             transactionId,
@@ -74468,17 +74468,17 @@ var init_rating_service = __esm({
 });
 
 // src/services/admin.service.ts
-var admin16, AdminService;
+var admin15, AdminService;
 var init_admin_service = __esm({
   "src/services/admin.service.ts"() {
     "use strict";
-    admin16 = __toESM(require("firebase-admin"));
+    admin15 = __toESM(require("firebase-admin"));
     init_base_service();
     init_repositories();
     init_constants();
     AdminService = class extends BaseService {
       get db() {
-        return admin16.firestore();
+        return admin15.firestore();
       }
       constructor() {
         super();
@@ -74716,15 +74716,15 @@ var init_analytics_service = __esm({
 });
 
 // src/services/matching.service.ts
-var admin17, MatchingService;
+var admin16, MatchingService;
 var init_matching_service = __esm({
   "src/services/matching.service.ts"() {
     "use strict";
-    admin17 = __toESM(require("firebase-admin"));
+    admin16 = __toESM(require("firebase-admin"));
     init_base_service();
     MatchingService = class extends BaseService {
       get db() {
-        return admin17.firestore();
+        return admin16.firestore();
       }
       constructor() {
         super();
@@ -74768,8 +74768,8 @@ var init_matching_service = __esm({
               artisan_uid: artisan.uid,
               status: "pending",
               rating: null,
-              created_at: admin17.firestore.FieldValue.serverTimestamp(),
-              updated_at: admin17.firestore.FieldValue.serverTimestamp()
+              created_at: admin16.firestore.FieldValue.serverTimestamp(),
+              updated_at: admin16.firestore.FieldValue.serverTimestamp()
             };
             const matchDocRef = matchesRef.doc();
             transaction.set(matchDocRef, matchData);
@@ -74788,7 +74788,7 @@ var init_matching_service = __esm({
           }
           transaction.update(jobDoc.ref, {
             status: "matched",
-            updated_at: admin17.firestore.FieldValue.serverTimestamp()
+            updated_at: admin16.firestore.FieldValue.serverTimestamp()
           });
           return createdMatches;
         });
@@ -74812,6 +74812,226 @@ var init_services = __esm({
     init_admin_service();
     init_analytics_service();
     init_matching_service();
+  }
+});
+
+// src/controllers/auth.controller.ts
+var AuthController;
+var init_auth_controller = __esm({
+  "src/controllers/auth.controller.ts"() {
+    "use strict";
+    init_base_controller();
+    init_services();
+    AuthController = class extends BaseController {
+      constructor() {
+        super();
+        this.authService = new AuthService();
+      }
+      async registerUser(req, res) {
+        try {
+          const { idToken, first_name, last_name, role } = req.body;
+          const user = await this.authService.registerUser({ idToken, first_name, last_name, role });
+          this.sendCreated(res, "User created successfully", user);
+        } catch (error51) {
+          this.handleError(error51, res, "Register user");
+        }
+      }
+      async registerAdmin(req, res) {
+        try {
+          const { email: email3, password, first_name, last_name } = req.body;
+          const result = await this.authService.registerAdmin({ email: email3, password, first_name, last_name });
+          this.sendCreated(res, "Admin registered successfully", result);
+        } catch (error51) {
+          this.handleError(error51, res, "Register admin");
+        }
+      }
+      async requestPasswordReset(req, res) {
+        try {
+          const { email: email3 } = req.body;
+          const result = await this.authService.requestPasswordReset(email3);
+          this.sendSuccess(res, result.message);
+        } catch (error51) {
+          this.handleError(error51, res, "Request password reset");
+        }
+      }
+      async createCustomToken(req, res) {
+        try {
+          if (process.env.NODE_ENV === "production") {
+            return this.sendForbidden(res, "This endpoint is only available in development mode");
+          }
+          const { phone } = req.body;
+          const result = await this.authService.createCustomToken(phone);
+          this.sendSuccess(res, "Custom token created. Use this to sign in on the client.", result);
+        } catch (error51) {
+          this.handleError(error51, res, "Create custom token");
+        }
+      }
+      async sendOTP(req, res) {
+        try {
+          const { phone } = req.body;
+          const result = await this.authService.sendOTP(phone);
+          this.sendSuccess(res, result.message);
+        } catch (error51) {
+          this.handleError(error51, res, "Send OTP");
+        }
+      }
+      async verifyOTP(req, res) {
+        try {
+          const { phone, otp, role } = req.body;
+          const result = await this.authService.verifyOTP(phone, otp, role);
+          res.status(200).json(result);
+        } catch (error51) {
+          this.handleError(error51, res, "Verify OTP");
+        }
+      }
+      async verifyEmailLogin(req, res) {
+        try {
+          const { idToken, role } = req.body;
+          const result = await this.authService.verifyEmailLogin(idToken, role);
+          res.status(200).json(result);
+        } catch (error51) {
+          this.handleError(error51, res, "Verify Email Login");
+        }
+      }
+      async verifyFirebaseLogin(req, res) {
+        try {
+          const { idToken, role } = req.body;
+          const result = await this.authService.verifyEmailLogin(idToken, role);
+          res.status(200).json(result);
+        } catch (error51) {
+          this.handleError(error51, res, "Verify Firebase Login");
+        }
+      }
+    };
+  }
+});
+
+// src/controllers/artisan.controller.ts
+var ArtisanController;
+var init_artisan_controller = __esm({
+  "src/controllers/artisan.controller.ts"() {
+    "use strict";
+    init_base_controller();
+    init_services();
+    init_fileUpload();
+    ArtisanController = class extends BaseController {
+      constructor() {
+        super();
+        this.artisanService = new ArtisanService();
+      }
+      async completeProfile(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { trade, location: location2, tagline, bio, experience_years, hourly_rate, skills, portfolio } = req.body;
+          const artisan = await this.artisanService.completeProfile(req.user.uid, {
+            trade,
+            location: location2,
+            tagline,
+            bio,
+            experience_years,
+            hourly_rate,
+            skills,
+            portfolio
+          });
+          this.sendCreated(res, "Artisan profile created successfully", { profile: artisan });
+        } catch (error51) {
+          this.handleError(error51, res, "Complete artisan profile");
+        }
+      }
+      async registerArtisan(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const data = req.body;
+          const result = await this.artisanService.registerArtisan(req.user.uid, data);
+          this.sendCreated(res, "Artisan registered successfully", { data: result?.profile });
+        } catch (error51) {
+          this.handleError(error51, res, "Register artisan");
+        }
+      }
+      async listArtisans(req, res) {
+        try {
+          const { trade, location: location2, available } = req.query;
+          const artisans = await this.artisanService.listArtisans({
+            trade,
+            location: location2,
+            available: available === "true"
+          });
+          this.sendSuccess(res, "Artisans fetched successfully", { data: artisans });
+        } catch (error51) {
+          this.handleError(error51, res, "List artisans");
+        }
+      }
+      async updateAvailability(req, res) {
+        try {
+          const { uid } = req.params;
+          const { available } = req.body;
+          await this.artisanService.updateAvailability(uid, available);
+          this.sendSuccess(res, "Availability updated successfully", { available });
+        } catch (error51) {
+          this.handleError(error51, res, "Update availability");
+        }
+      }
+      async updateProfile(req, res) {
+        try {
+          const { uid } = req.params;
+          const updates = req.body;
+          const artisan = await this.artisanService.updateProfile(uid, updates);
+          this.sendSuccess(res, "Profile updated successfully", { profile: artisan });
+        } catch (error51) {
+          this.handleError(error51, res, "Update profile");
+        }
+      }
+      async addWorkPhoto(req, res) {
+        try {
+          const { uid } = req.params;
+          const { url: url3, filename } = await uploadFile(req, `artisan_photos/${uid}`, 5 * 1024 * 1024);
+          await this.artisanService.addWorkPhoto(uid, url3);
+          this.sendSuccess(res, "Photo uploaded successfully", { url: url3, filename });
+        } catch (error51) {
+          if (error51.message.includes("Invalid file type") || error51.message.includes("File too large") || error51.message.includes("File signature")) {
+            this.sendBadRequest(res, error51.message);
+            return;
+          }
+          this.handleError(error51, res, "Add work photo");
+        }
+      }
+      async uploadIDDocument(req, res) {
+        try {
+          const { uid } = req.params;
+          const { url: url3, filename } = await uploadFile(req, `id_documents/${uid}`, 10 * 1024 * 1024);
+          await this.artisanService.uploadIDDocument(uid, url3);
+          this.sendSuccess(res, "ID document uploaded successfully", { url: url3, filename });
+        } catch (error51) {
+          if (error51.message.includes("Invalid file type") || error51.message.includes("File too large") || error51.message.includes("File signature")) {
+            this.sendBadRequest(res, error51.message);
+            return;
+          }
+          this.handleError(error51, res, "Upload ID document");
+        }
+      }
+      async getProfile(req, res) {
+        try {
+          const { uid } = req.params;
+          const profile = await this.artisanService.getProfile(uid);
+          this.sendSuccess(res, "Profile fetched successfully", { profile });
+        } catch (error51) {
+          this.handleError(error51, res, "Get profile");
+        }
+      }
+      async getDashboard(req, res) {
+        try {
+          const { uid } = req.params;
+          const dashboard = await this.artisanService.getDashboard(uid);
+          this.sendSuccess(res, "Dashboard data fetched successfully", dashboard);
+        } catch (error51) {
+          this.handleError(error51, res, "Get dashboard");
+        }
+      }
+    };
   }
 });
 
@@ -74902,6 +75122,846 @@ var init_rating_controller = __esm({
   }
 });
 
+// src/controllers/job.controller.ts
+var admin17, JobController;
+var init_job_controller = __esm({
+  "src/controllers/job.controller.ts"() {
+    "use strict";
+    init_base_controller();
+    init_services();
+    admin17 = __toESM(require("firebase-admin"));
+    JobController = class extends BaseController {
+      constructor() {
+        super();
+        this.jobService = new JobService();
+        this.matchingService = new MatchingService();
+      }
+      async createJob(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const body = { ...req.body };
+          if (body.trade && !body.trade_needed) body.trade_needed = body.trade;
+          if (body.timing && !body.urgency) body.urgency = body.timing === "ASAP" ? "Today" : "Flexible";
+          if (typeof body.location === "string") body.location = { address: body.location, city: "", state: "", lga: "" };
+          const job = await this.jobService.createJob(req.user.uid, body);
+          this.sendCreated(res, "Job created successfully", { data: job });
+        } catch (error51) {
+          this.handleError(error51, res, "Create job");
+        }
+      }
+      async getJob(req, res) {
+        try {
+          const { id } = req.params;
+          const job = await this.jobService.getJobById(id);
+          if (!job) {
+            return this.sendNotFound(res, "Job not found");
+          }
+          this.sendSuccess(res, "Job fetched successfully", { job });
+        } catch (error51) {
+          this.handleError(error51, res, "Get job");
+        }
+      }
+      async updateJob(req, res) {
+        try {
+          const { id } = req.params;
+          const job = await this.jobService.updateJob(id, req.body);
+          this.sendSuccess(res, "Job updated successfully", { job });
+        } catch (error51) {
+          this.handleError(error51, res, "Update job");
+        }
+      }
+      async listJobs(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { trade, location: location2, status, urgency, limit, offset } = req.query;
+          const jobs = await this.jobService.searchJobs({
+            trade,
+            location: location2,
+            status,
+            urgency,
+            limit: limit ? parseInt(limit, 10) : void 0,
+            offset: offset ? parseInt(offset, 10) : void 0
+          });
+          this.sendSuccess(res, "Jobs fetched successfully", {
+            jobs,
+            count: jobs.length,
+            limit: limit ? parseInt(limit, 10) : 50,
+            offset: offset ? parseInt(offset, 10) : 0
+          });
+        } catch (error51) {
+          this.handleError(error51, res, "List jobs");
+        }
+      }
+      async selectArtisan(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { id } = req.params;
+          const { artisan_id } = req.body;
+          if (!artisan_id) {
+            return this.sendBadRequest(res, "Artisan ID is required");
+          }
+          const db = admin17.firestore();
+          const matchesSnapshot = await db.collection("matches").where("job_id", "==", id).where("artisan_uid", "==", artisan_id).limit(1).get();
+          if (matchesSnapshot.empty) {
+            const matchRef = db.collection("matches").doc();
+            await matchRef.set({
+              job_id: id,
+              artisan_uid: artisan_id,
+              status: "accepted",
+              rating: null,
+              created_at: admin17.firestore.FieldValue.serverTimestamp(),
+              updated_at: admin17.firestore.FieldValue.serverTimestamp()
+            });
+            await db.collection("jobs").doc(id).update({
+              status: "matched",
+              assigned_artisan_uid: artisan_id
+            });
+            this.sendSuccess(res, "Artisan selected", { match_id: matchRef.id });
+            return;
+          }
+          const matchDoc = matchesSnapshot.docs[0];
+          await matchDoc.ref.update({ status: "accepted" });
+          await db.collection("jobs").doc(id).update({
+            status: "matched",
+            assigned_artisan_uid: artisan_id
+          });
+          this.sendSuccess(res, "Artisan selected", { match_id: matchDoc.id });
+        } catch (error51) {
+          this.handleError(error51, res, "Select artisan");
+        }
+      }
+      async markComplete(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { id } = req.params;
+          let { match_id, rating, review } = req.body;
+          if (!match_id) {
+            const matchesSnapshot = await admin17.firestore().collection("matches").where("job_id", "==", id).where("status", "==", "accepted").limit(1).get();
+            if (!matchesSnapshot.empty) {
+              match_id = matchesSnapshot.docs[0].id;
+            } else {
+              const allMatches = await admin17.firestore().collection("matches").where("job_id", "==", id).get();
+              if (allMatches.size === 1) {
+                match_id = allMatches.docs[0].id;
+              } else {
+                return this.sendBadRequest(res, "Match ID could not be determined automatically");
+              }
+            }
+          }
+          const result = await this.jobService.markComplete(id, req.user.uid, match_id);
+          if (rating) {
+            try {
+              const { RatingController: RatingController2 } = (init_rating_controller(), __toCommonJS(rating_controller_exports));
+              const ratingController = new RatingController2();
+              const ratingReq = { ...req, params: { id }, body: { score: rating, review } };
+              const ratingRes = {
+                status: () => ({ json: () => {
+                } }),
+                json: () => {
+                }
+              };
+              await ratingController.submitRating(ratingReq, ratingRes);
+            } catch (e) {
+              console.error("Error submitting rating inline", e);
+            }
+          }
+          this.sendSuccess(res, "Job marked complete and escrow released successfully", result);
+        } catch (error51) {
+          this.handleError(error51, res, "Mark job complete");
+        }
+      }
+      async cancelJob(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { id } = req.params;
+          await this.jobService.cancelJob(id, req.user.uid);
+          this.sendSuccess(res, "Job cancelled successfully");
+        } catch (error51) {
+          this.handleError(error51, res, "Cancel job");
+        }
+      }
+      async getClientJobs(req, res) {
+        try {
+          const { clientUid } = req.params;
+          const jobs = await this.jobService.getJobsByClient(clientUid);
+          this.sendSuccess(res, "Jobs fetched successfully", { jobs, count: jobs.length });
+        } catch (error51) {
+          this.handleError(error51, res, "Get client jobs");
+        }
+      }
+      async matchArtisans(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { id } = req.params;
+          const db = admin17.firestore();
+          const jobDoc = await db.collection("jobs").doc(id).get();
+          if (!jobDoc.exists) {
+            return this.sendNotFound(res, "Job not found");
+          }
+          const jobData = jobDoc.data();
+          if (jobData?.client_uid !== req.user.uid) {
+            return this.sendForbidden(res, "Forbidden: You do not own this job");
+          }
+          if (jobData?.status !== "open") {
+            return this.sendBadRequest(res, "Job is not open for matching");
+          }
+          const { matches, count } = await this.matchingService.matchArtisansToJob(id);
+          if (count === 0) {
+            await db.collection("analytics_events").add({
+              event_type: "zero_results",
+              job_id: id,
+              trade: jobData.trade_needed || jobData.trade,
+              location: jobData.location,
+              client_uid: req.user.uid,
+              timestamp: admin17.firestore.FieldValue.serverTimestamp()
+            });
+            this.sendSuccess(res, "No available artisans found for this trade", { matches: [], count: 0 });
+            return;
+          }
+          this.sendSuccess(res, "Matches created successfully", { matches, count });
+        } catch (error51) {
+          this.handleError(error51, res, "Match artisans");
+        }
+      }
+      async getMatches(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { id } = req.params;
+          const db = admin17.firestore();
+          const jobRef = db.collection("jobs").doc(id);
+          const jobDoc = await jobRef.get();
+          if (!jobDoc.exists) {
+            return this.sendNotFound(res, "Job not found");
+          }
+          const jobData = jobDoc.data();
+          if (jobData?.client_uid !== req.user.uid) {
+            return this.sendForbidden(res, "Forbidden: You do not own this job");
+          }
+          const matchesSnapshot = await db.collection("matches").where("job_id", "==", id).orderBy("created_at", "desc").get();
+          const artisanUids = [...new Set(matchesSnapshot.docs.map((doc) => doc.data().artisan_uid))];
+          const artisanProfiles = {};
+          if (artisanUids.length > 0) {
+            const batchSize = 10;
+            for (let i = 0; i < artisanUids.length; i += batchSize) {
+              const batch = artisanUids.slice(i, i + batchSize);
+              const artisansSnapshot = await db.collection("artisan_profiles").where(admin17.firestore.FieldPath.documentId(), "in", batch).get();
+              artisansSnapshot.docs.forEach((doc) => {
+                artisanProfiles[doc.id] = doc.data();
+              });
+            }
+          }
+          const matchesWithArtisans = matchesSnapshot.docs.map((doc) => {
+            const matchData = doc.data();
+            const artisanData = artisanProfiles[matchData.artisan_uid];
+            return {
+              match_id: doc.id,
+              ...matchData,
+              artisan: artisanData ? {
+                uid: artisanData.uid,
+                trade: artisanData.trade,
+                location: artisanData.location,
+                completed_jobs: artisanData.completed_jobs,
+                reputation_score: artisanData.reputation_score,
+                tagline: artisanData.tagline
+              } : null
+            };
+          });
+          this.sendSuccess(res, "Matches fetched successfully", {
+            matches: matchesWithArtisans,
+            count: matchesWithArtisans.length
+          });
+        } catch (error51) {
+          this.handleError(error51, res, "Get matches");
+        }
+      }
+      async startTracking(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { id } = req.params;
+          await this.jobService.updateTrackingState(id, req.user.uid, "en_route");
+          this.sendSuccess(res, "Tracking started");
+        } catch (error51) {
+          this.handleError(error51, res, "Start tracking");
+        }
+      }
+      async arriveTracking(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { id } = req.params;
+          await this.jobService.updateTrackingState(id, req.user.uid, "arrived");
+          this.sendSuccess(res, "Artisan arrived");
+        } catch (error51) {
+          this.handleError(error51, res, "Arrive tracking");
+        }
+      }
+      async disputeJob(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { id } = req.params;
+          const { reason } = req.body;
+          if (!reason) {
+            return this.sendBadRequest(res, "Dispute reason is required");
+          }
+          await this.jobService.raiseDispute(id, req.user.uid, reason);
+          this.sendSuccess(res, "Dispute raised successfully");
+        } catch (error51) {
+          this.handleError(error51, res, "Dispute job");
+        }
+      }
+    };
+  }
+});
+
+// src/controllers/payment.controller.ts
+var PaymentController;
+var init_payment_controller = __esm({
+  "src/controllers/payment.controller.ts"() {
+    "use strict";
+    init_base_controller();
+    init_services();
+    PaymentController = class extends BaseController {
+      constructor() {
+        super();
+        this.paymentService = new PaymentService();
+        this.escrowService = new EscrowService();
+      }
+      async handleWebhook(req, res) {
+        try {
+          const signature = req.headers["x-paystack-signature"];
+          const body = req.rawBody || JSON.stringify(req.body);
+          const isValid = this.paymentService.verifyWebhookSignature(signature, body);
+          if (!isValid) {
+            return this.sendUnauthorized(res, "Invalid webhook signature");
+          }
+          const event = req.body;
+          if (event.event === "charge.success") {
+            await this.paymentService.handlePaymentSuccess(event.data.reference);
+          }
+          this.sendSuccess(res, "Webhook processed");
+        } catch (error51) {
+          this.logger.error("Webhook processing error", error51);
+          this.sendSuccess(res, "Webhook received");
+        }
+      }
+      async verifyPayment(req, res) {
+        try {
+          const reference = req.params.reference || req.body.reference;
+          if (!reference) {
+            return this.sendBadRequest(res, "Payment reference is required");
+          }
+          const verification = await this.paymentService.verifyPayment(reference);
+          this.sendSuccess(res, "Payment verified", verification);
+        } catch (error51) {
+          this.handleError(error51, res, "Verify payment");
+        }
+      }
+      async releaseEscrow(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { jobId } = req.params;
+          const result = await this.escrowService.releaseFunds(jobId, req.user.uid);
+          this.sendSuccess(res, "Escrow funds released successfully", result);
+        } catch (error51) {
+          this.handleError(error51, res, "Release escrow");
+        }
+      }
+    };
+  }
+});
+
+// src/services/proforma.service.ts
+var admin18, ProformaService;
+var init_proforma_service = __esm({
+  "src/services/proforma.service.ts"() {
+    "use strict";
+    admin18 = __toESM(require("firebase-admin"));
+    init_base_service();
+    ProformaService = class extends BaseService {
+      get db() {
+        return admin18.firestore();
+      }
+      async submitProforma(artisanUid, data) {
+        try {
+          const jobDoc = await this.db.collection("jobs").doc(data.job_id).get();
+          if (!jobDoc.exists) throw new Error("Job not found");
+          const matchSnapshot = await this.db.collection("matches").where("job_id", "==", data.job_id).where("artisan_uid", "==", artisanUid).where("status", "==", "accepted").limit(1).get();
+          if (matchSnapshot.empty) {
+            throw new Error("Forbidden: You are not the assigned artisan for this job");
+          }
+          const invoiceData = {
+            ...data,
+            artisan_uid: artisanUid,
+            status: "pending",
+            created_at: admin18.firestore.FieldValue.serverTimestamp()
+          };
+          const docRef = await this.db.collection("proformas").add(invoiceData);
+          this.logOperation("proforma-submitted", {
+            proformaId: docRef.id,
+            jobId: data.job_id,
+            artisanUid
+          });
+          return {
+            id: docRef.id,
+            ...invoiceData,
+            created_at: /* @__PURE__ */ new Date()
+          };
+        } catch (error51) {
+          this.handleError(error51, "Submit proforma invoice");
+        }
+      }
+      async getJobProformas(jobId, uid, isAdmin = false) {
+        try {
+          if (!isAdmin) {
+            const jobDoc = await this.db.collection("jobs").doc(jobId).get();
+            const isClient = jobDoc.data()?.client_uid === uid;
+            let isArtisan = false;
+            if (!isClient) {
+              const matchSnapshot = await this.db.collection("matches").where("job_id", "==", jobId).where("artisan_uid", "==", uid).get();
+              isArtisan = !matchSnapshot.empty;
+            }
+            if (!isClient && !isArtisan) {
+              throw new Error("Forbidden: You do not have access to this job");
+            }
+          }
+          const snapshot = await this.db.collection("proformas").where("job_id", "==", jobId).orderBy("created_at", "desc").get();
+          return snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+        } catch (error51) {
+          this.handleError(error51, "Get job proformas");
+        }
+      }
+      async getAdminQueue() {
+        try {
+          const snapshot = await this.db.collection("proformas").where("status", "in", ["pending"]).orderBy("created_at", "desc").get();
+          return snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+        } catch (error51) {
+          this.handleError(error51, "Get proforma queue");
+        }
+      }
+      async approveProforma(proformaId, notes) {
+        try {
+          const docRef = this.db.collection("proformas").doc(proformaId);
+          const doc = await docRef.get();
+          if (!doc.exists) {
+            throw new Error("Proforma invoice not found");
+          }
+          const proformaData = doc.data();
+          await docRef.update({
+            status: "approved",
+            admin_notes: notes || null,
+            updated_at: admin18.firestore.FieldValue.serverTimestamp()
+          });
+          const txSnapshot = await this.db.collection("transactions").where("job_id", "==", proformaData.job_id).where("type", "==", "escrow").where("escrow_status", "==", "HELD").limit(1).get();
+          if (!txSnapshot.empty) {
+            const txDoc = txSnapshot.docs[0];
+            await txDoc.ref.update({
+              escrow_status: "DISBURSED_PARTIAL",
+              proforma_invoices: admin18.firestore.FieldValue.arrayUnion({
+                invoice_id: proformaId,
+                supplier_name: proformaData.supplier_name,
+                amount: proformaData.total_amount,
+                status: "approved"
+              }),
+              updated_at: admin18.firestore.FieldValue.serverTimestamp()
+            });
+          }
+          this.logOperation("proforma-approved", { proformaId, jobId: proformaData.job_id });
+        } catch (error51) {
+          this.handleError(error51, "Approve proforma");
+        }
+      }
+      async rejectProforma(proformaId, reason) {
+        try {
+          const docRef = this.db.collection("proformas").doc(proformaId);
+          await docRef.update({
+            status: "rejected",
+            admin_notes: reason,
+            updated_at: admin18.firestore.FieldValue.serverTimestamp()
+          });
+          this.logOperation("proforma-rejected", { proformaId });
+        } catch (error51) {
+          this.handleError(error51, "Reject proforma");
+        }
+      }
+    };
+  }
+});
+
+// src/controllers/admin.controller.ts
+var AdminController;
+var init_admin_controller = __esm({
+  "src/controllers/admin.controller.ts"() {
+    "use strict";
+    init_base_controller();
+    init_admin_service();
+    init_proforma_service();
+    AdminController = class extends BaseController {
+      constructor() {
+        super();
+        this.adminService = new AdminService();
+        this.proformaService = new ProformaService();
+      }
+      /**
+       * GET /api/admin/verification-queue
+       */
+      async getVerificationQueue(req, res) {
+        try {
+          const { limit, offset } = req.query;
+          const parsedLimit = limit ? parseInt(limit, 10) : 50;
+          const parsedOffset = offset ? parseInt(offset, 10) : 0;
+          const queue = await this.adminService.getVerificationQueue(parsedLimit, parsedOffset);
+          this.sendSuccess(res, "Verification queue fetched successfully", {
+            artisans: queue,
+            count: queue.length,
+            limit: parsedLimit,
+            offset: parsedOffset
+          });
+        } catch (error51) {
+          this.handleError(error51, res, "Get verification queue");
+        }
+      }
+      /**
+       * POST /api/admin/verify/:uid
+       */
+      async verifyArtisan(req, res) {
+        try {
+          const { uid } = req.params;
+          await this.adminService.verifyArtisan(uid);
+          this.sendSuccess(res, "Artisan verified successfully", {
+            uid,
+            is_verified: true
+          });
+        } catch (error51) {
+          this.handleError(error51, res, "Verify artisan");
+        }
+      }
+      /**
+       * POST /api/admin/reject/:uid
+       */
+      async rejectArtisan(req, res) {
+        try {
+          const { uid } = req.params;
+          const { reason } = req.body;
+          await this.adminService.rejectArtisan(uid, reason);
+          this.sendSuccess(res, "Artisan verification rejected", {
+            uid,
+            reason: reason || "Not specified"
+          });
+        } catch (error51) {
+          this.handleError(error51, res, "Reject artisan");
+        }
+      }
+      /**
+       * GET /api/admin/stats
+       */
+      async getStatistics(req, res) {
+        try {
+          const stats = await this.adminService.getStatistics();
+          this.sendSuccess(res, "Statistics fetched successfully", stats);
+        } catch (error51) {
+          this.handleError(error51, res, "Get statistics");
+        }
+      }
+      /**
+       * GET /api/admin/analytics
+       */
+      async getAnalytics(req, res) {
+        try {
+          const analytics = await this.adminService.getAnalytics();
+          this.sendSuccess(res, "Analytics data fetched successfully", analytics);
+        } catch (error51) {
+          this.handleError(error51, res, "Get analytics");
+        }
+      }
+      async getProformaQueue(req, res) {
+        try {
+          const queue = await this.proformaService.getAdminQueue();
+          this.sendSuccess(res, "Proforma queue fetched successfully", { queue });
+        } catch (error51) {
+          this.handleError(error51, res, "Get proforma queue");
+        }
+      }
+      /**
+       * GET /api/admin/flags
+       */
+      async getFlags(req, res) {
+        try {
+          const flags = await this.adminService.getArtisansWithFlags();
+          this.sendSuccess(res, "Artisans with no-response flags fetched successfully", flags);
+        } catch (error51) {
+          this.handleError(error51, res, "Get flags");
+        }
+      }
+      async approveProforma(req, res) {
+        try {
+          const { id } = req.params;
+          const { notes } = req.body;
+          await this.proformaService.approveProforma(id, notes);
+          this.sendSuccess(res, "Proforma invoice approved successfully");
+        } catch (error51) {
+          this.handleError(error51, res, "Approve proforma");
+        }
+      }
+      async rejectProforma(req, res) {
+        try {
+          const { id } = req.params;
+          const { reason } = req.body;
+          if (!reason) {
+            this.sendBadRequest(res, "Rejection reason is required");
+            return;
+          }
+          await this.proformaService.rejectProforma(id, reason);
+          this.sendSuccess(res, "Proforma invoice rejected successfully");
+        } catch (error51) {
+          this.handleError(error51, res, "Reject proforma");
+        }
+      }
+    };
+  }
+});
+
+// src/services/chat.service.ts
+var admin19, ChatService;
+var init_chat_service = __esm({
+  "src/services/chat.service.ts"() {
+    "use strict";
+    admin19 = __toESM(require("firebase-admin"));
+    init_base_service();
+    ChatService = class extends BaseService {
+      get db() {
+        return admin19.firestore();
+      }
+      /**
+       * Verify if a user is allowed to access the chat for a given job.
+       * They must be either the job owner (client) or the assigned artisan.
+       */
+      async verifyChatAccess(jobId, uid) {
+        const jobDoc = await this.db.collection("jobs").doc(jobId).get();
+        if (!jobDoc.exists) {
+          throw new Error("Job not found");
+        }
+        if (jobDoc.data()?.client_uid === uid) {
+          return true;
+        }
+        const matchSnapshot = await this.db.collection("matches").where("job_id", "==", jobId).where("artisan_uid", "==", uid).limit(1).get();
+        if (!matchSnapshot.empty) {
+          const status = matchSnapshot.docs[0].data().status;
+          if (["pending", "accepted", "completed"].includes(status)) {
+            return true;
+          }
+        }
+        return false;
+      }
+      async getMessages(jobId, uid, limit = 50) {
+        try {
+          const hasAccess = await this.verifyChatAccess(jobId, uid);
+          if (!hasAccess) {
+            throw new Error("Forbidden: You do not have access to this chat");
+          }
+          const snapshot = await this.db.collection("jobs").doc(jobId).collection("messages").orderBy("created_at", "asc").limit(limit).get();
+          return snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+        } catch (error51) {
+          this.handleError(error51, "Get messages");
+        }
+      }
+      async sendMessage(jobId, senderUid, content) {
+        try {
+          const hasAccess = await this.verifyChatAccess(jobId, senderUid);
+          if (!hasAccess) {
+            throw new Error("Forbidden: You do not have access to this chat");
+          }
+          const messageData = {
+            job_id: jobId,
+            sender_uid: senderUid,
+            content,
+            is_read: false,
+            created_at: admin19.firestore.FieldValue.serverTimestamp()
+          };
+          const docRef = await this.db.collection("jobs").doc(jobId).collection("messages").add(messageData);
+          this.logOperation("chat-message-sent", { jobId, senderUid });
+          return {
+            id: docRef.id,
+            ...messageData,
+            created_at: /* @__PURE__ */ new Date()
+            // Fallback for immediate return
+          };
+        } catch (error51) {
+          this.handleError(error51, "Send message");
+        }
+      }
+    };
+  }
+});
+
+// src/controllers/chat.controller.ts
+var admin20, ChatController;
+var init_chat_controller = __esm({
+  "src/controllers/chat.controller.ts"() {
+    "use strict";
+    admin20 = __toESM(require("firebase-admin"));
+    init_base_controller();
+    init_chat_service();
+    ChatController = class extends BaseController {
+      constructor() {
+        super();
+        this.chatService = new ChatService();
+      }
+      async getMessages(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { matchId } = req.params;
+          if (!matchId) return this.sendBadRequest(res, "Match ID is required");
+          const matchDoc = await admin20.firestore().collection("matches").doc(matchId).get();
+          if (!matchDoc.exists) return this.sendNotFound(res, "Match not found");
+          const jobId = matchDoc.data()?.job_id;
+          const limit = req.query.limit ? parseInt(req.query.limit) : 50;
+          const messages = await this.chatService.getMessages(jobId, req.user.uid, limit);
+          this.sendSuccess(res, "Messages fetched successfully", { messages });
+        } catch (error51) {
+          if (error51.message.includes("Forbidden")) {
+            this.sendForbidden(res, error51.message);
+          } else {
+            this.handleError(error51, res, "Get messages");
+          }
+        }
+      }
+      async sendMessage(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { matchId } = req.params;
+          if (!matchId) return this.sendBadRequest(res, "Match ID is required");
+          const matchDoc = await admin20.firestore().collection("matches").doc(matchId).get();
+          if (!matchDoc.exists) return this.sendNotFound(res, "Match not found");
+          const jobId = matchDoc.data()?.job_id;
+          const { content } = req.body;
+          const message = await this.chatService.sendMessage(jobId, req.user.uid, content);
+          this.sendCreated(res, "Message sent successfully", { message });
+        } catch (error51) {
+          if (error51.message.includes("Forbidden")) {
+            this.sendForbidden(res, error51.message);
+          } else {
+            this.handleError(error51, res, "Send message");
+          }
+        }
+      }
+    };
+  }
+});
+
+// src/controllers/proforma.controller.ts
+var proforma_controller_exports = {};
+__export(proforma_controller_exports, {
+  ProformaController: () => ProformaController
+});
+var ProformaController;
+var init_proforma_controller = __esm({
+  "src/controllers/proforma.controller.ts"() {
+    "use strict";
+    init_base_controller();
+    init_proforma_service();
+    ProformaController = class extends BaseController {
+      constructor() {
+        super();
+        this.proformaService = new ProformaService();
+      }
+      async submitProforma(req, res) {
+        try {
+          if (!req.user || req.user.role !== "artisan") {
+            return this.sendUnauthorized(res, "Only artisans can submit proforma invoices");
+          }
+          const invoice = await this.proformaService.submitProforma(req.user.uid, req.body);
+          this.sendCreated(res, "Proforma invoice submitted successfully", { invoice });
+        } catch (error51) {
+          if (error51.message.includes("Forbidden")) {
+            this.sendForbidden(res, error51.message);
+          } else {
+            this.handleError(error51, res, "Submit proforma");
+          }
+        }
+      }
+      async getJobProformas(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { jobId } = req.params;
+          const isAdmin = req.user.role === "admin";
+          const invoices = await this.proformaService.getJobProformas(jobId, req.user.uid, isAdmin);
+          this.sendSuccess(res, "Proforma invoices fetched successfully", { invoices });
+        } catch (error51) {
+          if (error51.message.includes("Forbidden")) {
+            this.sendForbidden(res, error51.message);
+          } else {
+            this.handleError(error51, res, "Get job proformas");
+          }
+        }
+      }
+    };
+  }
+});
+
+// src/controllers/index.ts
+var controllers_exports = {};
+__export(controllers_exports, {
+  AdminController: () => AdminController,
+  ArtisanController: () => ArtisanController,
+  AuthController: () => AuthController,
+  BaseController: () => BaseController,
+  ChatController: () => ChatController,
+  JobController: () => JobController,
+  PaymentController: () => PaymentController,
+  ProformaController: () => ProformaController,
+  RatingController: () => RatingController
+});
+var init_controllers = __esm({
+  "src/controllers/index.ts"() {
+    "use strict";
+    init_base_controller();
+    init_auth_controller();
+    init_artisan_controller();
+    init_job_controller();
+    init_payment_controller();
+    init_admin_controller();
+    init_rating_controller();
+    init_chat_controller();
+    init_proforma_controller();
+  }
+});
+
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
@@ -74911,9 +75971,9 @@ __export(index_exports, {
 module.exports = __toCommonJS(index_exports);
 
 // src/initFirebase.ts
-var admin = __toESM(require("firebase-admin"));
-if (!admin.apps.length) {
-  admin.initializeApp();
+var import_app = require("firebase-admin/app");
+if (!(0, import_app.getApps)().length) {
+  (0, import_app.initializeApp)();
 }
 
 // src/index.ts
@@ -75038,13 +76098,13 @@ var options = {
 var swaggerSpec = (0, import_swagger_jsdoc.default)(options);
 
 // src/middleware/security.ts
-var admin2 = __toESM(require("firebase-admin"));
+var admin = __toESM(require("firebase-admin"));
 init_logger();
 var rateLimit = (maxRequests = 100, windowMs = 15 * 60 * 1e3) => {
   return async (req, res, next) => {
     const ip = req.ip || req.socket.remoteAddress || "unknown";
     const now = Date.now();
-    const db = admin2.firestore();
+    const db = admin.firestore();
     const docRef = db.collection("rate_limits").doc(ip.replace(/:/g, "_"));
     try {
       await db.runTransaction(async (transaction) => {
@@ -75057,7 +76117,7 @@ var rateLimit = (maxRequests = 100, windowMs = 15 * 60 * 1e3) => {
         if (data.count > maxRequests) {
           return { allowed: false, resetTime: data.resetTime };
         }
-        transaction.update(docRef, { count: admin2.firestore.FieldValue.increment(1) });
+        transaction.update(docRef, { count: admin.firestore.FieldValue.increment(1) });
         return { allowed: true };
       }).then((result) => {
         if (!result.allowed) {
@@ -75090,7 +76150,7 @@ var securityHeaders = (req, res, next) => {
 var monitorIP = async (req, res, next) => {
   const ip = req.ip || req.socket.remoteAddress || "unknown";
   const now = Date.now();
-  const db = admin2.firestore();
+  const db = admin.firestore();
   const docRef = db.collection("ip_monitoring").doc(ip.replace(/:/g, "_"));
   try {
     const doc = await docRef.get();
@@ -75117,7 +76177,7 @@ var monitorIP = async (req, res, next) => {
 };
 var recordFailedAuth = async (ip) => {
   try {
-    const db = admin2.firestore();
+    const db = admin.firestore();
     const docRef = db.collection("ip_monitoring").doc(ip.replace(/:/g, "_"));
     const now = Date.now();
     await db.runTransaction(async (transaction) => {
@@ -75134,7 +76194,7 @@ var recordFailedAuth = async (ip) => {
       const attempts = (data.failedAttempts || 0) + 1;
       const updateData = {
         failedAttempts: attempts,
-        suspiciousActivity: admin2.firestore.FieldValue.arrayUnion(activity)
+        suspiciousActivity: admin.firestore.FieldValue.arrayUnion(activity)
       };
       if (attempts >= 5) {
         const blockDuration = 15 * 60 * 1e3;
@@ -75149,10 +76209,10 @@ var recordFailedAuth = async (ip) => {
 };
 var auditLog = async (log) => {
   try {
-    const db = admin2.firestore();
+    const db = admin.firestore();
     await db.collection("audit_logs").add({
       ...log,
-      timestamp: admin2.firestore.FieldValue.serverTimestamp()
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
     });
   } catch (error51) {
     Logger.error("Failed to write audit log", error51);
@@ -75217,12 +76277,12 @@ init_encryption();
 init_logger();
 
 // src/services/refund.service.ts
-var admin3 = __toESM(require("firebase-admin"));
+var admin2 = __toESM(require("firebase-admin"));
 init_axios2();
 init_logger();
 var RefundService = class {
   get db() {
-    return admin3.firestore();
+    return admin2.firestore();
   }
   constructor() {
     this.paystackSecretKey = process.env.PAYSTACK_SECRET_KEY || "";
@@ -75233,7 +76293,7 @@ var RefundService = class {
    */
   async processNoResponseRefunds() {
     Logger.info("Starting 4-Hour No-Response Auto-Refund execution...");
-    const now = admin3.firestore.Timestamp.now();
+    const now = admin2.firestore.Timestamp.now();
     const expiredMatchesSnapshot = await this.db.collection("matches").where("status", "==", "active").where("no_response_timer_expiry", "<", now).get();
     if (expiredMatchesSnapshot.empty) {
       Logger.info("No expired matches found for auto-refund processing.");
@@ -75251,7 +76311,7 @@ var RefundService = class {
         if (!messagesSnapshot.empty) {
           await this.db.collection("matches").doc(matchId).update({
             no_response_timer_expiry: null,
-            updatedAt: admin3.firestore.FieldValue.serverTimestamp()
+            updatedAt: admin2.firestore.FieldValue.serverTimestamp()
           });
           cancelledCount++;
           Logger.info(`Match ${matchId}: Timer cancelled because artisan ${artisan_uid} responded.`);
@@ -75319,15 +76379,15 @@ var RefundService = class {
         status: "refunded",
         // keep legacy field in sync
         refund_reason: "Auto-refund: 4-hour no response timer expired",
-        updatedAt: admin3.firestore.FieldValue.serverTimestamp()
+        updatedAt: admin2.firestore.FieldValue.serverTimestamp()
       });
       transaction.update(matchRef, {
         status: "refunded",
-        updatedAt: admin3.firestore.FieldValue.serverTimestamp()
+        updatedAt: admin2.firestore.FieldValue.serverTimestamp()
       });
       transaction.update(jobRef, {
         status: "refunded",
-        updatedAt: admin3.firestore.FieldValue.serverTimestamp()
+        updatedAt: admin2.firestore.FieldValue.serverTimestamp()
       });
       const artisanDoc = await transaction.get(artisanRef);
       if (artisanDoc.exists) {
@@ -75340,7 +76400,7 @@ var RefundService = class {
           locked_job_value: Math.max(0, currentLocked - (locked_job_value || 0)),
           verified: isSuspended ? false : artisanDoc.data()?.verified,
           available: isSuspended ? false : artisanDoc.data()?.available,
-          updatedAt: admin3.firestore.FieldValue.serverTimestamp()
+          updatedAt: admin2.firestore.FieldValue.serverTimestamp()
         });
         if (isSuspended) {
           Logger.warn(`Artisan ${artisanUid} automatically suspended due to ${newFlags} no-response flags.`);
@@ -75352,989 +76412,7 @@ var RefundService = class {
 
 // src/routes/auth.ts
 var import_express = require("express");
-
-// src/controllers/index.ts
-init_base_controller();
-
-// src/controllers/auth.controller.ts
-init_base_controller();
-init_services();
-var AuthController = class extends BaseController {
-  constructor() {
-    super();
-    this.authService = new AuthService();
-  }
-  async registerUser(req, res) {
-    try {
-      const { idToken, first_name, last_name, role } = req.body;
-      const user = await this.authService.registerUser({ idToken, first_name, last_name, role });
-      this.sendCreated(res, "User created successfully", user);
-    } catch (error51) {
-      this.handleError(error51, res, "Register user");
-    }
-  }
-  async registerAdmin(req, res) {
-    try {
-      const { email: email3, password, first_name, last_name } = req.body;
-      const result = await this.authService.registerAdmin({ email: email3, password, first_name, last_name });
-      this.sendCreated(res, "Admin registered successfully", result);
-    } catch (error51) {
-      this.handleError(error51, res, "Register admin");
-    }
-  }
-  async requestPasswordReset(req, res) {
-    try {
-      const { email: email3 } = req.body;
-      const result = await this.authService.requestPasswordReset(email3);
-      this.sendSuccess(res, result.message);
-    } catch (error51) {
-      this.handleError(error51, res, "Request password reset");
-    }
-  }
-  async createCustomToken(req, res) {
-    try {
-      if (process.env.NODE_ENV === "production") {
-        return this.sendForbidden(res, "This endpoint is only available in development mode");
-      }
-      const { phone } = req.body;
-      const result = await this.authService.createCustomToken(phone);
-      this.sendSuccess(res, "Custom token created. Use this to sign in on the client.", result);
-    } catch (error51) {
-      this.handleError(error51, res, "Create custom token");
-    }
-  }
-  async sendOTP(req, res) {
-    try {
-      const { phone } = req.body;
-      const result = await this.authService.sendOTP(phone);
-      this.sendSuccess(res, result.message);
-    } catch (error51) {
-      this.handleError(error51, res, "Send OTP");
-    }
-  }
-  async verifyOTP(req, res) {
-    try {
-      const { phone, otp, role } = req.body;
-      const result = await this.authService.verifyOTP(phone, otp, role);
-      res.status(200).json(result);
-    } catch (error51) {
-      this.handleError(error51, res, "Verify OTP");
-    }
-  }
-  async verifyEmailLogin(req, res) {
-    try {
-      const { idToken, role } = req.body;
-      const result = await this.authService.verifyEmailLogin(idToken, role);
-      res.status(200).json(result);
-    } catch (error51) {
-      this.handleError(error51, res, "Verify Email Login");
-    }
-  }
-  async verifyFirebaseLogin(req, res) {
-    try {
-      const { idToken, role } = req.body;
-      const result = await this.authService.verifyEmailLogin(idToken, role);
-      res.status(200).json(result);
-    } catch (error51) {
-      this.handleError(error51, res, "Verify Firebase Login");
-    }
-  }
-};
-
-// src/controllers/artisan.controller.ts
-init_base_controller();
-init_services();
-init_fileUpload();
-var ArtisanController = class extends BaseController {
-  constructor() {
-    super();
-    this.artisanService = new ArtisanService();
-  }
-  async completeProfile(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { trade, location: location2, tagline, bio, experience_years, hourly_rate, skills, portfolio } = req.body;
-      const artisan = await this.artisanService.completeProfile(req.user.uid, {
-        trade,
-        location: location2,
-        tagline,
-        bio,
-        experience_years,
-        hourly_rate,
-        skills,
-        portfolio
-      });
-      this.sendCreated(res, "Artisan profile created successfully", { profile: artisan });
-    } catch (error51) {
-      this.handleError(error51, res, "Complete artisan profile");
-    }
-  }
-  async registerArtisan(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const data = req.body;
-      const result = await this.artisanService.registerArtisan(req.user.uid, data);
-      this.sendCreated(res, "Artisan registered successfully", { data: result?.profile });
-    } catch (error51) {
-      this.handleError(error51, res, "Register artisan");
-    }
-  }
-  async listArtisans(req, res) {
-    try {
-      const { trade, location: location2, available } = req.query;
-      const artisans = await this.artisanService.listArtisans({
-        trade,
-        location: location2,
-        available: available === "true"
-      });
-      this.sendSuccess(res, "Artisans fetched successfully", { data: artisans });
-    } catch (error51) {
-      this.handleError(error51, res, "List artisans");
-    }
-  }
-  async updateAvailability(req, res) {
-    try {
-      const { uid } = req.params;
-      const { available } = req.body;
-      await this.artisanService.updateAvailability(uid, available);
-      this.sendSuccess(res, "Availability updated successfully", { available });
-    } catch (error51) {
-      this.handleError(error51, res, "Update availability");
-    }
-  }
-  async updateProfile(req, res) {
-    try {
-      const { uid } = req.params;
-      const updates = req.body;
-      const artisan = await this.artisanService.updateProfile(uid, updates);
-      this.sendSuccess(res, "Profile updated successfully", { profile: artisan });
-    } catch (error51) {
-      this.handleError(error51, res, "Update profile");
-    }
-  }
-  async addWorkPhoto(req, res) {
-    try {
-      const { uid } = req.params;
-      const { url: url3, filename } = await uploadFile(req, `artisan_photos/${uid}`, 5 * 1024 * 1024);
-      await this.artisanService.addWorkPhoto(uid, url3);
-      this.sendSuccess(res, "Photo uploaded successfully", { url: url3, filename });
-    } catch (error51) {
-      if (error51.message.includes("Invalid file type") || error51.message.includes("File too large") || error51.message.includes("File signature")) {
-        this.sendBadRequest(res, error51.message);
-        return;
-      }
-      this.handleError(error51, res, "Add work photo");
-    }
-  }
-  async uploadIDDocument(req, res) {
-    try {
-      const { uid } = req.params;
-      const { url: url3, filename } = await uploadFile(req, `id_documents/${uid}`, 10 * 1024 * 1024);
-      await this.artisanService.uploadIDDocument(uid, url3);
-      this.sendSuccess(res, "ID document uploaded successfully", { url: url3, filename });
-    } catch (error51) {
-      if (error51.message.includes("Invalid file type") || error51.message.includes("File too large") || error51.message.includes("File signature")) {
-        this.sendBadRequest(res, error51.message);
-        return;
-      }
-      this.handleError(error51, res, "Upload ID document");
-    }
-  }
-  async getProfile(req, res) {
-    try {
-      const { uid } = req.params;
-      const profile = await this.artisanService.getProfile(uid);
-      this.sendSuccess(res, "Profile fetched successfully", { profile });
-    } catch (error51) {
-      this.handleError(error51, res, "Get profile");
-    }
-  }
-  async getDashboard(req, res) {
-    try {
-      const { uid } = req.params;
-      const dashboard = await this.artisanService.getDashboard(uid);
-      this.sendSuccess(res, "Dashboard data fetched successfully", dashboard);
-    } catch (error51) {
-      this.handleError(error51, res, "Get dashboard");
-    }
-  }
-};
-
-// src/controllers/job.controller.ts
-init_base_controller();
-init_services();
-var admin18 = __toESM(require("firebase-admin"));
-var JobController = class extends BaseController {
-  constructor() {
-    super();
-    this.jobService = new JobService();
-    this.matchingService = new MatchingService();
-  }
-  async createJob(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const body = { ...req.body };
-      if (body.trade && !body.trade_needed) body.trade_needed = body.trade;
-      if (body.timing && !body.urgency) body.urgency = body.timing === "ASAP" ? "Today" : "Flexible";
-      if (typeof body.location === "string") body.location = { address: body.location, city: "", state: "", lga: "" };
-      const job = await this.jobService.createJob(req.user.uid, body);
-      this.sendCreated(res, "Job created successfully", { data: job });
-    } catch (error51) {
-      this.handleError(error51, res, "Create job");
-    }
-  }
-  async getJob(req, res) {
-    try {
-      const { id } = req.params;
-      const job = await this.jobService.getJobById(id);
-      if (!job) {
-        return this.sendNotFound(res, "Job not found");
-      }
-      this.sendSuccess(res, "Job fetched successfully", { job });
-    } catch (error51) {
-      this.handleError(error51, res, "Get job");
-    }
-  }
-  async updateJob(req, res) {
-    try {
-      const { id } = req.params;
-      const job = await this.jobService.updateJob(id, req.body);
-      this.sendSuccess(res, "Job updated successfully", { job });
-    } catch (error51) {
-      this.handleError(error51, res, "Update job");
-    }
-  }
-  async listJobs(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { trade, location: location2, status, urgency, limit, offset } = req.query;
-      const jobs = await this.jobService.searchJobs({
-        trade,
-        location: location2,
-        status,
-        urgency,
-        limit: limit ? parseInt(limit, 10) : void 0,
-        offset: offset ? parseInt(offset, 10) : void 0
-      });
-      this.sendSuccess(res, "Jobs fetched successfully", {
-        jobs,
-        count: jobs.length,
-        limit: limit ? parseInt(limit, 10) : 50,
-        offset: offset ? parseInt(offset, 10) : 0
-      });
-    } catch (error51) {
-      this.handleError(error51, res, "List jobs");
-    }
-  }
-  async selectArtisan(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { id } = req.params;
-      const { artisan_id } = req.body;
-      if (!artisan_id) {
-        return this.sendBadRequest(res, "Artisan ID is required");
-      }
-      const db = admin18.firestore();
-      const matchesSnapshot = await db.collection("matches").where("job_id", "==", id).where("artisan_uid", "==", artisan_id).limit(1).get();
-      if (matchesSnapshot.empty) {
-        const matchRef = db.collection("matches").doc();
-        await matchRef.set({
-          job_id: id,
-          artisan_uid: artisan_id,
-          status: "accepted",
-          rating: null,
-          created_at: admin18.firestore.FieldValue.serverTimestamp(),
-          updated_at: admin18.firestore.FieldValue.serverTimestamp()
-        });
-        await db.collection("jobs").doc(id).update({
-          status: "matched",
-          assigned_artisan_uid: artisan_id
-        });
-        this.sendSuccess(res, "Artisan selected", { match_id: matchRef.id });
-        return;
-      }
-      const matchDoc = matchesSnapshot.docs[0];
-      await matchDoc.ref.update({ status: "accepted" });
-      await db.collection("jobs").doc(id).update({
-        status: "matched",
-        assigned_artisan_uid: artisan_id
-      });
-      this.sendSuccess(res, "Artisan selected", { match_id: matchDoc.id });
-    } catch (error51) {
-      this.handleError(error51, res, "Select artisan");
-    }
-  }
-  async markComplete(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { id } = req.params;
-      let { match_id, rating, review } = req.body;
-      if (!match_id) {
-        const matchesSnapshot = await admin18.firestore().collection("matches").where("job_id", "==", id).where("status", "==", "accepted").limit(1).get();
-        if (!matchesSnapshot.empty) {
-          match_id = matchesSnapshot.docs[0].id;
-        } else {
-          const allMatches = await admin18.firestore().collection("matches").where("job_id", "==", id).get();
-          if (allMatches.size === 1) {
-            match_id = allMatches.docs[0].id;
-          } else {
-            return this.sendBadRequest(res, "Match ID could not be determined automatically");
-          }
-        }
-      }
-      const result = await this.jobService.markComplete(id, req.user.uid, match_id);
-      if (rating) {
-        try {
-          const { RatingController: RatingController2 } = (init_rating_controller(), __toCommonJS(rating_controller_exports));
-          const ratingController = new RatingController2();
-          const ratingReq = { ...req, params: { id }, body: { score: rating, review } };
-          const ratingRes = {
-            status: () => ({ json: () => {
-            } }),
-            json: () => {
-            }
-          };
-          await ratingController.submitRating(ratingReq, ratingRes);
-        } catch (e) {
-          console.error("Error submitting rating inline", e);
-        }
-      }
-      this.sendSuccess(res, "Job marked complete and escrow released successfully", result);
-    } catch (error51) {
-      this.handleError(error51, res, "Mark job complete");
-    }
-  }
-  async cancelJob(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { id } = req.params;
-      await this.jobService.cancelJob(id, req.user.uid);
-      this.sendSuccess(res, "Job cancelled successfully");
-    } catch (error51) {
-      this.handleError(error51, res, "Cancel job");
-    }
-  }
-  async getClientJobs(req, res) {
-    try {
-      const { clientUid } = req.params;
-      const jobs = await this.jobService.getJobsByClient(clientUid);
-      this.sendSuccess(res, "Jobs fetched successfully", { jobs, count: jobs.length });
-    } catch (error51) {
-      this.handleError(error51, res, "Get client jobs");
-    }
-  }
-  async matchArtisans(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { id } = req.params;
-      const db = admin18.firestore();
-      const jobDoc = await db.collection("jobs").doc(id).get();
-      if (!jobDoc.exists) {
-        return this.sendNotFound(res, "Job not found");
-      }
-      const jobData = jobDoc.data();
-      if (jobData?.client_uid !== req.user.uid) {
-        return this.sendForbidden(res, "Forbidden: You do not own this job");
-      }
-      if (jobData?.status !== "open") {
-        return this.sendBadRequest(res, "Job is not open for matching");
-      }
-      const { matches, count } = await this.matchingService.matchArtisansToJob(id);
-      if (count === 0) {
-        await db.collection("analytics_events").add({
-          event_type: "zero_results",
-          job_id: id,
-          trade: jobData.trade_needed || jobData.trade,
-          location: jobData.location,
-          client_uid: req.user.uid,
-          timestamp: admin18.firestore.FieldValue.serverTimestamp()
-        });
-        this.sendSuccess(res, "No available artisans found for this trade", { matches: [], count: 0 });
-        return;
-      }
-      this.sendSuccess(res, "Matches created successfully", { matches, count });
-    } catch (error51) {
-      this.handleError(error51, res, "Match artisans");
-    }
-  }
-  async getMatches(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { id } = req.params;
-      const db = admin18.firestore();
-      const jobRef = db.collection("jobs").doc(id);
-      const jobDoc = await jobRef.get();
-      if (!jobDoc.exists) {
-        return this.sendNotFound(res, "Job not found");
-      }
-      const jobData = jobDoc.data();
-      if (jobData?.client_uid !== req.user.uid) {
-        return this.sendForbidden(res, "Forbidden: You do not own this job");
-      }
-      const matchesSnapshot = await db.collection("matches").where("job_id", "==", id).orderBy("created_at", "desc").get();
-      const artisanUids = [...new Set(matchesSnapshot.docs.map((doc) => doc.data().artisan_uid))];
-      const artisanProfiles = {};
-      if (artisanUids.length > 0) {
-        const batchSize = 10;
-        for (let i = 0; i < artisanUids.length; i += batchSize) {
-          const batch = artisanUids.slice(i, i + batchSize);
-          const artisansSnapshot = await db.collection("artisan_profiles").where(admin18.firestore.FieldPath.documentId(), "in", batch).get();
-          artisansSnapshot.docs.forEach((doc) => {
-            artisanProfiles[doc.id] = doc.data();
-          });
-        }
-      }
-      const matchesWithArtisans = matchesSnapshot.docs.map((doc) => {
-        const matchData = doc.data();
-        const artisanData = artisanProfiles[matchData.artisan_uid];
-        return {
-          match_id: doc.id,
-          ...matchData,
-          artisan: artisanData ? {
-            uid: artisanData.uid,
-            trade: artisanData.trade,
-            location: artisanData.location,
-            completed_jobs: artisanData.completed_jobs,
-            reputation_score: artisanData.reputation_score,
-            tagline: artisanData.tagline
-          } : null
-        };
-      });
-      this.sendSuccess(res, "Matches fetched successfully", {
-        matches: matchesWithArtisans,
-        count: matchesWithArtisans.length
-      });
-    } catch (error51) {
-      this.handleError(error51, res, "Get matches");
-    }
-  }
-  async startTracking(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { id } = req.params;
-      await this.jobService.updateTrackingState(id, req.user.uid, "en_route");
-      this.sendSuccess(res, "Tracking started");
-    } catch (error51) {
-      this.handleError(error51, res, "Start tracking");
-    }
-  }
-  async arriveTracking(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { id } = req.params;
-      await this.jobService.updateTrackingState(id, req.user.uid, "arrived");
-      this.sendSuccess(res, "Artisan arrived");
-    } catch (error51) {
-      this.handleError(error51, res, "Arrive tracking");
-    }
-  }
-  async disputeJob(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { id } = req.params;
-      const { reason } = req.body;
-      if (!reason) {
-        return this.sendBadRequest(res, "Dispute reason is required");
-      }
-      await this.jobService.raiseDispute(id, req.user.uid, reason);
-      this.sendSuccess(res, "Dispute raised successfully");
-    } catch (error51) {
-      this.handleError(error51, res, "Dispute job");
-    }
-  }
-};
-
-// src/controllers/payment.controller.ts
-init_base_controller();
-init_services();
-var PaymentController = class extends BaseController {
-  constructor() {
-    super();
-    this.paymentService = new PaymentService();
-    this.escrowService = new EscrowService();
-  }
-  async handleWebhook(req, res) {
-    try {
-      const signature = req.headers["x-paystack-signature"];
-      const body = req.rawBody || JSON.stringify(req.body);
-      const isValid = this.paymentService.verifyWebhookSignature(signature, body);
-      if (!isValid) {
-        return this.sendUnauthorized(res, "Invalid webhook signature");
-      }
-      const event = req.body;
-      if (event.event === "charge.success") {
-        await this.paymentService.handlePaymentSuccess(event.data.reference);
-      }
-      this.sendSuccess(res, "Webhook processed");
-    } catch (error51) {
-      this.logger.error("Webhook processing error", error51);
-      this.sendSuccess(res, "Webhook received");
-    }
-  }
-  async verifyPayment(req, res) {
-    try {
-      const reference = req.params.reference || req.body.reference;
-      if (!reference) {
-        return this.sendBadRequest(res, "Payment reference is required");
-      }
-      const verification = await this.paymentService.verifyPayment(reference);
-      this.sendSuccess(res, "Payment verified", verification);
-    } catch (error51) {
-      this.handleError(error51, res, "Verify payment");
-    }
-  }
-  async releaseEscrow(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { jobId } = req.params;
-      const result = await this.escrowService.releaseFunds(jobId, req.user.uid);
-      this.sendSuccess(res, "Escrow funds released successfully", result);
-    } catch (error51) {
-      this.handleError(error51, res, "Release escrow");
-    }
-  }
-};
-
-// src/controllers/admin.controller.ts
-init_base_controller();
-init_admin_service();
-
-// src/services/proforma.service.ts
-var admin19 = __toESM(require("firebase-admin"));
-init_base_service();
-var ProformaService = class extends BaseService {
-  get db() {
-    return admin19.firestore();
-  }
-  async submitProforma(artisanUid, data) {
-    try {
-      const jobDoc = await this.db.collection("jobs").doc(data.job_id).get();
-      if (!jobDoc.exists) throw new Error("Job not found");
-      const matchSnapshot = await this.db.collection("matches").where("job_id", "==", data.job_id).where("artisan_uid", "==", artisanUid).where("status", "==", "accepted").limit(1).get();
-      if (matchSnapshot.empty) {
-        throw new Error("Forbidden: You are not the assigned artisan for this job");
-      }
-      const invoiceData = {
-        ...data,
-        artisan_uid: artisanUid,
-        status: "pending",
-        created_at: admin19.firestore.FieldValue.serverTimestamp()
-      };
-      const docRef = await this.db.collection("proformas").add(invoiceData);
-      this.logOperation("proforma-submitted", {
-        proformaId: docRef.id,
-        jobId: data.job_id,
-        artisanUid
-      });
-      return {
-        id: docRef.id,
-        ...invoiceData,
-        created_at: /* @__PURE__ */ new Date()
-      };
-    } catch (error51) {
-      this.handleError(error51, "Submit proforma invoice");
-    }
-  }
-  async getJobProformas(jobId, uid, isAdmin = false) {
-    try {
-      if (!isAdmin) {
-        const jobDoc = await this.db.collection("jobs").doc(jobId).get();
-        const isClient = jobDoc.data()?.client_uid === uid;
-        let isArtisan = false;
-        if (!isClient) {
-          const matchSnapshot = await this.db.collection("matches").where("job_id", "==", jobId).where("artisan_uid", "==", uid).get();
-          isArtisan = !matchSnapshot.empty;
-        }
-        if (!isClient && !isArtisan) {
-          throw new Error("Forbidden: You do not have access to this job");
-        }
-      }
-      const snapshot = await this.db.collection("proformas").where("job_id", "==", jobId).orderBy("created_at", "desc").get();
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-    } catch (error51) {
-      this.handleError(error51, "Get job proformas");
-    }
-  }
-  async getAdminQueue() {
-    try {
-      const snapshot = await this.db.collection("proformas").where("status", "in", ["pending"]).orderBy("created_at", "desc").get();
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-    } catch (error51) {
-      this.handleError(error51, "Get proforma queue");
-    }
-  }
-  async approveProforma(proformaId, notes) {
-    try {
-      const docRef = this.db.collection("proformas").doc(proformaId);
-      const doc = await docRef.get();
-      if (!doc.exists) {
-        throw new Error("Proforma invoice not found");
-      }
-      const proformaData = doc.data();
-      await docRef.update({
-        status: "approved",
-        admin_notes: notes || null,
-        updated_at: admin19.firestore.FieldValue.serverTimestamp()
-      });
-      const txSnapshot = await this.db.collection("transactions").where("job_id", "==", proformaData.job_id).where("type", "==", "escrow").where("escrow_status", "==", "HELD").limit(1).get();
-      if (!txSnapshot.empty) {
-        const txDoc = txSnapshot.docs[0];
-        await txDoc.ref.update({
-          escrow_status: "DISBURSED_PARTIAL",
-          proforma_invoices: admin19.firestore.FieldValue.arrayUnion({
-            invoice_id: proformaId,
-            supplier_name: proformaData.supplier_name,
-            amount: proformaData.total_amount,
-            status: "approved"
-          }),
-          updated_at: admin19.firestore.FieldValue.serverTimestamp()
-        });
-      }
-      this.logOperation("proforma-approved", { proformaId, jobId: proformaData.job_id });
-    } catch (error51) {
-      this.handleError(error51, "Approve proforma");
-    }
-  }
-  async rejectProforma(proformaId, reason) {
-    try {
-      const docRef = this.db.collection("proformas").doc(proformaId);
-      await docRef.update({
-        status: "rejected",
-        admin_notes: reason,
-        updated_at: admin19.firestore.FieldValue.serverTimestamp()
-      });
-      this.logOperation("proforma-rejected", { proformaId });
-    } catch (error51) {
-      this.handleError(error51, "Reject proforma");
-    }
-  }
-};
-
-// src/controllers/admin.controller.ts
-var AdminController = class extends BaseController {
-  constructor() {
-    super();
-    this.adminService = new AdminService();
-    this.proformaService = new ProformaService();
-  }
-  /**
-   * GET /api/admin/verification-queue
-   */
-  async getVerificationQueue(req, res) {
-    try {
-      const { limit, offset } = req.query;
-      const parsedLimit = limit ? parseInt(limit, 10) : 50;
-      const parsedOffset = offset ? parseInt(offset, 10) : 0;
-      const queue = await this.adminService.getVerificationQueue(parsedLimit, parsedOffset);
-      this.sendSuccess(res, "Verification queue fetched successfully", {
-        artisans: queue,
-        count: queue.length,
-        limit: parsedLimit,
-        offset: parsedOffset
-      });
-    } catch (error51) {
-      this.handleError(error51, res, "Get verification queue");
-    }
-  }
-  /**
-   * POST /api/admin/verify/:uid
-   */
-  async verifyArtisan(req, res) {
-    try {
-      const { uid } = req.params;
-      await this.adminService.verifyArtisan(uid);
-      this.sendSuccess(res, "Artisan verified successfully", {
-        uid,
-        is_verified: true
-      });
-    } catch (error51) {
-      this.handleError(error51, res, "Verify artisan");
-    }
-  }
-  /**
-   * POST /api/admin/reject/:uid
-   */
-  async rejectArtisan(req, res) {
-    try {
-      const { uid } = req.params;
-      const { reason } = req.body;
-      await this.adminService.rejectArtisan(uid, reason);
-      this.sendSuccess(res, "Artisan verification rejected", {
-        uid,
-        reason: reason || "Not specified"
-      });
-    } catch (error51) {
-      this.handleError(error51, res, "Reject artisan");
-    }
-  }
-  /**
-   * GET /api/admin/stats
-   */
-  async getStatistics(req, res) {
-    try {
-      const stats = await this.adminService.getStatistics();
-      this.sendSuccess(res, "Statistics fetched successfully", stats);
-    } catch (error51) {
-      this.handleError(error51, res, "Get statistics");
-    }
-  }
-  /**
-   * GET /api/admin/analytics
-   */
-  async getAnalytics(req, res) {
-    try {
-      const analytics = await this.adminService.getAnalytics();
-      this.sendSuccess(res, "Analytics data fetched successfully", analytics);
-    } catch (error51) {
-      this.handleError(error51, res, "Get analytics");
-    }
-  }
-  async getProformaQueue(req, res) {
-    try {
-      const queue = await this.proformaService.getAdminQueue();
-      this.sendSuccess(res, "Proforma queue fetched successfully", { queue });
-    } catch (error51) {
-      this.handleError(error51, res, "Get proforma queue");
-    }
-  }
-  /**
-   * GET /api/admin/flags
-   */
-  async getFlags(req, res) {
-    try {
-      const flags = await this.adminService.getArtisansWithFlags();
-      this.sendSuccess(res, "Artisans with no-response flags fetched successfully", flags);
-    } catch (error51) {
-      this.handleError(error51, res, "Get flags");
-    }
-  }
-  async approveProforma(req, res) {
-    try {
-      const { id } = req.params;
-      const { notes } = req.body;
-      await this.proformaService.approveProforma(id, notes);
-      this.sendSuccess(res, "Proforma invoice approved successfully");
-    } catch (error51) {
-      this.handleError(error51, res, "Approve proforma");
-    }
-  }
-  async rejectProforma(req, res) {
-    try {
-      const { id } = req.params;
-      const { reason } = req.body;
-      if (!reason) {
-        this.sendBadRequest(res, "Rejection reason is required");
-        return;
-      }
-      await this.proformaService.rejectProforma(id, reason);
-      this.sendSuccess(res, "Proforma invoice rejected successfully");
-    } catch (error51) {
-      this.handleError(error51, res, "Reject proforma");
-    }
-  }
-};
-
-// src/controllers/index.ts
-init_rating_controller();
-
-// src/controllers/chat.controller.ts
-init_base_controller();
-
-// src/services/chat.service.ts
-var admin20 = __toESM(require("firebase-admin"));
-init_base_service();
-var ChatService = class extends BaseService {
-  get db() {
-    return admin20.firestore();
-  }
-  /**
-   * Verify if a user is allowed to access the chat for a given job.
-   * They must be either the job owner (client) or the assigned artisan.
-   */
-  async verifyChatAccess(jobId, uid) {
-    const jobDoc = await this.db.collection("jobs").doc(jobId).get();
-    if (!jobDoc.exists) {
-      throw new Error("Job not found");
-    }
-    if (jobDoc.data()?.client_uid === uid) {
-      return true;
-    }
-    const matchSnapshot = await this.db.collection("matches").where("job_id", "==", jobId).where("artisan_uid", "==", uid).limit(1).get();
-    if (!matchSnapshot.empty) {
-      const status = matchSnapshot.docs[0].data().status;
-      if (["pending", "accepted", "completed"].includes(status)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  async getMessages(jobId, uid, limit = 50) {
-    try {
-      const hasAccess = await this.verifyChatAccess(jobId, uid);
-      if (!hasAccess) {
-        throw new Error("Forbidden: You do not have access to this chat");
-      }
-      const snapshot = await this.db.collection("jobs").doc(jobId).collection("messages").orderBy("created_at", "asc").limit(limit).get();
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-    } catch (error51) {
-      this.handleError(error51, "Get messages");
-    }
-  }
-  async sendMessage(jobId, senderUid, content) {
-    try {
-      const hasAccess = await this.verifyChatAccess(jobId, senderUid);
-      if (!hasAccess) {
-        throw new Error("Forbidden: You do not have access to this chat");
-      }
-      const messageData = {
-        job_id: jobId,
-        sender_uid: senderUid,
-        content,
-        is_read: false,
-        created_at: admin20.firestore.FieldValue.serverTimestamp()
-      };
-      const docRef = await this.db.collection("jobs").doc(jobId).collection("messages").add(messageData);
-      this.logOperation("chat-message-sent", { jobId, senderUid });
-      return {
-        id: docRef.id,
-        ...messageData,
-        created_at: /* @__PURE__ */ new Date()
-        // Fallback for immediate return
-      };
-    } catch (error51) {
-      this.handleError(error51, "Send message");
-    }
-  }
-};
-
-// src/controllers/chat.controller.ts
-var ChatController = class extends BaseController {
-  constructor() {
-    super();
-    this.chatService = new ChatService();
-  }
-  async getMessages(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { jobId } = req.params;
-      const limit = req.query.limit ? parseInt(req.query.limit) : 50;
-      const messages = await this.chatService.getMessages(jobId, req.user.uid, limit);
-      this.sendSuccess(res, "Messages fetched successfully", { messages });
-    } catch (error51) {
-      if (error51.message.includes("Forbidden")) {
-        this.sendForbidden(res, error51.message);
-      } else {
-        this.handleError(error51, res, "Get messages");
-      }
-    }
-  }
-  async sendMessage(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { jobId } = req.params;
-      const { content } = req.body;
-      const message = await this.chatService.sendMessage(jobId, req.user.uid, content);
-      this.sendCreated(res, "Message sent successfully", { message });
-    } catch (error51) {
-      if (error51.message.includes("Forbidden")) {
-        this.sendForbidden(res, error51.message);
-      } else {
-        this.handleError(error51, res, "Send message");
-      }
-    }
-  }
-};
-
-// src/controllers/proforma.controller.ts
-init_base_controller();
-var ProformaController = class extends BaseController {
-  constructor() {
-    super();
-    this.proformaService = new ProformaService();
-  }
-  async submitProforma(req, res) {
-    try {
-      if (!req.user || req.user.role !== "artisan") {
-        return this.sendUnauthorized(res, "Only artisans can submit proforma invoices");
-      }
-      const invoice = await this.proformaService.submitProforma(req.user.uid, req.body);
-      this.sendCreated(res, "Proforma invoice submitted successfully", { invoice });
-    } catch (error51) {
-      if (error51.message.includes("Forbidden")) {
-        this.sendForbidden(res, error51.message);
-      } else {
-        this.handleError(error51, res, "Submit proforma");
-      }
-    }
-  }
-  async getJobProformas(req, res) {
-    try {
-      if (!req.user) {
-        return this.sendUnauthorized(res, "Authentication required");
-      }
-      const { jobId } = req.params;
-      const isAdmin = req.user.role === "admin";
-      const invoices = await this.proformaService.getJobProformas(jobId, req.user.uid, isAdmin);
-      this.sendSuccess(res, "Proforma invoices fetched successfully", { invoices });
-    } catch (error51) {
-      if (error51.message.includes("Forbidden")) {
-        this.sendForbidden(res, error51.message);
-      } else {
-        this.handleError(error51, res, "Get job proformas");
-      }
-    }
-  }
-};
-
-// src/routes/auth.ts
-var router = (0, import_express.Router)();
-var authController = new AuthController();
-router.post("/phone/send-otp", (req, res) => authController.sendOTP(req, res));
-router.post("/phone/verify-otp", (req, res) => authController.verifyOTP(req, res));
-router.post("/create-custom-token", (req, res) => authController.createCustomToken(req, res));
-var auth_default = router;
-
-// src/routes/artisan.ts
-var import_express2 = require("express");
+init_controllers();
 
 // src/middleware/auth.ts
 var admin21 = __toESM(require("firebase-admin"));
@@ -76429,22 +76507,78 @@ var requireOwnership = (req, res, next) => {
   }
 };
 
+// src/routes/auth.ts
+var router = (0, import_express.Router)();
+var authController = new AuthController();
+router.post("/register", (req, res) => authController.registerUser(req, res));
+router.post("/register/client", (req, res) => {
+  req.body.role = "client";
+  return authController.registerUser(req, res);
+});
+router.post("/register/artisan", (req, res) => {
+  req.body.role = "artisan";
+  return authController.registerUser(req, res);
+});
+router.post("/admin/register", (req, res) => authController.registerAdmin(req, res));
+router.post("/login", (req, res) => authController.verifyFirebaseLogin(req, res));
+router.post("/firebase/verify", (req, res) => authController.verifyFirebaseLogin(req, res));
+router.post("/reset-password", (req, res) => authController.requestPasswordReset(req, res));
+router.post("/phone/send-otp", (req, res) => authController.sendOTP(req, res));
+router.post("/phone/verify-otp", (req, res) => authController.verifyOTP(req, res));
+router.get("/me", authenticate, (req, res) => {
+  res.json({ success: true, user: req.user });
+});
+router.get("/session", authenticate, (req, res) => {
+  res.json({ success: true, user: req.user });
+});
+router.post("/create-custom-token", (req, res) => authController.createCustomToken(req, res));
+var auth_default = router;
+
 // src/routes/artisan.ts
+var import_express2 = require("express");
+init_controllers();
 var router2 = (0, import_express2.Router)();
 var artisanController = new ArtisanController();
 router2.post("/", authenticate, (req, res) => artisanController.registerArtisan(req, res));
 router2.get("/", (req, res) => artisanController.listArtisans(req, res));
+router2.get("/me", authenticate, (req, res) => {
+  req.params = { ...req.params, uid: req.user.uid };
+  return artisanController.getProfile(req, res);
+});
+router2.put("/me", authenticate, (req, res) => {
+  req.params = { ...req.params, uid: req.user.uid };
+  return artisanController.updateProfile(req, res);
+});
+router2.patch("/me", authenticate, (req, res) => {
+  req.params = { ...req.params, uid: req.user.uid };
+  return artisanController.updateProfile(req, res);
+});
 router2.patch(
   "/:uid/availability",
   authenticate,
   requireOwnership,
   (req, res) => artisanController.updateAvailability(req, res)
 );
+router2.post("/match", authenticate, (req, res) => {
+  const { JobController: JobController2 } = (init_controllers(), __toCommonJS(controllers_exports));
+  const jobController2 = new JobController2();
+  const jobId = req.body.job_id || req.body.jobId;
+  if (jobId) {
+    req.params = { ...req.params, id: jobId };
+    return jobController2.matchArtisans(req, res);
+  }
+  return artisanController.listArtisans(req, res);
+});
 router2.get(
-  "/:id",
+  "/:uid",
   authenticate,
   (req, res) => artisanController.getProfile(req, res)
 );
+router2.get(["/:uid/reviews", "/:id/reviews"], authenticate, (req, res) => {
+  const { RatingController: RatingController2 } = (init_rating_controller(), __toCommonJS(rating_controller_exports));
+  const ratingController = new RatingController2();
+  return ratingController.getArtisanRatings(req, res);
+});
 router2.get(
   "/:uid/dashboard",
   authenticate,
@@ -76537,6 +76671,7 @@ var UpdateJobSchema = external_exports.object({
 });
 
 // src/routes/job.ts
+init_controllers();
 var router3 = (0, import_express3.Router)();
 var jobController = new JobController();
 router3.post(
@@ -76546,9 +76681,19 @@ router3.post(
   (req, res) => jobController.createJob(req, res)
 );
 router3.get(
+  "/",
+  authenticate,
+  (req, res) => jobController.listJobs(req, res)
+);
+router3.get(
   "/:id",
   authenticate,
   (req, res) => jobController.getJob(req, res)
+);
+router3.patch(
+  "/:id",
+  authenticate,
+  (req, res) => jobController.updateJob(req, res)
 );
 router3.get(
   "/:id/matches",
@@ -76556,14 +76701,55 @@ router3.get(
   (req, res) => jobController.getMatches(req, res)
 );
 router3.post(
-  "/:id/complete",
+  ["/:id/complete", "/:id/reviews"],
   authenticate,
   (req, res) => jobController.markComplete(req, res)
 );
+router3.put(
+  "/:id/status",
+  authenticate,
+  (req, res) => jobController.updateJob(req, res)
+);
+router3.post("/:id/proforma", authenticate, (req, res) => {
+  req.body.job_id = req.params.id;
+  const { ProformaController: ProformaController2 } = (init_proforma_controller(), __toCommonJS(proforma_controller_exports));
+  const proformaController2 = new ProformaController2();
+  return proformaController2.submitProforma(req, res);
+});
 router3.post(
   "/:id/dispute",
   authenticate,
   (req, res) => jobController.disputeJob(req, res)
+);
+router3.post(
+  "/:id/match",
+  authenticate,
+  (req, res) => jobController.matchArtisans(req, res)
+);
+router3.post(
+  "/:id/select-artisan",
+  authenticate,
+  (req, res) => jobController.selectArtisan(req, res)
+);
+router3.post(
+  "/:id/tracking/start",
+  authenticate,
+  (req, res) => jobController.startTracking(req, res)
+);
+router3.post(
+  "/:id/tracking/arrive",
+  authenticate,
+  (req, res) => jobController.arriveTracking(req, res)
+);
+router3.post(
+  "/:id/cancel",
+  authenticate,
+  (req, res) => jobController.cancelJob(req, res)
+);
+router3.get(
+  "/client/:clientUid",
+  authenticate,
+  (req, res) => jobController.getClientJobs(req, res)
 );
 var job_default = router3;
 
@@ -76571,6 +76757,7 @@ var job_default = router3;
 var import_express4 = require("express");
 var admin22 = __toESM(require("firebase-admin"));
 init_paystack();
+init_controllers();
 init_logger();
 var router4 = (0, import_express4.Router)();
 var paymentController = new PaymentController();
@@ -76674,6 +76861,26 @@ router4.post(
   "/webhook",
   (req, res) => paymentController.handleWebhook(req, res)
 );
+router4.post(
+  "/verify",
+  authenticate,
+  (req, res) => paymentController.verifyPayment(req, res)
+);
+router4.get(
+  "/verify/:reference",
+  authenticate,
+  (req, res) => paymentController.verifyPayment(req, res)
+);
+router4.post("/payout", authenticate, (req, res) => {
+  const jobId = req.body.job_id || req.body.jobId;
+  req.params = { ...req.params, jobId };
+  return paymentController.releaseEscrow(req, res);
+});
+router4.post(
+  "/release/:jobId",
+  authenticate,
+  (req, res) => paymentController.releaseEscrow(req, res)
+);
 router4.post("/refund", authenticate, async (req, res) => {
   res.status(501).json({ error: "Not implemented - handled by scheduler" });
 });
@@ -76681,10 +76888,29 @@ var payment_default = router4;
 
 // src/routes/admin.ts
 var import_express5 = require("express");
+init_controllers();
 var router5 = (0, import_express5.Router)();
 var adminController = new AdminController();
 router5.get(
+  "/stats",
+  authenticate,
+  requireAdmin,
+  (req, res) => adminController.getStatistics(req, res)
+);
+router5.get(
+  "/analytics",
+  authenticate,
+  requireAdmin,
+  (req, res) => adminController.getAnalytics(req, res)
+);
+router5.get(
   "/verification-queue",
+  authenticate,
+  requireAdmin,
+  (req, res) => adminController.getVerificationQueue(req, res)
+);
+router5.get(
+  "/queue/artisans",
   authenticate,
   requireAdmin,
   (req, res) => adminController.getVerificationQueue(req, res)
@@ -76701,6 +76927,18 @@ router5.post(
   requireAdmin,
   (req, res) => adminController.verifyArtisan(req, res)
 );
+router5.put(
+  "/verify/artisan/:uid",
+  authenticate,
+  requireAdmin,
+  (req, res) => adminController.verifyArtisan(req, res)
+);
+router5.post(
+  "/verify/artisan/:uid",
+  authenticate,
+  requireAdmin,
+  (req, res) => adminController.verifyArtisan(req, res)
+);
 router5.post(
   "/reject/:uid",
   authenticate,
@@ -76708,13 +76946,13 @@ router5.post(
   (req, res) => adminController.rejectArtisan(req, res)
 );
 router5.get(
-  "/analytics",
+  "/proforma-queue",
   authenticate,
   requireAdmin,
-  (req, res) => adminController.getAnalytics(req, res)
+  (req, res) => adminController.getProformaQueue(req, res)
 );
 router5.get(
-  "/proforma-queue",
+  "/queue/proformas",
   authenticate,
   requireAdmin,
   (req, res) => adminController.getProformaQueue(req, res)
@@ -76745,6 +76983,7 @@ var SendMessageSchema = external_exports.object({
 });
 
 // src/routes/chat.ts
+init_chat_controller();
 var router6 = (0, import_express6.Router)();
 var chatController = new ChatController();
 router6.get(
@@ -76775,8 +77014,15 @@ var CreateProformaSchema = external_exports.object({
 });
 
 // src/routes/proforma.ts
+init_proforma_controller();
 var router7 = (0, import_express7.Router)();
 var proformaController = new ProformaController();
+router7.post(
+  "/",
+  authenticate,
+  validate(CreateProformaSchema),
+  (req, res) => proformaController.submitProforma(req, res)
+);
 router7.post(
   "/submit",
   authenticate,
@@ -76788,6 +77034,17 @@ router7.get(
   authenticate,
   (req, res) => proformaController.getJobProformas(req, res)
 );
+router7.put(["/:id/status", "/:id/review"], authenticate, async (req, res) => {
+  const { status, reason, notes } = req.body;
+  const { AdminController: AdminController2 } = (init_controllers(), __toCommonJS(controllers_exports));
+  const adminController2 = new AdminController2();
+  if (status === "approved") {
+    return adminController2.approveProforma(req, res);
+  } else {
+    req.body.reason = reason || notes || "Rejected";
+    return adminController2.rejectProforma(req, res);
+  }
+});
 var proforma_default = router7;
 
 // src/index.ts
@@ -76831,12 +77088,14 @@ app.use(validateContentType);
 app.use(ndprMaskingMiddleware);
 app.use("/api/docs", import_swagger_ui_express.default.serve, import_swagger_ui_express.default.setup(swaggerSpec));
 app.use("/api/auth", auth_default);
+app.use("/api/users", auth_default);
 app.use("/api/artisans", artisan_default);
 app.use("/api/jobs", job_default);
 app.use("/api/payments", payment_default);
 app.use("/api/admin", admin_default);
 app.use("/api/chat", chat_default);
 app.use("/api/proforma", proforma_default);
+app.use("/api/proformas", proforma_default);
 app.get("/health", (req, res) => {
   res.json({
     status: "healthy",
