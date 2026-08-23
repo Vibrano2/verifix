@@ -1,4 +1,4 @@
-# 🔐 Verifix Backend Security Documentation
+# 🔐 Artiva Backend Security Documentation
 
 **Version:** 2.0  
 **Last Updated:** August 4, 2026  

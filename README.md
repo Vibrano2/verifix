@@ -1,6 +1,6 @@
-# Verifix Backend
+# Artiva Backend
 
-Firebase + Paystack backend for the Verifix artisan marketplace platform. Connects clients with verified local artisans (electricians, plumbers, carpenters, etc.) in Nigeria.
+Firebase + Paystack backend for the Artiva marketplace platform. Connects clients with verified local artisans (electricians, plumbers, carpenters, etc.) in Nigeria.
 
 ## 🏗️ Architecture
 
