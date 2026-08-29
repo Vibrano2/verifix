@@ -74236,6 +74236,7 @@ var init_job_service = __esm({
             const jobRef = this.db.collection("jobs").doc(jobId);
             transaction.update(jobRef, {
               status: "completed",
+              completed_at: admin11.firestore.FieldValue.serverTimestamp(),
               updated_at: admin11.firestore.FieldValue.serverTimestamp()
             });
             transaction.update(matchRef, {

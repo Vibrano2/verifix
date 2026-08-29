@@ -260,6 +260,7 @@ export class JobService extends BaseService {
         const jobRef = this.db.collection('jobs').doc(jobId);
         transaction.update(jobRef, {
           status: 'completed',
+          completed_at: admin.firestore.FieldValue.serverTimestamp(),
           updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
 
