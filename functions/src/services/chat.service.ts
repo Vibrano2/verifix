@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 import { BaseService } from './base.service';
 import { ChatMessage } from '../models/chat.model';
+import { AnalyticsService } from './analytics.service';
 
 export class ChatService extends BaseService {
   private get db() { return admin.firestore(); }
@@ -29,7 +30,7 @@ export class ChatService extends BaseService {
       
     if (!matchSnapshot.empty) {
       const status = matchSnapshot.docs[0].data().status;
-      if (['pending', 'accepted', 'completed'].includes(status)) {
+      if (['pending', 'paid', 'accepted', 'completed'].includes(status)) {
         return true;
       }
     }
@@ -82,10 +83,15 @@ export class ChatService extends BaseService {
 
       this.logOperation('chat-message-sent', { jobId, senderUid });
 
+      // PRD §5.1: fire message_sent analytics event
+      new AnalyticsService().trackEvent('message_sent', senderUid, {
+        job_id: jobId
+      }).catch(() => {});
+
       return {
         id: docRef.id,
         ...messageData,
-        created_at: new Date() // Fallback for immediate return
+        created_at: new Date()
       } as ChatMessage;
     } catch (error) {
       this.handleError(error, 'Send message');

@@ -114,6 +114,9 @@ export class AuthService extends BaseService {
         displayName: `${first_name} ${last_name}`
       });
 
+      // Grant artiva_admin custom claim so Firestore rules recognise this user as admin
+      await admin.auth().setCustomUserClaims(userRecord.uid, { artiva_admin: true });
+
       await this.userRepo.createUser({
         uid: userRecord.uid,
         first_name: first_name.trim(),
@@ -202,7 +205,12 @@ export class AuthService extends BaseService {
       });
 
       await recordOTPAttempt(formattedPhone, true);
-      this.logger.info(`[MOCK SMS] To: ${formattedPhone}, Body: Your Artiva Login Code is ${otp}`);
+      // Log OTP only outside production — never expose codes in production logs
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.info(`[MOCK SMS] To: ${formattedPhone}, Body: Your Artiva Login Code is ${otp}`);
+      } else {
+        this.logger.info(`OTP sent to ${formattedPhone.slice(0, 6)}****`);
+      }
       return { message: 'OTP sent successfully' };
     } catch (error) {
       this.handleError(error, 'Send OTP');
@@ -212,6 +220,12 @@ export class AuthService extends BaseService {
   async verifyOTP(phone: string, otp: string, role: string): Promise<{ token: string, user: User }> {
     try {
       this.validateRequired({ phone, otp, role }, ['phone', 'otp', 'role']);
+
+      // PRD §7.1 / security: clamp role to prevent privilege escalation via public OTP endpoint
+      const allowedRoles = [ROLES.CLIENT, ROLES.ARTISAN];
+      if (!allowedRoles.includes(role as any)) {
+        throw new Error(`Invalid role. Must be one of: ${allowedRoles.join(', ')}`);
+      }
       const formattedPhone = phone.trim();
 
       const rateLimitResult = await checkOTPRateLimit(formattedPhone);

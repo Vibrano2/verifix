@@ -38,15 +38,18 @@
     "indexes": "firestore.indexes.json"
   },
   "emulators": {
+    "functions": {
+      "port": 5005
+    },
     "firestore": {
-      "port": 8080
+      "port": 8085
     },
     "auth": {
-      "port": 9099
+      "port": 9095
     },
     "ui": {
       "enabled": true,
-      "port": 4000
+      "port": 4005
     }
   },
   "auth": {

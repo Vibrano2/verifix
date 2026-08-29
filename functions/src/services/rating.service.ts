@@ -6,6 +6,15 @@
 import { BaseService } from './base.service';
 import { RatingRepository, ArtisanRepository } from '../repositories';
 import { Rating } from '../models/rating.model';
+import { AnalyticsService } from './analytics.service';
+
+// Typed duplicate-rating error so the controller can return 409 cleanly
+export class DuplicateRatingError extends Error {
+  constructor() {
+    super('Rating already exists for this job');
+    this.name = 'DuplicateRatingError';
+  }
+}
 
 export class RatingService extends BaseService {
   private ratingRepo: RatingRepository;
@@ -37,10 +46,10 @@ export class RatingService extends BaseService {
         throw new Error('Rating score must be an integer between 1 and 5');
       }
 
-      // Check for duplicate rating
+      // Check for duplicate rating — PRD C-006: duplicate rejected with 409
       const existingRating = await this.ratingRepo.findByJobId(data.jobId);
       if (existingRating) {
-        throw new Error('Rating already exists for this job');
+        throw new DuplicateRatingError();
       }
 
       // Create rating
@@ -60,6 +69,13 @@ export class RatingService extends BaseService {
         artisanUid: data.artisanUid,
         score: data.score
       });
+
+      // PRD §5.1: fire rating_submitted analytics event
+      new AnalyticsService().trackEvent('rating_submitted', data.clientUid, {
+        job_id: data.jobId,
+        artisan_uid: data.artisanUid,
+        score: data.score
+      }).catch(() => {});
 
       return rating;
     } catch (error) {

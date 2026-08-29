@@ -81,26 +81,27 @@ describe('MatchingService', () => {
       expect(result).toEqual({ matches: [], count: 0 });
     });
 
-    it('should match artisans correctly and sort by score/completed_jobs', async () => {
-      const mockJobDoc = { 
-        exists: true, 
-        data: () => ({ trade_needed: 'plumber' }),
+    it('should match artisans correctly and sort by PRD priority score', async () => {
+      const mockJobDoc = {
+        exists: true,
+        data: () => ({ trade_needed: 'plumber', client_uid: 'client_1' }),
         ref: {}
       };
       const docRef = db.collection('jobs').doc('job_123');
       (docRef.get as jest.Mock).mockResolvedValueOnce(mockJobDoc);
 
-      // Artisans to be sorted: 
-      // A: completed=5, score=4.5
-      // B: completed=10, score=4.8
-      // C: completed=10, score=4.2
-      // Expected order: B, C, A
+      // PRD priority formula: (rating/5 × 0.40) + (jobs/50 × 0.30) + (speed × 0.20) + (verified × 0.10)
+      // All artisans are verified=false in mock (is_verified undefined → false), speed defaults to 60min → 0
+      // A: (4.5/5 × 0.4) + (5/50 × 0.3)  = 0.360 + 0.030 = 0.390
+      // B: (4.8/5 × 0.4) + (10/50 × 0.3) = 0.384 + 0.060 = 0.444  ← highest
+      // C: (4.2/5 × 0.4) + (10/50 × 0.3) = 0.336 + 0.060 = 0.396
+      // Expected order: B (0.444), C (0.396), A (0.390)
       const mockArtisansSnapshot = {
         empty: false,
         docs: [
-          { id: 'artisan_A', data: () => ({ trade: 'plumber', completed_jobs: 5, reputation_score: 4.5 }) },
-          { id: 'artisan_B', data: () => ({ trade: 'plumber', completed_jobs: 10, reputation_score: 4.8 }) },
-          { id: 'artisan_C', data: () => ({ trade: 'plumber', completed_jobs: 10, reputation_score: 4.2 }) }
+          { id: 'artisan_A', data: () => ({ trade: 'plumber', completed_jobs: 5,  reputation_score: 4.5, is_verified: false }) },
+          { id: 'artisan_B', data: () => ({ trade: 'plumber', completed_jobs: 10, reputation_score: 4.8, is_verified: false }) },
+          { id: 'artisan_C', data: () => ({ trade: 'plumber', completed_jobs: 10, reputation_score: 4.2, is_verified: false }) }
         ]
       };
 
@@ -109,13 +110,11 @@ describe('MatchingService', () => {
 
       const result = await matchingService.matchArtisansToJob('job_123', 2);
 
-      // Check transaction was called
       expect(db.runTransaction).toHaveBeenCalled();
-      
-      // Check results
       expect(result.count).toBe(2);
+      // B has highest score; C edges out A due to more completed jobs
       expect(result.matches[0].artisan_uid).toBe('artisan_B');
-      expect(result.matches[1].artisan_uid).toBe('artisan_A');
+      expect(result.matches[1].artisan_uid).toBe('artisan_C');
     });
   });
 });

@@ -181,6 +181,44 @@ router.post('/:id/tracking/arrive', authenticate, (req, res) =>
 
 /**
  * @swagger
+ * /api/jobs/{id}/notify-me:
+ *   post:
+ *     summary: Register client interest when no artisans available (C-007)
+ *     tags: [Jobs]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/:id/notify-me', authenticate, async (req: any, res) => {
+  try {
+    if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const { id: jobId } = req.params;
+    const db = require('firebase-admin').firestore();
+
+    const jobDoc = await db.collection('jobs').doc(jobId).get();
+    if (!jobDoc.exists) { res.status(404).json({ error: 'Job not found' }); return; }
+    if (jobDoc.data().client_uid !== req.user.uid) {
+      res.status(403).json({ error: 'Forbidden' }); return;
+    }
+
+    await db.collection('notify_me_requests').add({
+      job_id: jobId,
+      client_uid: req.user.uid,
+      trade: jobDoc.data().trade_needed || jobDoc.data().trade,
+      created_at: require('firebase-admin').firestore.FieldValue.serverTimestamp()
+    });
+
+    // PRD §5.1: notify_me_registered analytics
+    const { AnalyticsService } = require('../services/analytics.service');
+    await new AnalyticsService().trackEvent('notify_me_registered', req.user.uid, { job_id: jobId }).catch(() => {});
+
+    res.status(200).json({ success: true, message: 'You will be notified when an artisan becomes available' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to register notify me request' });
+  }
+});
+
+/**
+ * @swagger
  * /api/jobs/{id}/cancel:
  *   post:
  *     summary: Cancel a job
@@ -188,7 +226,7 @@ router.post('/:id/tracking/arrive', authenticate, (req, res) =>
  *     security:
  *       - bearerAuth: []
  */
-router.post('/:id/cancel', authenticate, (req, res) => 
+router.post('/:id/cancel', authenticate, (req, res) =>
   jobController.cancelJob(req, res)
 );
 

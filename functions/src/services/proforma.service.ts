@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import axios from 'axios';
 import { BaseService } from './base.service';
 import { ProformaInvoice, CreateProformaDTO } from '../models/proforma.model';
 
@@ -14,16 +15,21 @@ export class ProformaService extends BaseService {
       const matchSnapshot = await this.db.collection('matches')
         .where('job_id', '==', data.job_id)
         .where('artisan_uid', '==', artisanUid)
-        .where('status', '==', 'accepted')
         .limit(1)
         .get();
 
-      if (matchSnapshot.empty) {
+      const isAssigned = !matchSnapshot.empty || jobDoc.data()?.matched_artisan_uid === artisanUid;
+
+      if (!isAssigned) {
         throw new Error('Forbidden: You are not the assigned artisan for this job');
       }
 
+      // Normalise: frontend sends receipt_url, canonical field is invoice_document_url
+      const invoiceDocUrl = data.invoice_document_url || (data as any).receipt_url || '';
+
       const invoiceData: ProformaInvoice = {
         ...data,
+        invoice_document_url: invoiceDocUrl,
         artisan_uid: artisanUid,
         status: 'pending',
         created_at: admin.firestore.FieldValue.serverTimestamp() as any
@@ -109,39 +115,76 @@ export class ProformaService extends BaseService {
       
       const proformaData = doc.data()!;
 
+      if (proformaData.status !== 'pending') {
+        throw new Error(`Proforma is already ${proformaData.status}`);
+      }
+
+      // 1. Trigger Paystack Transfer to supplier's recipient code
+      const supplierAmount = Math.round((proformaData.total_amount || 0) * 100); // kobo
+      let transferReference: string | null = null;
+
+      if (proformaData.supplier_recipient_code && supplierAmount > 0) {
+        const paystackKey = process.env.PAYSTACK_SECRET_KEY || '';
+        try {
+          const transferRes = await axios.post(
+            'https://api.paystack.co/transfer',
+            {
+              source: 'balance',
+              amount: supplierAmount,
+              recipient: proformaData.supplier_recipient_code,
+              reason: `Artiva proforma payout — invoice ${proformaId}`
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${paystackKey}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          transferReference = transferRes.data?.data?.transfer_code || null;
+        } catch (transferErr: any) {
+          this.logger.error('Paystack Transfer failed for proforma', {
+            proformaId,
+            error: transferErr.response?.data?.message || transferErr.message
+          });
+          // Do not abort — admin manually arranges payment; still update Firestore state
+        }
+      } else {
+        this.logger.warn('No supplier_recipient_code on proforma — skipping automated transfer', { proformaId });
+      }
+
+      // 2. Update proforma status
       await docRef.update({
         status: 'approved',
         admin_notes: notes || null,
+        transfer_reference: transferReference,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       });
-      
-      // Fetch corresponding escrow transaction
+
+      // 3. Update escrow transaction to DISBURSED_PARTIAL
       const txSnapshot = await this.db.collection('transactions')
         .where('job_id', '==', proformaData.job_id)
         .where('type', '==', 'escrow')
-        .where('escrow_status', '==', 'HELD')
+        .where('escrow_status', 'in', ['HELD', 'DISBURSED_PARTIAL'])
         .limit(1)
         .get();
 
       if (!txSnapshot.empty) {
         const txDoc = txSnapshot.docs[0];
-        
         await txDoc.ref.update({
           escrow_status: 'DISBURSED_PARTIAL',
           proforma_invoices: admin.firestore.FieldValue.arrayUnion({
             invoice_id: proformaId,
             supplier_name: proformaData.supplier_name,
             amount: proformaData.total_amount,
+            transfer_reference: transferReference,
             status: 'approved'
           }),
           updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
       }
 
-      this.logOperation('proforma-approved', { proformaId, jobId: proformaData.job_id });
-      
-      // Note: A real implementation would trigger Paystack Transfer here
-      // to release the partial escrow to the supplier's bank account.
+      this.logOperation('proforma-approved', { proformaId, jobId: proformaData.job_id, transferReference });
     } catch (error) {
       this.handleError(error, 'Approve proforma');
     }

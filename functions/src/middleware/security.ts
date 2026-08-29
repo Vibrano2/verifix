@@ -1,15 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
-import * as admin from 'firebase-admin';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { Logger } from '../utils/logger';
 
 export const rateLimit = (maxRequests: number = 100, windowMs: number = 15 * 60 * 1000) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
-    const db = admin.firestore();
-    const docRef = db.collection('rate_limits').doc(ip.replace(/:/g, '_'));
-
+    
     try {
+      const db = getFirestore();
+      const docRef = db.collection('rate_limits').doc(ip.replace(/:/g, '_'));
+
       await db.runTransaction(async (transaction) => {
         const doc = await transaction.get(docRef);
         if (!doc.exists || now > doc.data()!.resetTime) {
@@ -22,7 +23,7 @@ export const rateLimit = (maxRequests: number = 100, windowMs: number = 15 * 60 
           return { allowed: false, resetTime: data.resetTime };
         }
 
-        transaction.update(docRef, { count: admin.firestore.FieldValue.increment(1) });
+        transaction.update(docRef, { count: FieldValue.increment(1) });
         return { allowed: true };
       }).then(result => {
         if (!result.allowed) {
@@ -57,10 +58,10 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
 export const monitorIP = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
   const now = Date.now();
-  const db = admin.firestore();
-  const docRef = db.collection('ip_monitoring').doc(ip.replace(/:/g, '_'));
   
   try {
+    const db = getFirestore();
+    const docRef = db.collection('ip_monitoring').doc(ip.replace(/:/g, '_'));
     const doc = await docRef.get();
     if (doc.exists) {
       const data = doc.data()!;
@@ -87,7 +88,7 @@ export const monitorIP = async (req: Request, res: Response, next: NextFunction)
 
 export const recordFailedAuth = async (ip: string): Promise<void> => {
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const docRef = db.collection('ip_monitoring').doc(ip.replace(/:/g, '_'));
     const now = Date.now();
     
@@ -108,7 +109,7 @@ export const recordFailedAuth = async (ip: string): Promise<void> => {
       
       const updateData: any = {
         failedAttempts: attempts,
-        suspiciousActivity: admin.firestore.FieldValue.arrayUnion(activity)
+        suspiciousActivity: FieldValue.arrayUnion(activity)
       };
       
       if (attempts >= 5) {
@@ -137,10 +138,10 @@ export interface AuditLog {
 
 export const auditLog = async (log: AuditLog): Promise<void> => {
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     await db.collection('audit_logs').add({
       ...log,
-      timestamp: admin.firestore.FieldValue.serverTimestamp()
+      timestamp: FieldValue.serverTimestamp()
     });
   } catch (error) {
     Logger.error('Failed to write audit log', error);

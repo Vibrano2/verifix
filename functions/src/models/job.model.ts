@@ -5,12 +5,14 @@ import { Trade, VALID_TRADES } from '../constants/trades';
 
 export type TradeName = Trade;
 
-export type JobStatus = 
-  | 'open' 
-  | 'matched' 
-  | 'in_progress' 
-  | 'completed' 
-  | 'cancelled';
+export type JobStatus =
+  | 'open'
+  | 'matched'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled'
+  | 'refunded'
+  | 'disputed';
 
 export type Urgency = 'Today' | 'This Week' | 'Flexible';
 
@@ -28,15 +30,22 @@ export const LocationSchema = z.object({
 
 export const CreateJobSchema = z.object({
   body: z.object({
+    // Accept trade or trade_needed — controller normalises to trade_needed
     trade_needed: z.enum(VALID_TRADES as [string, ...string[]]).optional(),
     trade: z.enum(VALID_TRADES as [string, ...string[]]).optional(),
     title: z.string().min(5).max(100),
     description: z.string().min(10).max(1000),
     location: z.union([LocationSchema, z.string()]),
+    // Accept urgency or timing (frontend sends timing)
     urgency: z.enum(['Today', 'This Week', 'Flexible']).optional(),
     timing: z.string().optional(),
-    match_fee: z.number().positive().optional()
-  })
+    match_fee: z.number().positive().optional(),
+    // budget is the frontend field name for job_value
+    budget: z.number().positive().optional()
+  }).refine(
+    data => !!(data.trade_needed || data.trade),
+    { message: 'trade or trade_needed is required', path: ['trade_needed'] }
+  )
 });
 
 export const UpdateJobSchema = z.object({
@@ -50,7 +59,8 @@ export const UpdateJobSchema = z.object({
 });
 
 export interface Job {
-  id: string;
+  id?: string;      // Firestore doc id (alias)
+  job_id?: string;  // Primary id returned by service layer
   client_uid: string;
   trade_needed: TradeName;
   title: string;

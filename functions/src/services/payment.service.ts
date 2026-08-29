@@ -4,6 +4,7 @@ import axios from 'axios';
 import { BaseService } from './base.service';
 import { COLLECTIONS } from '../constants';
 import { Transaction } from '../models/transaction.model';
+import { AnalyticsService } from './analytics.service';
 
 export class PaymentService extends BaseService {
   private get db() { 
@@ -69,35 +70,50 @@ export class PaymentService extends BaseService {
       });
 
       if (transaction.type === 'escrow' && transaction.match_id) {
-        // Dynamic No-Response Timer (PRD Q02)
         const matchRef = this.db.collection(COLLECTIONS.MATCHES).doc(transaction.match_id);
         const matchDoc = await matchRef.get();
         if (matchDoc.exists) {
           const matchData = matchDoc.data();
           const jobRef = this.db.collection(COLLECTIONS.JOBS).doc(matchData!.job_id);
           const jobDoc = await jobRef.get();
-          
+
+          // PRD §7.3 step 1: Dynamic no-response timer based on urgency
           let timerHours = 4; // default
           if (jobDoc.exists) {
             const urgency = jobDoc.data()?.urgency;
-            if (urgency === 'Today') {
-              timerHours = 2;
-            } else if (urgency === 'This Week') {
-              timerHours = 4;
-            } else if (urgency === 'Flexible') {
-              timerHours = 12;
-            }
+            if (urgency === 'Today') timerHours = 2;
+            else if (urgency === 'This Week') timerHours = 4;
+            else if (urgency === 'Flexible') timerHours = 12;
           }
 
           const expiryDate = new Date();
           expiryDate.setHours(expiryDate.getHours() + timerHours);
-          
+
           await matchRef.update({
-            status: 'paid', // Active/Paid
+            status: 'paid',
             no_response_timer_expiry: Timestamp.fromDate(expiryDate),
             updated_at: FieldValue.serverTimestamp()
           });
+
+          // PRD §7.3 step 3: open chat thread — write a system marker so the
+          // frontend knows the chat is unlocked without polling for messages.
+          await this.db
+            .collection(COLLECTIONS.JOBS)
+            .doc(matchData!.job_id)
+            .update({
+              chat_unlocked: true,
+              chat_unlocked_at: FieldValue.serverTimestamp(),
+              updated_at: FieldValue.serverTimestamp()
+            });
         }
+
+        // PRD §5.1: fire payment_success analytics event
+        new AnalyticsService().trackEvent('payment_success', transaction.client_uid, {
+          reference,
+          match_id: transaction.match_id,
+          job_id: transaction.job_id,
+          total_charged: transaction.amounts?.total_charged || transaction.amount
+        }).catch(() => {});
       }
 
       this.logOperation('payment-success-handled', { reference, newStatus });

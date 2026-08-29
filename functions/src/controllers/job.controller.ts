@@ -145,41 +145,57 @@ export class JobController extends BaseController {
 
       const { id } = req.params;
       let { match_id, rating, review } = req.body;
+      const db = admin.firestore();
 
+      // Auto-resolve match_id: prefer paid status (post-payment), fall back to accepted, then sole match
       if (!match_id) {
-        const matchesSnapshot = await admin.firestore().collection('matches')
+        const paidSnapshot = await db.collection('matches')
           .where('job_id', '==', id)
-          .where('status', '==', 'accepted')
-          .limit(1)
-          .get();
-        
-        if (!matchesSnapshot.empty) {
-          match_id = matchesSnapshot.docs[0].id;
+          .where('status', '==', 'paid')
+          .limit(1).get();
+
+        if (!paidSnapshot.empty) {
+          match_id = paidSnapshot.docs[0].id;
         } else {
-           const allMatches = await admin.firestore().collection('matches').where('job_id', '==', id).get();
-           if (allMatches.size === 1) {
-             match_id = allMatches.docs[0].id;
-           } else {
-             return this.sendBadRequest(res, 'Match ID could not be determined automatically');
-           }
+          const acceptedSnapshot = await db.collection('matches')
+            .where('job_id', '==', id)
+            .where('status', '==', 'accepted')
+            .limit(1).get();
+          if (!acceptedSnapshot.empty) {
+            match_id = acceptedSnapshot.docs[0].id;
+          } else {
+            const allMatches = await db.collection('matches').where('job_id', '==', id).get();
+            if (allMatches.size === 1) {
+              match_id = allMatches.docs[0].id;
+            } else {
+              return this.sendBadRequest(res, 'match_id is required');
+            }
+          }
         }
       }
 
       const result = await this.jobService.markComplete(id, req.user.uid, match_id);
 
+      // Submit rating if provided — look up artisan_uid from the match
       if (rating) {
-         try {
-           const { RatingController } = require('./rating.controller');
-           const ratingController = new RatingController();
-           const ratingReq = { ...req, params: { id }, body: { score: rating, review } } as any;
-           const ratingRes = {
-             status: () => ({ json: () => {} }),
-             json: () => {}
-           } as any;
-           await ratingController.submitRating(ratingReq, ratingRes);
-         } catch(e) {
-           console.error("Error submitting rating inline", e);
-         }
+        try {
+          const matchDoc = await db.collection('matches').doc(match_id).get();
+          const artisan_uid = matchDoc.data()?.artisan_uid;
+          if (artisan_uid) {
+            const { RatingService, DuplicateRatingError } = require('../services/rating.service');
+            const ratingService = new RatingService();
+            await ratingService.submitRating({
+              jobId: id,
+              artisanUid: artisan_uid,
+              clientUid: req.user.uid,
+              score: rating,
+              review
+            });
+          }
+        } catch (e: any) {
+          // Duplicate rating is acceptable here — don't fail the whole completion
+          this.logger.warn('Inline rating submission skipped', { error: e?.message });
+        }
       }
 
       this.sendSuccess(res, 'Job marked complete and escrow released successfully', result);

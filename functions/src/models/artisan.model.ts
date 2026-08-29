@@ -89,6 +89,7 @@ export interface Artisan {
   experience_years?: number;
   hourly_rate?: number;
   skills?: string[];
+  services?: string[];       // PRD A-002: at least one specific service per trade
   portfolio?: PortfolioProject[];
   id_document_url?: string;
   work_photos?: string[];
@@ -100,6 +101,7 @@ export interface Artisan {
   reputation_score?: number; // Average of all ratings (replaces rating)
   total_jobs?: number;
   completed_jobs?: number;
+  no_response_flags?: number; // PRD A-008 / AD-004
   rejection_reason?: string;
   bank_details?: BankDetails;
   paystack_recipient_code?: string;

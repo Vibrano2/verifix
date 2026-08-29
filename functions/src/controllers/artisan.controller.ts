@@ -128,7 +128,9 @@ export class ArtisanController extends BaseController {
   async getProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { uid } = req.params;
-      const profile = await this.artisanService.getProfile(uid);
+      const adminUid = process.env.ADMIN_UID;
+      const isAdmin = req.user?.uid === adminUid;
+      const profile = await this.artisanService.getProfile(uid, req.user?.uid, isAdmin);
       this.sendSuccess(res, 'Profile fetched successfully', { profile });
     } catch (error) {
       this.handleError(error, res, 'Get profile');

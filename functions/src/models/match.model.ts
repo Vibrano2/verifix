@@ -5,12 +5,14 @@
 
 import * as admin from 'firebase-admin';
 
-export type MatchStatus = 
-  | 'pending' 
-  | 'accepted' 
-  | 'declined' 
+export type MatchStatus =
+  | 'pending'
+  | 'paid'        // payment confirmed, no-response timer running
+  | 'accepted'
+  | 'declined'
   | 'completed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'refunded';   // auto-refunded due to no-response
 
 export interface Match {
   id: string;

@@ -5,15 +5,21 @@
 
 import * as admin from 'firebase-admin';
 
-export type AnalyticsEventType = 
+// PRD §5.1 analytics events taxonomy
+export type AnalyticsEventType =
   | 'user_signup'
   | 'job_posted'
-  | 'job_matched'
-  | 'payment_initiated'
+  | 'artisan_matched'   // PRD: artisan_matched
+  | 'payment_initiated' // PRD: payment_initiated
+  | 'payment_success'   // PRD: payment_success
   | 'payment_completed'
+  | 'message_sent'      // PRD: message_sent
   | 'job_completed'
   | 'rating_submitted'
   | 'artisan_verified'
+  | 'no_response_refund'
+  | 'zero_match_results'
+  | 'notify_me_registered'
   | 'contact_revealed'
   | 'profile_updated';
 

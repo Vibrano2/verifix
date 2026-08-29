@@ -64,21 +64,18 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(validateContentType);
 app.use(ndprMaskingMiddleware as any);
 
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use(['/api/docs', '/docs'], swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/users', authRoutes);
-app.use('/api/artisans', artisanRoutes);
-app.use('/api/jobs', jobRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/proforma', proformaRoutes);
-app.use('/api/proformas', proformaRoutes);
+app.use(['/api/auth', '/auth'], authRoutes);
+app.use(['/api/users', '/users'], authRoutes);
+app.use(['/api/artisans', '/artisans'], artisanRoutes);
+app.use(['/api/jobs', '/jobs'], jobRoutes);
+app.use(['/api/payments', '/payments'], paymentRoutes);
+app.use(['/api/admin', '/admin'], adminRoutes);
+app.use(['/api/chat', '/chat'], chatRoutes);
+app.use(['/api/proforma', '/proforma', '/api/proformas', '/proformas'], proformaRoutes);
 
-
-
-app.get('/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),

@@ -239,10 +239,16 @@ export class ArtisanService extends BaseService {
     }
   }
 
-  async getProfile(uid: string): Promise<Artisan> {
+  async getProfile(uid: string, requestorUid?: string, isAdmin?: boolean): Promise<Artisan | Omit<Artisan, 'nin' | 'id_document_url'>> {
     try {
       const artisan = await this.artisanRepo.findById(uid);
       if (!artisan) throw new Error('Artisan profile not found');
+
+      // PRD §7.5 / §11.4: NIN and ID documents restricted to admin UID only
+      if (!isAdmin && requestorUid !== uid) {
+        const { nin, id_document_url, bank_details, paystack_recipient_code, rejection_reason, ...publicProfile } = artisan as any;
+        return publicProfile;
+      }
 
       return artisan;
     } catch (error) {
@@ -289,12 +295,15 @@ export class ArtisanService extends BaseService {
       let held = 0, released = 0;
       transactionsSnapshot.docs.forEach((doc: any) => {
         const tx = doc.data();
-        const lockedValue = tx.locked_job_value || 0;
+        // Prefer v1.9 nested amounts; fall back to legacy flat fields
+        const lockedValue = tx.amounts?.job_value ?? tx.locked_job_value ?? 0;
+        const commission = tx.amounts
+          ? (lockedValue - (tx.amounts.artisan_net_labor ?? lockedValue))
+          : (tx.commission_retained ?? 0);
         if (tx.status === 'held') {
           held += lockedValue;
         } else if (tx.status === 'released') {
-          const commission = tx.commission_retained || 0;
-          released += (lockedValue - commission);
+          released += lockedValue - commission;
         }
       });
 

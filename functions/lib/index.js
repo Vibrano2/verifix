@@ -44188,7 +44188,7 @@ var require_mime_db = __commonJS({
 var require_mime_types = __commonJS({
   "node_modules/mime-types/index.js"(exports2) {
     "use strict";
-    var db = require_mime_db();
+    var db2 = require_mime_db();
     var extname2 = require("path").extname;
     var EXTRACT_TYPE_REGEXP = /^\s*([^;\s]*)(?:;|\s|$)/;
     var TEXT_TYPE_REGEXP = /^text\//i;
@@ -44205,7 +44205,7 @@ var require_mime_types = __commonJS({
         return false;
       }
       var match = EXTRACT_TYPE_REGEXP.exec(type);
-      var mime = match && db[match[1].toLowerCase()];
+      var mime = match && db2[match[1].toLowerCase()];
       if (mime && mime.charset) {
         return mime.charset;
       }
@@ -44251,8 +44251,8 @@ var require_mime_types = __commonJS({
     }
     function populateMaps(extensions, types) {
       var preference = ["nginx", "apache", void 0, "iana"];
-      Object.keys(db).forEach(function forEachMimeType(type) {
-        var mime = db[type];
+      Object.keys(db2).forEach(function forEachMimeType(type) {
+        var mime = db2[type];
         var exts = mime.extensions;
         if (!exts || !exts.length) {
           return;
@@ -44261,7 +44261,7 @@ var require_mime_types = __commonJS({
         for (var i = 0; i < exts.length; i++) {
           var extension2 = exts[i];
           if (types[extension2]) {
-            var from = preference.indexOf(db[types[extension2]].source);
+            var from = preference.indexOf(db2[types[extension2]].source);
             var to = preference.indexOf(mime.source);
             if (types[extension2] !== "application/octet-stream" && (from > to || from === to && types[extension2].substr(0, 12) === "application/")) {
               continue;
@@ -50874,19 +50874,19 @@ var init_http = __esm({
             )
           );
         }
-        let auth3 = void 0;
+        let auth4 = void 0;
         const configAuth = own2("auth");
         if (configAuth) {
           const username = utils_default.getSafeProp(configAuth, "username") || "";
           const password = utils_default.getSafeProp(configAuth, "password") || "";
-          auth3 = username + ":" + password;
+          auth4 = username + ":" + password;
         }
-        if (!auth3 && (parsed.username || parsed.password)) {
+        if (!auth4 && (parsed.username || parsed.password)) {
           const urlUsername = decodeURIComponentSafe(parsed.username);
           const urlPassword = decodeURIComponentSafe(parsed.password);
-          auth3 = urlUsername + ":" + urlPassword;
+          auth4 = urlUsername + ":" + urlPassword;
         }
-        auth3 && headers.delete("authorization");
+        auth4 && headers.delete("authorization");
         let path2;
         try {
           path2 = buildURL(
@@ -50912,7 +50912,7 @@ var init_http = __esm({
           method,
           headers: toByteStringHeaderObject(headers),
           agents: { http: httpAgent, https: httpsAgent },
-          auth: auth3,
+          auth: auth4,
           protocol,
           family,
           beforeRedirect: dispatchBeforeRedirect,
@@ -50982,9 +50982,9 @@ var init_http = __esm({
             if (configBeforeRedirect) {
               options2.beforeRedirects.config = configBeforeRedirect;
             }
-            if (auth3) {
+            if (auth4) {
               const requestOrigin = parsed.origin;
-              const authToRestore = auth3;
+              const authToRestore = auth4;
               options2.beforeRedirects.auth = function beforeRedirectAuth(redirectOptions) {
                 try {
                   if (new URL(redirectOptions.href).origin === requestOrigin) {
@@ -51523,7 +51523,7 @@ function resolveConfig(config2) {
   const xsrfHeaderName = own2("xsrfHeaderName");
   const xsrfCookieName = own2("xsrfCookieName");
   let headers = own2("headers");
-  const auth3 = own2("auth");
+  const auth4 = own2("auth");
   const baseURL = own2("baseURL");
   const allowAbsoluteUrls = own2("allowAbsoluteUrls");
   const url3 = own2("url");
@@ -51533,9 +51533,9 @@ function resolveConfig(config2) {
     own2("params"),
     own2("paramsSerializer")
   );
-  if (auth3) {
-    const username = utils_default.getSafeProp(auth3, "username") || "";
-    const password = utils_default.getSafeProp(auth3, "password") || "";
+  if (auth4) {
+    const username = utils_default.getSafeProp(auth4, "username") || "";
+    const password = utils_default.getSafeProp(auth4, "password") || "";
     try {
       headers.set(
         "Authorization",
@@ -52063,22 +52063,22 @@ var init_fetch = __esm({
           request
         );
         try {
-          let auth3 = void 0;
+          let auth4 = void 0;
           const configAuth = own2("auth");
           if (configAuth) {
             const username = utils_default.getSafeProp(configAuth, "username") || "";
             const password = utils_default.getSafeProp(configAuth, "password") || "";
-            auth3 = {
+            auth4 = {
               username,
               password
             };
           }
           if (maybeWithAuthCredentials(url3)) {
             const parsedURL = new URL(url3, platform_default.origin);
-            if (!auth3 && (parsedURL.username || parsedURL.password)) {
+            if (!auth4 && (parsedURL.username || parsedURL.password)) {
               const urlUsername = decodeURIComponentSafe2(parsedURL.username);
               const urlPassword = decodeURIComponentSafe2(parsedURL.password);
-              auth3 = {
+              auth4 = {
                 username: urlUsername,
                 password: urlPassword
               };
@@ -52089,11 +52089,11 @@ var init_fetch = __esm({
               url3 = parsedURL.href;
             }
           }
-          if (auth3) {
+          if (auth4) {
             headers.delete("authorization");
             headers.set(
               "Authorization",
-              "Basic " + btoa(encodeUTF82((auth3.username || "") + ":" + (auth3.password || "")))
+              "Basic " + btoa(encodeUTF82((auth4.username || "") + ":" + (auth4.password || "")))
             );
           }
           if (hasMaxContentLength && typeof url3 === "string" && url3.startsWith("data:")) {
@@ -53066,6 +53066,1042 @@ var init_axios2 = __esm({
   }
 });
 
+// src/constants/collections.ts
+var COLLECTIONS;
+var init_collections = __esm({
+  "src/constants/collections.ts"() {
+    "use strict";
+    COLLECTIONS = {
+      USERS: "users",
+      ARTISANS: "artisan_profiles",
+      JOBS: "jobs",
+      MATCHES: "matches",
+      TRANSACTIONS: "transactions",
+      AUDIT_LOGS: "audit_logs",
+      RATINGS: "ratings",
+      // Separate collection per PRD v1.1
+      ANALYTICS_EVENTS: "analytics_events"
+      // Per PRD Section 8.8
+    };
+  }
+});
+
+// src/constants/roles.ts
+var ROLES;
+var init_roles = __esm({
+  "src/constants/roles.ts"() {
+    "use strict";
+    ROLES = {
+      CLIENT: "client",
+      ARTISAN: "artisan",
+      ADMIN: "admin"
+    };
+  }
+});
+
+// src/constants/status.ts
+var VERIFICATION_STATUS;
+var init_status = __esm({
+  "src/constants/status.ts"() {
+    "use strict";
+    VERIFICATION_STATUS = {
+      PENDING: "pending",
+      APPROVED: "approved",
+      REJECTED: "rejected"
+    };
+  }
+});
+
+// src/constants/trades.ts
+function getCategoryForTrade(trade) {
+  return TRADE_CATEGORY_MAP[trade];
+}
+function isValidTrade(trade) {
+  return VALID_TRADES.includes(trade);
+}
+var Trade, TRADE_CATEGORY_MAP, VALID_TRADES;
+var init_trades = __esm({
+  "src/constants/trades.ts"() {
+    "use strict";
+    Trade = /* @__PURE__ */ ((Trade6) => {
+      Trade6["ELECTRICIAN"] = "Electrician";
+      Trade6["PLUMBER"] = "Plumber";
+      Trade6["CARPENTER"] = "Carpenter";
+      Trade6["AC_TECHNICIAN"] = "AC technician";
+      Trade6["GENERATOR_REPAIRER"] = "Generator repairer";
+      Trade6["BOREHOLE_REPAIR_TECH"] = "Borehole repair technician";
+      Trade6["WELDER"] = "Welder";
+      Trade6["TILER"] = "Tiler";
+      Trade6["POP"] = "PoP";
+      Trade6["ALUMINIUM_FABRICATOR"] = "Aluminium fabricator";
+      Trade6["MECHANIC"] = "Mechanic";
+      Trade6["HOME_CLEANER"] = "Home cleaner";
+      Trade6["LAUNDRY_SERVICE"] = "Laundry service";
+      Trade6["MOVER"] = "Mover";
+      Trade6["GARDENER"] = "Gardener";
+      Trade6["CCTV_INSTALLER"] = "CCTV installer";
+      Trade6["BARBER"] = "Barber";
+      Trade6["HAIRDRESSER"] = "Hairdresser";
+      Trade6["MAKEUP_ARTIST"] = "Makeup artist";
+      Trade6["TAILOR"] = "Tailor";
+      Trade6["TUTOR"] = "Tutor";
+      Trade6["NURSE"] = "Nurse";
+      Trade6["CAREGIVER"] = "Caregiver";
+      Trade6["EVENT_PHOTOGRAPHER"] = "Event photographer";
+      Trade6["PAINTER"] = "Painter";
+      return Trade6;
+    })(Trade || {});
+    TRADE_CATEGORY_MAP = {
+      // Home Maintenance & Repair
+      ["Electrician" /* ELECTRICIAN */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
+      ["Plumber" /* PLUMBER */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
+      ["Carpenter" /* CARPENTER */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
+      ["AC technician" /* AC_TECHNICIAN */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
+      ["Generator repairer" /* GENERATOR_REPAIRER */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
+      ["Borehole repair technician" /* BOREHOLE_REPAIR_TECH */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
+      ["Welder" /* WELDER */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
+      ["Tiler" /* TILER */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
+      ["PoP" /* POP */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
+      ["Aluminium fabricator" /* ALUMINIUM_FABRICATOR */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
+      // Vehicle
+      ["Mechanic" /* MECHANIC */]: "Vehicle" /* VEHICLE */,
+      // Home Services
+      ["Home cleaner" /* HOME_CLEANER */]: "Home Services" /* HOME_SERVICES */,
+      ["Laundry service" /* LAUNDRY_SERVICE */]: "Home Services" /* HOME_SERVICES */,
+      ["Mover" /* MOVER */]: "Home Services" /* HOME_SERVICES */,
+      ["Gardener" /* GARDENER */]: "Home Services" /* HOME_SERVICES */,
+      ["CCTV installer" /* CCTV_INSTALLER */]: "Home Services" /* HOME_SERVICES */,
+      // Personal Care
+      ["Barber" /* BARBER */]: "Personal Care" /* PERSONAL_CARE */,
+      ["Hairdresser" /* HAIRDRESSER */]: "Personal Care" /* PERSONAL_CARE */,
+      ["Makeup artist" /* MAKEUP_ARTIST */]: "Personal Care" /* PERSONAL_CARE */,
+      ["Tailor" /* TAILOR */]: "Personal Care" /* PERSONAL_CARE */,
+      // Professional/Care
+      ["Tutor" /* TUTOR */]: "Professional/Care" /* PROFESSIONAL_CARE */,
+      ["Nurse" /* NURSE */]: "Professional/Care" /* PROFESSIONAL_CARE */,
+      ["Caregiver" /* CAREGIVER */]: "Professional/Care" /* PROFESSIONAL_CARE */,
+      // Events
+      ["Event photographer" /* EVENT_PHOTOGRAPHER */]: "Events" /* EVENTS */,
+      ["Painter" /* PAINTER */]: "Events" /* EVENTS */
+    };
+    VALID_TRADES = Object.values(Trade);
+  }
+});
+
+// src/constants/index.ts
+var init_constants = __esm({
+  "src/constants/index.ts"() {
+    "use strict";
+    init_collections();
+    init_roles();
+    init_status();
+    init_trades();
+  }
+});
+
+// src/services/base.service.ts
+var admin, BaseService;
+var init_base_service = __esm({
+  "src/services/base.service.ts"() {
+    "use strict";
+    admin = __toESM(require("firebase-admin"));
+    init_logger();
+    init_constants();
+    BaseService = class {
+      constructor() {
+        this.logger = Logger;
+      }
+      /**
+       * Handle service errors consistently
+       */
+      handleError(error51, context) {
+        this.logger.error(`${context} error`, error51);
+        throw error51;
+      }
+      /**
+       * Validate required fields
+       */
+      validateRequired(fields, fieldNames) {
+        const missing = fieldNames.filter((name) => !fields[name]);
+        if (missing.length > 0) {
+          throw new Error(`Missing required fields: ${missing.join(", ")}`);
+        }
+      }
+      /**
+       * Log service operation to console and Firestore (Analytics)
+       */
+      logOperation(operation, data) {
+        this.logger.info(`Service operation: ${operation}`, data);
+        try {
+          const db2 = admin.firestore();
+          db2.collection(COLLECTIONS.ANALYTICS_EVENTS).add({
+            event_type: operation,
+            user_id: data?.uid || data?.clientUid || data?.artisanUid || "system",
+            metadata: data || {},
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+          }).catch((err) => {
+            this.logger.error("Failed to write analytics event to Firestore", err);
+          });
+        } catch (e) {
+        }
+      }
+    };
+  }
+});
+
+// src/repositories/base.repository.ts
+var import_firestore3, BaseRepository;
+var init_base_repository = __esm({
+  "src/repositories/base.repository.ts"() {
+    "use strict";
+    import_firestore3 = require("firebase-admin/firestore");
+    init_logger();
+    BaseRepository = class {
+      constructor(collectionName) {
+        this.db = (0, import_firestore3.getFirestore)("default");
+        this.collectionName = collectionName;
+      }
+      /**
+       * Get collection reference
+       */
+      getCollection() {
+        return this.db.collection(this.collectionName);
+      }
+      /**
+       * Create a new document
+       * @param id - Document ID
+       * @param data - Document data
+       * @returns Created document
+       */
+      async create(id, data) {
+        try {
+          await this.getCollection().doc(id).set(data);
+          return await this.findById(id);
+        } catch (error51) {
+          Logger.error(`Error creating document in ${this.collectionName}`, error51);
+          throw error51;
+        }
+      }
+      /**
+       * Find document by ID
+       * @param id - Document ID
+       * @returns Document data or null if not found
+       */
+      async findById(id) {
+        try {
+          const doc = await this.getCollection().doc(id).get();
+          if (!doc.exists) {
+            return null;
+          }
+          return doc.data();
+        } catch (error51) {
+          Logger.error(`Error finding document by ID in ${this.collectionName}`, error51);
+          throw error51;
+        }
+      }
+      /**
+       * Update document
+       * @param id - Document ID
+       * @param data - Partial data to update
+       * @returns Updated document
+       */
+      async update(id, data) {
+        try {
+          await this.getCollection().doc(id).update(data);
+          return await this.findById(id);
+        } catch (error51) {
+          Logger.error(`Error updating document in ${this.collectionName}`, error51);
+          throw error51;
+        }
+      }
+      /**
+       * Delete document
+       * @param id - Document ID
+       */
+      async delete(id) {
+        try {
+          await this.getCollection().doc(id).delete();
+        } catch (error51) {
+          Logger.error(`Error deleting document in ${this.collectionName}`, error51);
+          throw error51;
+        }
+      }
+      /**
+       * Find all documents with optional limit
+       * @param limit - Maximum number of documents to return
+       * @returns Array of documents
+       */
+      async findAll(limit) {
+        try {
+          let query = this.getCollection();
+          if (limit) {
+            query = query.limit(limit);
+          }
+          const snapshot = await query.get();
+          return snapshot.docs.map((doc) => doc.data());
+        } catch (error51) {
+          Logger.error(`Error finding all documents in ${this.collectionName}`, error51);
+          throw error51;
+        }
+      }
+      /**
+       * Check if document exists
+       * @param id - Document ID
+       * @returns true if document exists
+       */
+      async exists(id) {
+        try {
+          const doc = await this.getCollection().doc(id).get();
+          return doc.exists;
+        } catch (error51) {
+          Logger.error(`Error checking document existence in ${this.collectionName}`, error51);
+          throw error51;
+        }
+      }
+      /**
+       * Count documents in collection
+       * @returns Number of documents
+       */
+      async count() {
+        try {
+          const snapshot = await this.getCollection().count().get();
+          return snapshot.data().count;
+        } catch (error51) {
+          Logger.error(`Error counting documents in ${this.collectionName}`, error51);
+          throw error51;
+        }
+      }
+      /**
+       * Execute a batch write
+       * @param operations - Array of batch operations
+       */
+      async batchWrite(operations) {
+        try {
+          const batch = this.db.batch();
+          for (const op of operations) {
+            const docRef = this.getCollection().doc(op.id);
+            switch (op.type) {
+              case "create":
+                batch.set(docRef, op.data);
+                break;
+              case "update":
+                batch.update(docRef, op.data);
+                break;
+              case "delete":
+                batch.delete(docRef);
+                break;
+            }
+          }
+          await batch.commit();
+        } catch (error51) {
+          Logger.error(`Error executing batch write in ${this.collectionName}`, error51);
+          throw error51;
+        }
+      }
+    };
+  }
+});
+
+// src/repositories/user.repository.ts
+var admin2, UserRepository;
+var init_user_repository = __esm({
+  "src/repositories/user.repository.ts"() {
+    "use strict";
+    admin2 = __toESM(require("firebase-admin"));
+    init_base_repository();
+    init_constants();
+    init_encryption();
+    init_logger();
+    UserRepository = class extends BaseRepository {
+      constructor() {
+        super(COLLECTIONS.USERS);
+      }
+      /**
+       * Find user by phone number
+       * @param phone - Phone number in E.164 format
+       * @returns User or null if not found
+       */
+      async findByPhone(phone) {
+        try {
+          const phoneHash = hashData(phone);
+          const snapshot = await this.getCollection().where("phone_hash", "==", phoneHash).limit(1).get();
+          if (snapshot.empty) {
+            return null;
+          }
+          return snapshot.docs[0].data();
+        } catch (error51) {
+          Logger.error("Error finding user by phone", error51);
+          throw error51;
+        }
+      }
+      /**
+       * Find all users by role
+       * @param role - User role (client, artisan, admin)
+       * @returns Array of users
+       */
+      async findByRole(role) {
+        try {
+          const snapshot = await this.getCollection().where("role", "==", role).get();
+          return snapshot.docs.map((doc) => doc.data());
+        } catch (error51) {
+          Logger.error("Error finding users by role", error51);
+          throw error51;
+        }
+      }
+      /**
+       * Check if phone number already exists
+       * @param phone - Phone number
+       * @returns true if phone exists
+       */
+      async phoneExists(phone) {
+        const user = await this.findByPhone(phone);
+        return user !== null;
+      }
+      /**
+       * Find user by email
+       * @param email - User email address
+       * @returns User or null if not found
+       */
+      async findByEmail(email3) {
+        try {
+          const emailHash = hashData(email3);
+          const snapshot = await this.getCollection().where("email_hash", "==", emailHash).limit(1).get();
+          if (snapshot.empty) {
+            return null;
+          }
+          return snapshot.docs[0].data();
+        } catch (error51) {
+          Logger.error("Error finding user by email", error51);
+          throw error51;
+        }
+      }
+      /**
+       * Check if email already exists
+       * @param email - User email
+       * @returns true if email exists
+       */
+      async emailExists(email3) {
+        const user = await this.findByEmail(email3);
+        return user !== null;
+      }
+      /**
+       * Create user with email hash
+       * @param user - User data
+       * @returns Created user
+       */
+      async createUser(user) {
+        try {
+          const userData = {
+            ...user,
+            email_hash: hashData(user.email),
+            created_at: admin2.firestore.FieldValue.serverTimestamp()
+          };
+          if (user.phone) {
+            userData.phone_hash = hashData(user.phone);
+          }
+          await this.getCollection().doc(user.uid).set(userData);
+          return await this.findById(user.uid);
+        } catch (error51) {
+          Logger.error("Error creating user", error51);
+          throw error51;
+        }
+      }
+    };
+  }
+});
+
+// src/repositories/artisan.repository.ts
+var admin3, ArtisanRepository;
+var init_artisan_repository = __esm({
+  "src/repositories/artisan.repository.ts"() {
+    "use strict";
+    init_base_repository();
+    init_constants();
+    init_logger();
+    admin3 = __toESM(require("firebase-admin"));
+    ArtisanRepository = class extends BaseRepository {
+      constructor() {
+        super(COLLECTIONS.ARTISANS);
+      }
+      /**
+       * Find artisans by trade
+       * @param trade - Trade type
+       * @param limit - Maximum number of results
+       * @returns Array of artisans
+       */
+      async findByTrade(trade, limit) {
+        try {
+          let query = this.getCollection().where("trade", "==", trade);
+          if (limit) {
+            query = query.limit(limit);
+          }
+          const snapshot = await query.get();
+          return snapshot.docs.map((doc) => doc.data());
+        } catch (error51) {
+          Logger.error("Error finding artisans by trade", error51);
+          throw error51;
+        }
+      }
+      /**
+       * Find verified and available artisans
+       * @param trade - Trade type (optional)
+       * @param state - State location (optional)
+       * @returns Array of available artisans
+       */
+      async findAvailable(trade, state) {
+        try {
+          let query = this.getCollection().where("is_available", "==", true).where("is_verified", "==", true);
+          if (trade) {
+            query = query.where("trade", "==", trade);
+          }
+          if (state) {
+            query = query.where("location.state", "==", state);
+          }
+          query = query.orderBy("rating", "desc");
+          const snapshot = await query.get();
+          return snapshot.docs.map((doc) => doc.data());
+        } catch (error51) {
+          Logger.error("Error finding available artisans", error51);
+          throw error51;
+        }
+      }
+      /**
+       * Find artisans pending verification
+       * @returns Array of unverified artisans
+       */
+      async findPendingVerification() {
+        try {
+          const snapshot = await this.getCollection().where("verification_status", "==", "pending").orderBy("created_at", "desc").get();
+          return snapshot.docs.map((doc) => doc.data());
+        } catch (error51) {
+          Logger.error("Error finding artisans pending verification", error51);
+          throw error51;
+        }
+      }
+      /**
+       * Update artisan availability
+       * @param uid - Artisan UID
+       * @param isAvailable - Availability status
+       * @returns Updated artisan
+       */
+      async updateAvailability(uid, isAvailable) {
+        try {
+          await this.getCollection().doc(uid).update({
+            is_available: isAvailable
+          });
+          return await this.findById(uid);
+        } catch (error51) {
+          Logger.error("Error updating artisan availability", error51);
+          throw error51;
+        }
+      }
+      /**
+       * Verify artisan
+       * @param uid - Artisan UID
+       * @returns Updated artisan
+       */
+      async verify(uid) {
+        try {
+          await this.getCollection().doc(uid).update({
+            is_verified: true,
+            verification_status: "approved"
+          });
+          return await this.findById(uid);
+        } catch (error51) {
+          Logger.error("Error verifying artisan", error51);
+          throw error51;
+        }
+      }
+      /**
+       * Reject artisan verification
+       * @param uid - Artisan UID
+       * @param reason - Rejection reason
+       * @returns Updated artisan
+       */
+      async reject(uid, reason) {
+        try {
+          const updateData = {
+            is_verified: false,
+            verification_status: "rejected"
+          };
+          if (reason) {
+            updateData.rejection_reason = reason;
+          }
+          await this.getCollection().doc(uid).update(updateData);
+          return await this.findById(uid);
+        } catch (error51) {
+          Logger.error("Error rejecting artisan", error51);
+          throw error51;
+        }
+      }
+      /**
+       * Update artisan rating
+       * @param uid - Artisan UID
+       * @param newRating - New rating value
+       * @returns Updated artisan
+       */
+      async updateRating(uid, newRating) {
+        try {
+          const artisan = await this.findById(uid);
+          if (!artisan) {
+            return null;
+          }
+          const currentRating = artisan.rating || 0;
+          const totalJobs = artisan.total_jobs || 0;
+          const updatedRating = (currentRating * totalJobs + newRating) / (totalJobs + 1);
+          await this.getCollection().doc(uid).update({
+            rating: updatedRating,
+            total_jobs: admin3.firestore.FieldValue.increment(1)
+          });
+          return await this.findById(uid);
+        } catch (error51) {
+          Logger.error("Error updating artisan rating", error51);
+          throw error51;
+        }
+      }
+      /**
+       * Update artisan reputation score
+       * @param uid - Artisan UID
+       * @param reputationScore - New reputation score (average of all ratings)
+       * @returns Updated artisan
+       */
+      async updateReputationScore(uid, reputationScore) {
+        try {
+          await this.getCollection().doc(uid).update({
+            reputation_score: reputationScore
+          });
+          return await this.findById(uid);
+        } catch (error51) {
+          Logger.error("Error updating artisan reputation score", error51);
+          throw error51;
+        }
+      }
+    };
+  }
+});
+
+// src/repositories/rating.repository.ts
+var admin4, RatingRepository;
+var init_rating_repository = __esm({
+  "src/repositories/rating.repository.ts"() {
+    "use strict";
+    init_base_repository();
+    init_constants();
+    init_logger();
+    admin4 = __toESM(require("firebase-admin"));
+    RatingRepository = class extends BaseRepository {
+      constructor() {
+        super(COLLECTIONS.RATINGS);
+      }
+      /**
+       * Find rating by job ID
+       */
+      async findByJobId(jobId) {
+        try {
+          const snapshot = await this.getCollection().where("job_id", "==", jobId).limit(1).get();
+          if (snapshot.empty) {
+            return null;
+          }
+          const doc = snapshot.docs[0];
+          return { rating_id: doc.id, ...doc.data() };
+        } catch (error51) {
+          Logger.error("Error finding rating by job ID", { jobId, error: error51 });
+          throw error51;
+        }
+      }
+      /**
+       * Find all ratings for an artisan
+       */
+      async findByArtisanUid(artisanUid) {
+        try {
+          const snapshot = await this.getCollection().where("artisan_uid", "==", artisanUid).orderBy("created_at", "desc").get();
+          if (snapshot.empty) {
+            return [];
+          }
+          return snapshot.docs.map((doc) => ({
+            rating_id: doc.id,
+            ...doc.data()
+          }));
+        } catch (error51) {
+          Logger.error("Error finding ratings by artisan UID", { artisanUid, error: error51 });
+          throw error51;
+        }
+      }
+      /**
+       * Calculate average rating (reputation_score) for an artisan
+       */
+      async calculateAverageRating(artisanUid) {
+        try {
+          const ratings = await this.findByArtisanUid(artisanUid);
+          if (ratings.length === 0) {
+            return null;
+          }
+          const sum = ratings.reduce((acc, rating) => acc + rating.score, 0);
+          const average = sum / ratings.length;
+          return Math.round(average * 10) / 10;
+        } catch (error51) {
+          Logger.error("Error calculating average rating", { artisanUid, error: error51 });
+          throw error51;
+        }
+      }
+      /**
+       * Check if a rating already exists for a job (prevent duplicate ratings)
+       */
+      async ratingExistsForJob(jobId) {
+        try {
+          const rating = await this.findByJobId(jobId);
+          return rating !== null;
+        } catch (error51) {
+          Logger.error("Error checking if rating exists for job", { jobId, error: error51 });
+          throw error51;
+        }
+      }
+      /**
+       * Create rating and return with ID
+       */
+      async createRating(data) {
+        try {
+          const exists = await this.ratingExistsForJob(data.job_id);
+          if (exists) {
+            throw new Error("Rating already exists for this job");
+          }
+          const ratingData = {
+            ...data,
+            created_at: admin4.firestore.FieldValue.serverTimestamp()
+          };
+          const docRef = await this.getCollection().add(ratingData);
+          return {
+            rating_id: docRef.id,
+            ...data,
+            created_at: /* @__PURE__ */ new Date()
+          };
+        } catch (error51) {
+          Logger.error("Error creating rating", { data, error: error51 });
+          throw error51;
+        }
+      }
+      /**
+       * Get rating statistics for an artisan
+       */
+      async getArtisanRatingStats(artisanUid) {
+        try {
+          const ratings = await this.findByArtisanUid(artisanUid);
+          if (ratings.length === 0) {
+            return {
+              average: null,
+              total: 0,
+              distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+            };
+          }
+          const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+          let sum = 0;
+          ratings.forEach((rating) => {
+            sum += rating.score;
+            distribution[rating.score]++;
+          });
+          const average = Math.round(sum / ratings.length * 10) / 10;
+          return {
+            average,
+            total: ratings.length,
+            distribution
+          };
+        } catch (error51) {
+          Logger.error("Error getting artisan rating stats", { artisanUid, error: error51 });
+          throw error51;
+        }
+      }
+    };
+  }
+});
+
+// src/repositories/analytics.repository.ts
+var admin5, AnalyticsRepository;
+var init_analytics_repository = __esm({
+  "src/repositories/analytics.repository.ts"() {
+    "use strict";
+    init_base_repository();
+    init_constants();
+    init_logger();
+    admin5 = __toESM(require("firebase-admin"));
+    AnalyticsRepository = class extends BaseRepository {
+      constructor() {
+        super(COLLECTIONS.ANALYTICS_EVENTS);
+      }
+      /**
+       * Track an analytics event
+       */
+      async trackEvent(eventType, userId, metadata, sessionId) {
+        try {
+          const eventData = {
+            event_type: eventType,
+            user_id: userId,
+            session_id: sessionId,
+            metadata,
+            timestamp: admin5.firestore.FieldValue.serverTimestamp()
+          };
+          const docRef = await this.getCollection().add(eventData);
+          return {
+            event_id: docRef.id,
+            event_type: eventType,
+            user_id: userId,
+            session_id: sessionId,
+            metadata,
+            timestamp: /* @__PURE__ */ new Date()
+          };
+        } catch (error51) {
+          Logger.error("Error tracking analytics event", { eventType, userId, error: error51 });
+          throw error51;
+        }
+      }
+      /**
+       * Get events by user ID
+       */
+      async findByUserId(userId, limit = 100) {
+        try {
+          const snapshot = await this.getCollection().where("user_id", "==", userId).orderBy("timestamp", "desc").limit(limit).get();
+          if (snapshot.empty) {
+            return [];
+          }
+          return snapshot.docs.map((doc) => ({
+            event_id: doc.id,
+            ...doc.data()
+          }));
+        } catch (error51) {
+          Logger.error("Error finding events by user ID", { userId, error: error51 });
+          throw error51;
+        }
+      }
+      /**
+       * Get events by type
+       */
+      async findByEventType(eventType, startDate, endDate, limit = 1e3) {
+        try {
+          let query = this.getCollection().where("event_type", "==", eventType);
+          if (startDate) {
+            query = query.where("timestamp", ">=", admin5.firestore.Timestamp.fromDate(startDate));
+          }
+          if (endDate) {
+            query = query.where("timestamp", "<=", admin5.firestore.Timestamp.fromDate(endDate));
+          }
+          const snapshot = await query.orderBy("timestamp", "desc").limit(limit).get();
+          if (snapshot.empty) {
+            return [];
+          }
+          return snapshot.docs.map((doc) => ({
+            event_id: doc.id,
+            ...doc.data()
+          }));
+        } catch (error51) {
+          Logger.error("Error finding events by type", { eventType, error: error51 });
+          throw error51;
+        }
+      }
+      /**
+       * Get event count by type
+       */
+      async countEventsByType(eventType, startDate, endDate) {
+        try {
+          let query = this.getCollection().where("event_type", "==", eventType);
+          if (startDate) {
+            query = query.where("timestamp", ">=", admin5.firestore.Timestamp.fromDate(startDate));
+          }
+          if (endDate) {
+            query = query.where("timestamp", "<=", admin5.firestore.Timestamp.fromDate(endDate));
+          }
+          const snapshot = await query.get();
+          return snapshot.size;
+        } catch (error51) {
+          Logger.error("Error counting events by type", { eventType, error: error51 });
+          throw error51;
+        }
+      }
+      /**
+       * Get events by session
+       */
+      async findBySessionId(sessionId) {
+        try {
+          const snapshot = await this.getCollection().where("session_id", "==", sessionId).orderBy("timestamp", "asc").get();
+          if (snapshot.empty) {
+            return [];
+          }
+          return snapshot.docs.map((doc) => ({
+            event_id: doc.id,
+            ...doc.data()
+          }));
+        } catch (error51) {
+          Logger.error("Error finding events by session ID", { sessionId, error: error51 });
+          throw error51;
+        }
+      }
+      /**
+       * Get daily event counts (for dashboard charts)
+       */
+      async getDailyEventCounts(startDate, endDate, eventType) {
+        try {
+          let query = this.getCollection().where("timestamp", ">=", admin5.firestore.Timestamp.fromDate(startDate)).where("timestamp", "<=", admin5.firestore.Timestamp.fromDate(endDate));
+          if (eventType) {
+            query = query.where("event_type", "==", eventType);
+          }
+          const snapshot = await query.get();
+          const dailyCounts = {};
+          snapshot.docs.forEach((doc) => {
+            const data = doc.data();
+            const timestamp = data.timestamp instanceof admin5.firestore.Timestamp ? data.timestamp.toDate() : new Date(data.timestamp);
+            const dateKey = timestamp.toISOString().split("T")[0];
+            dailyCounts[dateKey] = (dailyCounts[dateKey] || 0) + 1;
+          });
+          return dailyCounts;
+        } catch (error51) {
+          Logger.error("Error getting daily event counts", { startDate, endDate, eventType, error: error51 });
+          throw error51;
+        }
+      }
+      /**
+       * Delete old events (cleanup - keep last 90 days)
+       */
+      async deleteOldEvents(daysToKeep = 90) {
+        try {
+          const cutoffDate = /* @__PURE__ */ new Date();
+          cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+          const snapshot = await this.getCollection().where("timestamp", "<", admin5.firestore.Timestamp.fromDate(cutoffDate)).get();
+          if (snapshot.empty) {
+            return 0;
+          }
+          const batch = admin5.firestore().batch();
+          snapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+          });
+          await batch.commit();
+          Logger.info("Deleted old analytics events", {
+            count: snapshot.size,
+            cutoffDate
+          });
+          return snapshot.size;
+        } catch (error51) {
+          Logger.error("Error deleting old events", { daysToKeep, error: error51 });
+          throw error51;
+        }
+      }
+    };
+  }
+});
+
+// src/repositories/index.ts
+var init_repositories = __esm({
+  "src/repositories/index.ts"() {
+    "use strict";
+    init_base_repository();
+    init_user_repository();
+    init_artisan_repository();
+    init_rating_repository();
+    init_analytics_repository();
+  }
+});
+
+// src/services/analytics.service.ts
+var analytics_service_exports = {};
+__export(analytics_service_exports, {
+  AnalyticsService: () => AnalyticsService
+});
+var AnalyticsService;
+var init_analytics_service = __esm({
+  "src/services/analytics.service.ts"() {
+    "use strict";
+    init_base_service();
+    init_repositories();
+    AnalyticsService = class extends BaseService {
+      constructor() {
+        super();
+        this.analyticsRepo = new AnalyticsRepository();
+      }
+      /**
+       * Track analytics event
+       * Non-blocking - failures don't break application flow
+       */
+      async trackEvent(eventType, userId, metadata, sessionId) {
+        try {
+          await this.analyticsRepo.trackEvent(eventType, userId, metadata, sessionId);
+          this.logOperation("analytics-event-tracked", {
+            eventType,
+            userId
+          });
+        } catch (error51) {
+          this.logger.error("Failed to track analytics event", {
+            eventType,
+            userId,
+            error: error51
+          });
+        }
+      }
+      /**
+       * Get user activity
+       */
+      async getUserActivity(userId, limit = 50) {
+        try {
+          return await this.analyticsRepo.findByUserId(userId, limit);
+        } catch (error51) {
+          this.handleError(error51, "Get user activity");
+        }
+      }
+      /**
+       * Get events by type
+       */
+      async getEventsByType(eventType, startDate, endDate) {
+        try {
+          return await this.analyticsRepo.findByEventType(eventType, startDate, endDate);
+        } catch (error51) {
+          this.handleError(error51, "Get events by type");
+        }
+      }
+      /**
+       * Get event count
+       */
+      async getEventCount(eventType, startDate, endDate) {
+        try {
+          return await this.analyticsRepo.countEventsByType(eventType, startDate, endDate);
+        } catch (error51) {
+          this.handleError(error51, "Get event count");
+        }
+      }
+      /**
+       * Get daily metrics for dashboard
+       */
+      async getDailyMetrics(startDate, endDate, eventType) {
+        try {
+          return await this.analyticsRepo.getDailyEventCounts(startDate, endDate, eventType);
+        } catch (error51) {
+          this.handleError(error51, "Get daily metrics");
+        }
+      }
+      /**
+       * Get session events
+       */
+      async getSessionEvents(sessionId) {
+        try {
+          return await this.analyticsRepo.findBySessionId(sessionId);
+        } catch (error51) {
+          this.handleError(error51, "Get session events");
+        }
+      }
+      /**
+       * Cleanup old events (admin action)
+       */
+      async cleanupOldEvents(daysToKeep = 90) {
+        try {
+          const deletedCount = await this.analyticsRepo.deleteOldEvents(daysToKeep);
+          this.logOperation("analytics-cleanup", {
+            deletedCount,
+            daysToKeep
+          });
+          return deletedCount;
+        } catch (error51) {
+          this.handleError(error51, "Cleanup old events");
+        }
+      }
+    };
+  }
+});
+
 // src/utils/response.ts
 var ResponseUtil;
 var init_response = __esm({
@@ -53275,778 +54311,6 @@ var init_base_controller = __esm({
   }
 });
 
-// src/constants/collections.ts
-var COLLECTIONS;
-var init_collections = __esm({
-  "src/constants/collections.ts"() {
-    "use strict";
-    COLLECTIONS = {
-      USERS: "users",
-      ARTISANS: "artisan_profiles",
-      JOBS: "jobs",
-      MATCHES: "matches",
-      TRANSACTIONS: "transactions",
-      AUDIT_LOGS: "audit_logs",
-      RATINGS: "ratings",
-      // Separate collection per PRD v1.1
-      ANALYTICS_EVENTS: "analytics_events"
-      // Per PRD Section 8.8
-    };
-  }
-});
-
-// src/constants/roles.ts
-var ROLES;
-var init_roles = __esm({
-  "src/constants/roles.ts"() {
-    "use strict";
-    ROLES = {
-      CLIENT: "client",
-      ARTISAN: "artisan",
-      ADMIN: "admin"
-    };
-  }
-});
-
-// src/constants/status.ts
-var VERIFICATION_STATUS;
-var init_status = __esm({
-  "src/constants/status.ts"() {
-    "use strict";
-    VERIFICATION_STATUS = {
-      PENDING: "pending",
-      APPROVED: "approved",
-      REJECTED: "rejected"
-    };
-  }
-});
-
-// src/constants/trades.ts
-function getCategoryForTrade(trade) {
-  return TRADE_CATEGORY_MAP[trade];
-}
-function isValidTrade(trade) {
-  return VALID_TRADES.includes(trade);
-}
-var Trade, TRADE_CATEGORY_MAP, VALID_TRADES;
-var init_trades = __esm({
-  "src/constants/trades.ts"() {
-    "use strict";
-    Trade = /* @__PURE__ */ ((Trade6) => {
-      Trade6["ELECTRICIAN"] = "Electrician";
-      Trade6["PLUMBER"] = "Plumber";
-      Trade6["CARPENTER"] = "Carpenter";
-      Trade6["AC_TECHNICIAN"] = "AC technician";
-      Trade6["GENERATOR_REPAIRER"] = "Generator repairer";
-      Trade6["BOREHOLE_REPAIR_TECH"] = "Borehole repair technician";
-      Trade6["WELDER"] = "Welder";
-      Trade6["TILER"] = "Tiler";
-      Trade6["POP"] = "PoP";
-      Trade6["ALUMINIUM_FABRICATOR"] = "Aluminium fabricator";
-      Trade6["MECHANIC"] = "Mechanic";
-      Trade6["HOME_CLEANER"] = "Home cleaner";
-      Trade6["LAUNDRY_SERVICE"] = "Laundry service";
-      Trade6["MOVER"] = "Mover";
-      Trade6["GARDENER"] = "Gardener";
-      Trade6["CCTV_INSTALLER"] = "CCTV installer";
-      Trade6["BARBER"] = "Barber";
-      Trade6["HAIRDRESSER"] = "Hairdresser";
-      Trade6["MAKEUP_ARTIST"] = "Makeup artist";
-      Trade6["TAILOR"] = "Tailor";
-      Trade6["TUTOR"] = "Tutor";
-      Trade6["NURSE"] = "Nurse";
-      Trade6["CAREGIVER"] = "Caregiver";
-      Trade6["EVENT_PHOTOGRAPHER"] = "Event photographer";
-      Trade6["PAINTER"] = "Painter";
-      return Trade6;
-    })(Trade || {});
-    TRADE_CATEGORY_MAP = {
-      // Home Maintenance & Repair
-      ["Electrician" /* ELECTRICIAN */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
-      ["Plumber" /* PLUMBER */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
-      ["Carpenter" /* CARPENTER */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
-      ["AC technician" /* AC_TECHNICIAN */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
-      ["Generator repairer" /* GENERATOR_REPAIRER */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
-      ["Borehole repair technician" /* BOREHOLE_REPAIR_TECH */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
-      ["Welder" /* WELDER */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
-      ["Tiler" /* TILER */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
-      ["PoP" /* POP */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
-      ["Aluminium fabricator" /* ALUMINIUM_FABRICATOR */]: "Home Maintenance & Repair" /* HOME_MAINTENANCE */,
-      // Vehicle
-      ["Mechanic" /* MECHANIC */]: "Vehicle" /* VEHICLE */,
-      // Home Services
-      ["Home cleaner" /* HOME_CLEANER */]: "Home Services" /* HOME_SERVICES */,
-      ["Laundry service" /* LAUNDRY_SERVICE */]: "Home Services" /* HOME_SERVICES */,
-      ["Mover" /* MOVER */]: "Home Services" /* HOME_SERVICES */,
-      ["Gardener" /* GARDENER */]: "Home Services" /* HOME_SERVICES */,
-      ["CCTV installer" /* CCTV_INSTALLER */]: "Home Services" /* HOME_SERVICES */,
-      // Personal Care
-      ["Barber" /* BARBER */]: "Personal Care" /* PERSONAL_CARE */,
-      ["Hairdresser" /* HAIRDRESSER */]: "Personal Care" /* PERSONAL_CARE */,
-      ["Makeup artist" /* MAKEUP_ARTIST */]: "Personal Care" /* PERSONAL_CARE */,
-      ["Tailor" /* TAILOR */]: "Personal Care" /* PERSONAL_CARE */,
-      // Professional/Care
-      ["Tutor" /* TUTOR */]: "Professional/Care" /* PROFESSIONAL_CARE */,
-      ["Nurse" /* NURSE */]: "Professional/Care" /* PROFESSIONAL_CARE */,
-      ["Caregiver" /* CAREGIVER */]: "Professional/Care" /* PROFESSIONAL_CARE */,
-      // Events
-      ["Event photographer" /* EVENT_PHOTOGRAPHER */]: "Events" /* EVENTS */,
-      ["Painter" /* PAINTER */]: "Events" /* EVENTS */
-    };
-    VALID_TRADES = Object.values(Trade);
-  }
-});
-
-// src/constants/index.ts
-var init_constants = __esm({
-  "src/constants/index.ts"() {
-    "use strict";
-    init_collections();
-    init_roles();
-    init_status();
-    init_trades();
-  }
-});
-
-// src/services/base.service.ts
-var admin3, BaseService;
-var init_base_service = __esm({
-  "src/services/base.service.ts"() {
-    "use strict";
-    admin3 = __toESM(require("firebase-admin"));
-    init_logger();
-    init_constants();
-    BaseService = class {
-      constructor() {
-        this.logger = Logger;
-      }
-      /**
-       * Handle service errors consistently
-       */
-      handleError(error51, context) {
-        this.logger.error(`${context} error`, error51);
-        throw error51;
-      }
-      /**
-       * Validate required fields
-       */
-      validateRequired(fields, fieldNames) {
-        const missing = fieldNames.filter((name) => !fields[name]);
-        if (missing.length > 0) {
-          throw new Error(`Missing required fields: ${missing.join(", ")}`);
-        }
-      }
-      /**
-       * Log service operation to console and Firestore (Analytics)
-       */
-      logOperation(operation, data) {
-        this.logger.info(`Service operation: ${operation}`, data);
-        try {
-          const db = admin3.firestore();
-          db.collection(COLLECTIONS.ANALYTICS_EVENTS).add({
-            event_type: operation,
-            user_id: data?.uid || data?.clientUid || data?.artisanUid || "system",
-            metadata: data || {},
-            timestamp: admin3.firestore.FieldValue.serverTimestamp()
-          }).catch((err) => {
-            this.logger.error("Failed to write analytics event to Firestore", err);
-          });
-        } catch (e) {
-        }
-      }
-    };
-  }
-});
-
-// src/repositories/base.repository.ts
-var import_firestore, BaseRepository;
-var init_base_repository = __esm({
-  "src/repositories/base.repository.ts"() {
-    "use strict";
-    import_firestore = require("firebase-admin/firestore");
-    init_logger();
-    BaseRepository = class {
-      constructor(collectionName) {
-        this.db = (0, import_firestore.getFirestore)("default");
-        this.collectionName = collectionName;
-      }
-      /**
-       * Get collection reference
-       */
-      getCollection() {
-        return this.db.collection(this.collectionName);
-      }
-      /**
-       * Create a new document
-       * @param id - Document ID
-       * @param data - Document data
-       * @returns Created document
-       */
-      async create(id, data) {
-        try {
-          await this.getCollection().doc(id).set(data);
-          return await this.findById(id);
-        } catch (error51) {
-          Logger.error(`Error creating document in ${this.collectionName}`, error51);
-          throw error51;
-        }
-      }
-      /**
-       * Find document by ID
-       * @param id - Document ID
-       * @returns Document data or null if not found
-       */
-      async findById(id) {
-        try {
-          const doc = await this.getCollection().doc(id).get();
-          if (!doc.exists) {
-            return null;
-          }
-          return doc.data();
-        } catch (error51) {
-          Logger.error(`Error finding document by ID in ${this.collectionName}`, error51);
-          throw error51;
-        }
-      }
-      /**
-       * Update document
-       * @param id - Document ID
-       * @param data - Partial data to update
-       * @returns Updated document
-       */
-      async update(id, data) {
-        try {
-          await this.getCollection().doc(id).update(data);
-          return await this.findById(id);
-        } catch (error51) {
-          Logger.error(`Error updating document in ${this.collectionName}`, error51);
-          throw error51;
-        }
-      }
-      /**
-       * Delete document
-       * @param id - Document ID
-       */
-      async delete(id) {
-        try {
-          await this.getCollection().doc(id).delete();
-        } catch (error51) {
-          Logger.error(`Error deleting document in ${this.collectionName}`, error51);
-          throw error51;
-        }
-      }
-      /**
-       * Find all documents with optional limit
-       * @param limit - Maximum number of documents to return
-       * @returns Array of documents
-       */
-      async findAll(limit) {
-        try {
-          let query = this.getCollection();
-          if (limit) {
-            query = query.limit(limit);
-          }
-          const snapshot = await query.get();
-          return snapshot.docs.map((doc) => doc.data());
-        } catch (error51) {
-          Logger.error(`Error finding all documents in ${this.collectionName}`, error51);
-          throw error51;
-        }
-      }
-      /**
-       * Check if document exists
-       * @param id - Document ID
-       * @returns true if document exists
-       */
-      async exists(id) {
-        try {
-          const doc = await this.getCollection().doc(id).get();
-          return doc.exists;
-        } catch (error51) {
-          Logger.error(`Error checking document existence in ${this.collectionName}`, error51);
-          throw error51;
-        }
-      }
-      /**
-       * Count documents in collection
-       * @returns Number of documents
-       */
-      async count() {
-        try {
-          const snapshot = await this.getCollection().count().get();
-          return snapshot.data().count;
-        } catch (error51) {
-          Logger.error(`Error counting documents in ${this.collectionName}`, error51);
-          throw error51;
-        }
-      }
-      /**
-       * Execute a batch write
-       * @param operations - Array of batch operations
-       */
-      async batchWrite(operations) {
-        try {
-          const batch = this.db.batch();
-          for (const op of operations) {
-            const docRef = this.getCollection().doc(op.id);
-            switch (op.type) {
-              case "create":
-                batch.set(docRef, op.data);
-                break;
-              case "update":
-                batch.update(docRef, op.data);
-                break;
-              case "delete":
-                batch.delete(docRef);
-                break;
-            }
-          }
-          await batch.commit();
-        } catch (error51) {
-          Logger.error(`Error executing batch write in ${this.collectionName}`, error51);
-          throw error51;
-        }
-      }
-    };
-  }
-});
-
-// src/repositories/user.repository.ts
-var admin4, UserRepository;
-var init_user_repository = __esm({
-  "src/repositories/user.repository.ts"() {
-    "use strict";
-    admin4 = __toESM(require("firebase-admin"));
-    init_base_repository();
-    init_constants();
-    init_encryption();
-    init_logger();
-    UserRepository = class extends BaseRepository {
-      constructor() {
-        super(COLLECTIONS.USERS);
-      }
-      /**
-       * Find user by phone number
-       * @param phone - Phone number in E.164 format
-       * @returns User or null if not found
-       */
-      async findByPhone(phone) {
-        try {
-          const phoneHash = hashData(phone);
-          const snapshot = await this.getCollection().where("phone_hash", "==", phoneHash).limit(1).get();
-          if (snapshot.empty) {
-            return null;
-          }
-          return snapshot.docs[0].data();
-        } catch (error51) {
-          Logger.error("Error finding user by phone", error51);
-          throw error51;
-        }
-      }
-      /**
-       * Find all users by role
-       * @param role - User role (client, artisan, admin)
-       * @returns Array of users
-       */
-      async findByRole(role) {
-        try {
-          const snapshot = await this.getCollection().where("role", "==", role).get();
-          return snapshot.docs.map((doc) => doc.data());
-        } catch (error51) {
-          Logger.error("Error finding users by role", error51);
-          throw error51;
-        }
-      }
-      /**
-       * Check if phone number already exists
-       * @param phone - Phone number
-       * @returns true if phone exists
-       */
-      async phoneExists(phone) {
-        const user = await this.findByPhone(phone);
-        return user !== null;
-      }
-      /**
-       * Find user by email
-       * @param email - User email address
-       * @returns User or null if not found
-       */
-      async findByEmail(email3) {
-        try {
-          const emailHash = hashData(email3);
-          const snapshot = await this.getCollection().where("email_hash", "==", emailHash).limit(1).get();
-          if (snapshot.empty) {
-            return null;
-          }
-          return snapshot.docs[0].data();
-        } catch (error51) {
-          Logger.error("Error finding user by email", error51);
-          throw error51;
-        }
-      }
-      /**
-       * Check if email already exists
-       * @param email - User email
-       * @returns true if email exists
-       */
-      async emailExists(email3) {
-        const user = await this.findByEmail(email3);
-        return user !== null;
-      }
-      /**
-       * Create user with email hash
-       * @param user - User data
-       * @returns Created user
-       */
-      async createUser(user) {
-        try {
-          const userData = {
-            ...user,
-            email_hash: hashData(user.email),
-            created_at: admin4.firestore.FieldValue.serverTimestamp()
-          };
-          if (user.phone) {
-            userData.phone_hash = hashData(user.phone);
-          }
-          await this.getCollection().doc(user.uid).set(userData);
-          return await this.findById(user.uid);
-        } catch (error51) {
-          Logger.error("Error creating user", error51);
-          throw error51;
-        }
-      }
-    };
-  }
-});
-
-// src/repositories/artisan.repository.ts
-var admin5, ArtisanRepository;
-var init_artisan_repository = __esm({
-  "src/repositories/artisan.repository.ts"() {
-    "use strict";
-    init_base_repository();
-    init_constants();
-    init_logger();
-    admin5 = __toESM(require("firebase-admin"));
-    ArtisanRepository = class extends BaseRepository {
-      constructor() {
-        super(COLLECTIONS.ARTISANS);
-      }
-      /**
-       * Find artisans by trade
-       * @param trade - Trade type
-       * @param limit - Maximum number of results
-       * @returns Array of artisans
-       */
-      async findByTrade(trade, limit) {
-        try {
-          let query = this.getCollection().where("trade", "==", trade);
-          if (limit) {
-            query = query.limit(limit);
-          }
-          const snapshot = await query.get();
-          return snapshot.docs.map((doc) => doc.data());
-        } catch (error51) {
-          Logger.error("Error finding artisans by trade", error51);
-          throw error51;
-        }
-      }
-      /**
-       * Find verified and available artisans
-       * @param trade - Trade type (optional)
-       * @param state - State location (optional)
-       * @returns Array of available artisans
-       */
-      async findAvailable(trade, state) {
-        try {
-          let query = this.getCollection().where("is_available", "==", true).where("is_verified", "==", true);
-          if (trade) {
-            query = query.where("trade", "==", trade);
-          }
-          if (state) {
-            query = query.where("location.state", "==", state);
-          }
-          query = query.orderBy("rating", "desc");
-          const snapshot = await query.get();
-          return snapshot.docs.map((doc) => doc.data());
-        } catch (error51) {
-          Logger.error("Error finding available artisans", error51);
-          throw error51;
-        }
-      }
-      /**
-       * Find artisans pending verification
-       * @returns Array of unverified artisans
-       */
-      async findPendingVerification() {
-        try {
-          const snapshot = await this.getCollection().where("verification_status", "==", "pending").orderBy("created_at", "desc").get();
-          return snapshot.docs.map((doc) => doc.data());
-        } catch (error51) {
-          Logger.error("Error finding artisans pending verification", error51);
-          throw error51;
-        }
-      }
-      /**
-       * Update artisan availability
-       * @param uid - Artisan UID
-       * @param isAvailable - Availability status
-       * @returns Updated artisan
-       */
-      async updateAvailability(uid, isAvailable) {
-        try {
-          await this.getCollection().doc(uid).update({
-            is_available: isAvailable
-          });
-          return await this.findById(uid);
-        } catch (error51) {
-          Logger.error("Error updating artisan availability", error51);
-          throw error51;
-        }
-      }
-      /**
-       * Verify artisan
-       * @param uid - Artisan UID
-       * @returns Updated artisan
-       */
-      async verify(uid) {
-        try {
-          await this.getCollection().doc(uid).update({
-            is_verified: true,
-            verification_status: "approved"
-          });
-          return await this.findById(uid);
-        } catch (error51) {
-          Logger.error("Error verifying artisan", error51);
-          throw error51;
-        }
-      }
-      /**
-       * Reject artisan verification
-       * @param uid - Artisan UID
-       * @param reason - Rejection reason
-       * @returns Updated artisan
-       */
-      async reject(uid, reason) {
-        try {
-          const updateData = {
-            is_verified: false,
-            verification_status: "rejected"
-          };
-          if (reason) {
-            updateData.rejection_reason = reason;
-          }
-          await this.getCollection().doc(uid).update(updateData);
-          return await this.findById(uid);
-        } catch (error51) {
-          Logger.error("Error rejecting artisan", error51);
-          throw error51;
-        }
-      }
-      /**
-       * Update artisan rating
-       * @param uid - Artisan UID
-       * @param newRating - New rating value
-       * @returns Updated artisan
-       */
-      async updateRating(uid, newRating) {
-        try {
-          const artisan = await this.findById(uid);
-          if (!artisan) {
-            return null;
-          }
-          const currentRating = artisan.rating || 0;
-          const totalJobs = artisan.total_jobs || 0;
-          const updatedRating = (currentRating * totalJobs + newRating) / (totalJobs + 1);
-          await this.getCollection().doc(uid).update({
-            rating: updatedRating,
-            total_jobs: admin5.firestore.FieldValue.increment(1)
-          });
-          return await this.findById(uid);
-        } catch (error51) {
-          Logger.error("Error updating artisan rating", error51);
-          throw error51;
-        }
-      }
-      /**
-       * Update artisan reputation score
-       * @param uid - Artisan UID
-       * @param reputationScore - New reputation score (average of all ratings)
-       * @returns Updated artisan
-       */
-      async updateReputationScore(uid, reputationScore) {
-        try {
-          await this.getCollection().doc(uid).update({
-            reputation_score: reputationScore
-          });
-          return await this.findById(uid);
-        } catch (error51) {
-          Logger.error("Error updating artisan reputation score", error51);
-          throw error51;
-        }
-      }
-    };
-  }
-});
-
-// src/repositories/rating.repository.ts
-var admin6, RatingRepository;
-var init_rating_repository = __esm({
-  "src/repositories/rating.repository.ts"() {
-    "use strict";
-    init_base_repository();
-    init_constants();
-    init_logger();
-    admin6 = __toESM(require("firebase-admin"));
-    RatingRepository = class extends BaseRepository {
-      constructor() {
-        super(COLLECTIONS.RATINGS);
-      }
-      /**
-       * Find rating by job ID
-       */
-      async findByJobId(jobId) {
-        try {
-          const snapshot = await this.getCollection().where("job_id", "==", jobId).limit(1).get();
-          if (snapshot.empty) {
-            return null;
-          }
-          const doc = snapshot.docs[0];
-          return { rating_id: doc.id, ...doc.data() };
-        } catch (error51) {
-          Logger.error("Error finding rating by job ID", { jobId, error: error51 });
-          throw error51;
-        }
-      }
-      /**
-       * Find all ratings for an artisan
-       */
-      async findByArtisanUid(artisanUid) {
-        try {
-          const snapshot = await this.getCollection().where("artisan_uid", "==", artisanUid).orderBy("created_at", "desc").get();
-          if (snapshot.empty) {
-            return [];
-          }
-          return snapshot.docs.map((doc) => ({
-            rating_id: doc.id,
-            ...doc.data()
-          }));
-        } catch (error51) {
-          Logger.error("Error finding ratings by artisan UID", { artisanUid, error: error51 });
-          throw error51;
-        }
-      }
-      /**
-       * Calculate average rating (reputation_score) for an artisan
-       */
-      async calculateAverageRating(artisanUid) {
-        try {
-          const ratings = await this.findByArtisanUid(artisanUid);
-          if (ratings.length === 0) {
-            return null;
-          }
-          const sum = ratings.reduce((acc, rating) => acc + rating.score, 0);
-          const average = sum / ratings.length;
-          return Math.round(average * 10) / 10;
-        } catch (error51) {
-          Logger.error("Error calculating average rating", { artisanUid, error: error51 });
-          throw error51;
-        }
-      }
-      /**
-       * Check if a rating already exists for a job (prevent duplicate ratings)
-       */
-      async ratingExistsForJob(jobId) {
-        try {
-          const rating = await this.findByJobId(jobId);
-          return rating !== null;
-        } catch (error51) {
-          Logger.error("Error checking if rating exists for job", { jobId, error: error51 });
-          throw error51;
-        }
-      }
-      /**
-       * Create rating and return with ID
-       */
-      async createRating(data) {
-        try {
-          const exists = await this.ratingExistsForJob(data.job_id);
-          if (exists) {
-            throw new Error("Rating already exists for this job");
-          }
-          const ratingData = {
-            ...data,
-            created_at: admin6.firestore.FieldValue.serverTimestamp()
-          };
-          const docRef = await this.getCollection().add(ratingData);
-          return {
-            rating_id: docRef.id,
-            ...data,
-            created_at: /* @__PURE__ */ new Date()
-          };
-        } catch (error51) {
-          Logger.error("Error creating rating", { data, error: error51 });
-          throw error51;
-        }
-      }
-      /**
-       * Get rating statistics for an artisan
-       */
-      async getArtisanRatingStats(artisanUid) {
-        try {
-          const ratings = await this.findByArtisanUid(artisanUid);
-          if (ratings.length === 0) {
-            return {
-              average: null,
-              total: 0,
-              distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-            };
-          }
-          const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-          let sum = 0;
-          ratings.forEach((rating) => {
-            sum += rating.score;
-            distribution[rating.score]++;
-          });
-          const average = Math.round(sum / ratings.length * 10) / 10;
-          return {
-            average,
-            total: ratings.length,
-            distribution
-          };
-        } catch (error51) {
-          Logger.error("Error getting artisan rating stats", { artisanUid, error: error51 });
-          throw error51;
-        }
-      }
-    };
-  }
-});
-
-// src/repositories/analytics.repository.ts
-var admin7;
-var init_analytics_repository = __esm({
-  "src/repositories/analytics.repository.ts"() {
-    "use strict";
-    init_base_repository();
-    init_constants();
-    init_logger();
-    admin7 = __toESM(require("firebase-admin"));
-  }
-});
-
-// src/repositories/index.ts
-var init_repositories = __esm({
-  "src/repositories/index.ts"() {
-    "use strict";
-    init_base_repository();
-    init_user_repository();
-    init_artisan_repository();
-    init_rating_repository();
-    init_analytics_repository();
-  }
-});
-
 // src/utils/rateLimit.ts
 function hashPII(data) {
   if (!data) return "";
@@ -54062,7 +54326,7 @@ async function checkOTPRateLimit(phone) {
     const data = doc.data();
     const now = /* @__PURE__ */ new Date();
     if (data.locked_until) {
-      const lockedUntil = data.locked_until instanceof admin8.firestore.Timestamp ? data.locked_until.toDate() : new Date(data.locked_until);
+      const lockedUntil = data.locked_until instanceof admin7.firestore.Timestamp ? data.locked_until.toDate() : new Date(data.locked_until);
       if (now < lockedUntil) {
         return {
           allowed: false,
@@ -54073,11 +54337,11 @@ async function checkOTPRateLimit(phone) {
     }
     const oneHourAgo = new Date(now.getTime() - RATE_LIMIT_WINDOW_MS);
     const recentAttempts = data.attempts.filter((attempt) => {
-      const attemptTime = attempt.timestamp instanceof admin8.firestore.Timestamp ? attempt.timestamp.toDate() : new Date(attempt.timestamp);
+      const attemptTime = attempt.timestamp instanceof admin7.firestore.Timestamp ? attempt.timestamp.toDate() : new Date(attempt.timestamp);
       return attemptTime > oneHourAgo;
     });
     if (recentAttempts.length >= MAX_REQUESTS_PER_HOUR) {
-      const oldestAttempt = recentAttempts[0].timestamp instanceof admin8.firestore.Timestamp ? recentAttempts[0].timestamp.toDate() : new Date(recentAttempts[0].timestamp);
+      const oldestAttempt = recentAttempts[0].timestamp instanceof admin7.firestore.Timestamp ? recentAttempts[0].timestamp.toDate() : new Date(recentAttempts[0].timestamp);
       const resetAt = new Date(oldestAttempt.getTime() + RATE_LIMIT_WINDOW_MS);
       return {
         allowed: false,
@@ -54111,7 +54375,7 @@ async function recordOTPAttempt(phone, success2) {
     const data = doc.data();
     const twentyFourHoursAgo = new Date(Date.now() - LOCKOUT_DURATION_MS);
     const recentAttempts = data.attempts.filter((a) => {
-      const attemptTime = a.timestamp instanceof admin8.firestore.Timestamp ? a.timestamp.toDate() : new Date(a.timestamp);
+      const attemptTime = a.timestamp instanceof admin7.firestore.Timestamp ? a.timestamp.toDate() : new Date(a.timestamp);
       return attemptTime > twentyFourHoursAgo;
     });
     recentAttempts.push(attempt);
@@ -54121,7 +54385,7 @@ async function recordOTPAttempt(phone, success2) {
         const lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
         await docRef.update({
           attempts: recentAttempts,
-          locked_until: admin8.firestore.Timestamp.fromDate(lockedUntil)
+          locked_until: admin7.firestore.Timestamp.fromDate(lockedUntil)
         });
         Logger.warn("Phone number locked due to failed OTP attempts", {
           phone: hashPII(phone),
@@ -54138,11 +54402,11 @@ async function recordOTPAttempt(phone, success2) {
     Logger.error("Error recording OTP attempt", { phone: hashPII(phone), success: success2, error: error51 });
   }
 }
-var admin8, crypto3, OTP_RATE_LIMIT_COLLECTION, MAX_REQUESTS_PER_HOUR, MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MS, RATE_LIMIT_WINDOW_MS, getDb;
+var admin7, crypto3, OTP_RATE_LIMIT_COLLECTION, MAX_REQUESTS_PER_HOUR, MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MS, RATE_LIMIT_WINDOW_MS, getDb;
 var init_rateLimit = __esm({
   "src/utils/rateLimit.ts"() {
     "use strict";
-    admin8 = __toESM(require("firebase-admin"));
+    admin7 = __toESM(require("firebase-admin"));
     crypto3 = __toESM(require("crypto"));
     init_logger();
     OTP_RATE_LIMIT_COLLECTION = "otp_rate_limits";
@@ -54150,7 +54414,7 @@ var init_rateLimit = __esm({
     MAX_FAILED_ATTEMPTS = 5;
     LOCKOUT_DURATION_MS = 24 * 60 * 60 * 1e3;
     RATE_LIMIT_WINDOW_MS = 60 * 60 * 1e3;
-    getDb = () => admin8.firestore();
+    getDb = () => admin7.firestore();
   }
 });
 
@@ -54159,11 +54423,11 @@ function hashPII2(data) {
   if (!data) return "";
   return crypto4.createHash("sha256").update(data).digest("hex").substring(0, 16);
 }
-var admin9, crypto4, AuthService;
+var admin8, crypto4, AuthService;
 var init_auth_service = __esm({
   "src/services/auth.service.ts"() {
     "use strict";
-    admin9 = __toESM(require("firebase-admin"));
+    admin8 = __toESM(require("firebase-admin"));
     init_base_service();
     init_repositories();
     init_constants();
@@ -54182,7 +54446,7 @@ var init_auth_service = __esm({
           if (role !== ROLES.CLIENT && role !== ROLES.ARTISAN) {
             throw new Error(`Invalid role. Must be "${ROLES.CLIENT}" or "${ROLES.ARTISAN}"`);
           }
-          const decodedToken = await admin9.auth().verifyIdToken(idToken);
+          const decodedToken = await admin8.auth().verifyIdToken(idToken);
           const uid = decodedToken.uid;
           const email3 = decodedToken.email;
           const phone = decodedToken.phone_number;
@@ -54239,11 +54503,12 @@ var init_auth_service = __esm({
         try {
           this.validateRequired(data, ["email", "password", "first_name", "last_name"]);
           const { email: email3, password, first_name, last_name } = data;
-          const userRecord = await admin9.auth().createUser({
+          const userRecord = await admin8.auth().createUser({
             email: email3,
             password,
             displayName: `${first_name} ${last_name}`
           });
+          await admin8.auth().setCustomUserClaims(userRecord.uid, { artiva_admin: true });
           await this.userRepo.createUser({
             uid: userRecord.uid,
             first_name: first_name.trim(),
@@ -54264,7 +54529,7 @@ var init_auth_service = __esm({
       }
       async requestPasswordReset(email3) {
         try {
-          await admin9.auth().generatePasswordResetLink(email3);
+          await admin8.auth().generatePasswordResetLink(email3);
           this.logOperation("password-reset-requested", { email: hashPII2(email3) });
           return { message: "If this email exists, a reset link has been sent" };
         } catch (error51) {
@@ -54282,10 +54547,10 @@ var init_auth_service = __esm({
           if (existingUser) {
             uid = existingUser.uid;
           } else {
-            const userRecord = await admin9.auth().createUser({ phoneNumber: phone });
+            const userRecord = await admin8.auth().createUser({ phoneNumber: phone });
             uid = userRecord.uid;
           }
-          const customToken = await admin9.auth().createCustomToken(uid);
+          const customToken = await admin8.auth().createCustomToken(uid);
           this.logOperation("custom-token-created", { uid });
           return { customToken, uid };
         } catch (error51) {
@@ -54294,7 +54559,7 @@ var init_auth_service = __esm({
       }
       async verifyToken(idToken) {
         try {
-          return await admin9.auth().verifyIdToken(idToken);
+          return await admin8.auth().verifyIdToken(idToken);
         } catch (error51) {
           this.handleError(error51, "Verify token");
         }
@@ -54310,13 +54575,17 @@ var init_auth_service = __esm({
           const otp = Math.floor(1e5 + Math.random() * 9e5).toString();
           const expiration = /* @__PURE__ */ new Date();
           expiration.setMinutes(expiration.getMinutes() + 15);
-          await admin9.firestore().collection("otps").doc(formattedPhone).set({
+          await admin8.firestore().collection("otps").doc(formattedPhone).set({
             otp,
-            expiresAt: admin9.firestore.Timestamp.fromDate(expiration),
-            createdAt: admin9.firestore.FieldValue.serverTimestamp()
+            expiresAt: admin8.firestore.Timestamp.fromDate(expiration),
+            createdAt: admin8.firestore.FieldValue.serverTimestamp()
           });
           await recordOTPAttempt(formattedPhone, true);
-          this.logger.info(`[MOCK SMS] To: ${formattedPhone}, Body: Your Artiva Login Code is ${otp}`);
+          if (process.env.NODE_ENV !== "production") {
+            this.logger.info(`[MOCK SMS] To: ${formattedPhone}, Body: Your Artiva Login Code is ${otp}`);
+          } else {
+            this.logger.info(`OTP sent to ${formattedPhone.slice(0, 6)}****`);
+          }
           return { message: "OTP sent successfully" };
         } catch (error51) {
           this.handleError(error51, "Send OTP");
@@ -54325,12 +54594,16 @@ var init_auth_service = __esm({
       async verifyOTP(phone, otp, role) {
         try {
           this.validateRequired({ phone, otp, role }, ["phone", "otp", "role"]);
+          const allowedRoles = [ROLES.CLIENT, ROLES.ARTISAN];
+          if (!allowedRoles.includes(role)) {
+            throw new Error(`Invalid role. Must be one of: ${allowedRoles.join(", ")}`);
+          }
           const formattedPhone = phone.trim();
           const rateLimitResult = await checkOTPRateLimit(formattedPhone);
           if (!rateLimitResult.allowed) {
             throw new Error(rateLimitResult.reason || "Too many failed attempts. Account temporarily locked.");
           }
-          const otpDoc = await admin9.firestore().collection("otps").doc(formattedPhone).get();
+          const otpDoc = await admin8.firestore().collection("otps").doc(formattedPhone).get();
           if (!otpDoc.exists) {
             await recordOTPAttempt(formattedPhone, false);
             throw new Error("Invalid or expired OTP");
@@ -54344,15 +54617,15 @@ var init_auth_service = __esm({
             await recordOTPAttempt(formattedPhone, false);
             throw new Error("OTP has expired");
           }
-          await admin9.firestore().collection("otps").doc(formattedPhone).delete();
+          await admin8.firestore().collection("otps").doc(formattedPhone).delete();
           await recordOTPAttempt(formattedPhone, true);
           let uid;
           try {
-            const userRecord = await admin9.auth().getUserByPhoneNumber(formattedPhone);
+            const userRecord = await admin8.auth().getUserByPhoneNumber(formattedPhone);
             uid = userRecord.uid;
           } catch (err) {
             if (err.code === "auth/user-not-found") {
-              const newUserRecord = await admin9.auth().createUser({ phoneNumber: formattedPhone });
+              const newUserRecord = await admin8.auth().createUser({ phoneNumber: formattedPhone });
               uid = newUserRecord.uid;
             } else {
               throw err;
@@ -54373,7 +54646,7 @@ var init_auth_service = __esm({
               await this.createArtisanPlaceholder(uid);
             }
           }
-          const token = await admin9.auth().createCustomToken(uid);
+          const token = await admin8.auth().createCustomToken(uid);
           this.logOperation("otp-verified-login", { uid, role: user?.role });
           return { token, user };
         } catch (error51) {
@@ -54383,7 +54656,7 @@ var init_auth_service = __esm({
       async verifyEmailLogin(idToken, role) {
         try {
           this.validateRequired({ idToken, role }, ["idToken", "role"]);
-          const decodedToken = await admin9.auth().verifyIdToken(idToken);
+          const decodedToken = await admin8.auth().verifyIdToken(idToken);
           const uid = decodedToken.uid;
           const email3 = decodedToken.email;
           if (!email3) {
@@ -54403,7 +54676,7 @@ var init_auth_service = __esm({
               await this.createArtisanPlaceholder(uid);
             }
           }
-          const token = await admin9.auth().createCustomToken(uid);
+          const token = await admin8.auth().createCustomToken(uid);
           this.logOperation("email-password-login-verified", { uid, role: user?.role });
           return { token, user };
         } catch (error51) {
@@ -73424,7 +73697,7 @@ async function uploadFile(req, folder, maxSizeBytes = 5 * 1024 * 1024) {
         const ext = path.extname(filename);
         const uniqueFilename = `${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
         const filePath = `${folder}/${uniqueFilename}`;
-        const bucket = admin10.storage().bucket();
+        const bucket = admin9.storage().bucket();
         const file2 = bucket.file(filePath);
         await file2.save(fileBuffer, {
           metadata: {
@@ -73445,12 +73718,12 @@ async function uploadFile(req, folder, maxSizeBytes = 5 * 1024 * 1024) {
     req.pipe(busboy);
   });
 }
-var import_busboy, admin10, path, ALLOWED_IMAGE_TYPES, FILE_SIGNATURES;
+var import_busboy, admin9, path, ALLOWED_IMAGE_TYPES, FILE_SIGNATURES;
 var init_fileUpload = __esm({
   "src/utils/fileUpload.ts"() {
     "use strict";
     import_busboy = __toESM(require_lib6());
-    admin10 = __toESM(require("firebase-admin"));
+    admin9 = __toESM(require("firebase-admin"));
     path = __toESM(require("path"));
     init_logger();
     ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -73472,11 +73745,11 @@ var init_fileUpload = __esm({
 });
 
 // src/services/artisan.service.ts
-var admin11, ArtisanService;
+var admin10, ArtisanService;
 var init_artisan_service = __esm({
   "src/services/artisan.service.ts"() {
     "use strict";
-    admin11 = __toESM(require("firebase-admin"));
+    admin10 = __toESM(require("firebase-admin"));
     init_base_service();
     init_repositories();
     init_artisan_model();
@@ -73554,7 +73827,7 @@ var init_artisan_service = __esm({
               data.bank_details.bank_code
             );
           }
-          const bucket = admin11.storage().bucket();
+          const bucket = admin10.storage().bucket();
           let id_document_url = data.id_photo || "";
           if (data.id_document_base64) {
             const buffer = Buffer.from(data.id_document_base64, "base64");
@@ -73668,10 +73941,14 @@ var init_artisan_service = __esm({
           this.handleError(error51, "Upload ID document");
         }
       }
-      async getProfile(uid) {
+      async getProfile(uid, requestorUid, isAdmin) {
         try {
           const artisan = await this.artisanRepo.findById(uid);
           if (!artisan) throw new Error("Artisan profile not found");
+          if (!isAdmin && requestorUid !== uid) {
+            const { nin, id_document_url, bank_details, paystack_recipient_code, rejection_reason, ...publicProfile } = artisan;
+            return publicProfile;
+          }
           return artisan;
         } catch (error51) {
           this.handleError(error51, "Get artisan profile");
@@ -73681,8 +73958,8 @@ var init_artisan_service = __esm({
         try {
           const artisan = await this.artisanRepo.findById(uid);
           if (!artisan) throw new Error("Artisan profile not found");
-          const db = admin11.firestore();
-          const matchesSnapshot = await db.collection("matches").where("artisan_uid", "==", uid).get();
+          const db2 = admin10.firestore();
+          const matchesSnapshot = await db2.collection("matches").where("artisan_uid", "==", uid).get();
           let pending = 0, accepted = 0, completed = 0;
           matchesSnapshot.docs.forEach((doc) => {
             const status = doc.data().status;
@@ -73690,15 +73967,15 @@ var init_artisan_service = __esm({
             if (status === "accepted") accepted++;
             if (status === "completed") completed++;
           });
-          const transactionsSnapshot = await db.collection("transactions").where("artisan_uid", "==", uid).get();
+          const transactionsSnapshot = await db2.collection("transactions").where("artisan_uid", "==", uid).get();
           let held = 0, released = 0;
           transactionsSnapshot.docs.forEach((doc) => {
             const tx = doc.data();
-            const lockedValue = tx.locked_job_value || 0;
+            const lockedValue = tx.amounts?.job_value ?? tx.locked_job_value ?? 0;
+            const commission = tx.amounts ? lockedValue - (tx.amounts.artisan_net_labor ?? lockedValue) : tx.commission_retained ?? 0;
             if (tx.status === "held") {
               held += lockedValue;
             } else if (tx.status === "released") {
-              const commission = tx.commission_retained || 0;
               released += lockedValue - commission;
             }
           });
@@ -73735,7 +74012,7 @@ var init_artisan_service = __esm({
             const availableArtisans = await this.artisanRepo.findAvailable(filters.trade, filters.location);
             return availableArtisans.map(mapToPublicArtisan);
           }
-          let query = admin11.firestore().collection("artisan_profiles").where("is_verified", "==", true);
+          let query = admin10.firestore().collection("artisan_profiles").where("is_verified", "==", true);
           if (filters.trade) {
             query = query.where("trade", "==", filters.trade);
           }
@@ -73757,18 +74034,19 @@ var init_artisan_service = __esm({
 });
 
 // src/services/job.service.ts
-var admin12, JobService;
+var admin11, JobService;
 var init_job_service = __esm({
   "src/services/job.service.ts"() {
     "use strict";
-    admin12 = __toESM(require("firebase-admin"));
+    admin11 = __toESM(require("firebase-admin"));
     init_base_service();
     init_constants();
     init_trades();
     init_paystack();
+    init_analytics_service();
     JobService = class extends BaseService {
       get db() {
-        return admin12.firestore();
+        return admin11.firestore();
       }
       constructor() {
         super();
@@ -73792,11 +74070,20 @@ var init_job_service = __esm({
             urgency: data.urgency,
             match_fee: data.match_fee || 500,
             status: "open",
-            created_at: admin12.firestore.FieldValue.serverTimestamp(),
-            updated_at: admin12.firestore.FieldValue.serverTimestamp()
+            created_at: admin11.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin11.firestore.FieldValue.serverTimestamp()
           };
           const docRef = await this.db.collection(COLLECTIONS.JOBS).add(jobData);
           this.logOperation("job-created", { jobId: docRef.id, clientUid, trade: data.trade_needed });
+          try {
+            new AnalyticsService().trackEvent("job_posted", clientUid, {
+              job_id: docRef.id,
+              trade: data.trade_needed,
+              urgency: data.urgency
+            }).catch(() => {
+            });
+          } catch {
+          }
           return {
             job_id: docRef.id,
             ...jobData,
@@ -73825,7 +74112,7 @@ var init_job_service = __esm({
           if (!job) throw new Error("Job not found");
           const updateData = {
             ...updates,
-            updated_at: admin12.firestore.FieldValue.serverTimestamp()
+            updated_at: admin11.firestore.FieldValue.serverTimestamp()
           };
           await this.db.collection(COLLECTIONS.JOBS).doc(jobId).update(updateData);
           this.logOperation("job-updated", { jobId });
@@ -73865,12 +74152,12 @@ var init_job_service = __esm({
                 escrow_status: "DISPUTED",
                 status: "disputed",
                 // legacy sync
-                updated_at: admin12.firestore.FieldValue.serverTimestamp()
+                updated_at: admin11.firestore.FieldValue.serverTimestamp()
               });
             }
             transaction.update(jobRef, {
               status: "disputed",
-              updated_at: admin12.firestore.FieldValue.serverTimestamp()
+              updated_at: admin11.firestore.FieldValue.serverTimestamp()
             });
             const disputeRef = this.db.collection("disputes").doc();
             transaction.set(disputeRef, {
@@ -73878,7 +74165,7 @@ var init_job_service = __esm({
               raised_by_uid: uid,
               reason,
               status: "open",
-              created_at: admin12.firestore.FieldValue.serverTimestamp()
+              created_at: admin11.firestore.FieldValue.serverTimestamp()
             });
           });
           this.logOperation("job-disputed", { jobId, raisedBy: uid, reason });
@@ -73912,7 +74199,10 @@ var init_job_service = __esm({
           if (matchData?.job_id !== jobId) {
             throw new Error("Match does not belong to this job");
           }
-          const transactionsSnapshot = await this.db.collection("transactions").where("match_id", "==", matchId).where("status", "==", "held").limit(1).get();
+          let transactionsSnapshot = await this.db.collection("transactions").where("match_id", "==", matchId).where("escrow_status", "==", "HELD").limit(1).get();
+          if (transactionsSnapshot.empty) {
+            transactionsSnapshot = await this.db.collection("transactions").where("match_id", "==", matchId).where("status", "==", "held").limit(1).get();
+          }
           if (transactionsSnapshot.empty) {
             throw new Error("No held transaction found for this match. Payment may not have been completed.");
           }
@@ -73938,21 +74228,23 @@ var init_job_service = __esm({
           await this.db.runTransaction(async (transaction) => {
             transaction.update(transactionDoc.ref, {
               status: "released",
+              escrow_status: "RELEASED",
+              // PRD §7.3 step 4a: canonical v1.9 field
               commission_retained: commissionRetained,
-              released_at: admin12.firestore.FieldValue.serverTimestamp()
+              released_at: admin11.firestore.FieldValue.serverTimestamp()
             });
             const jobRef = this.db.collection("jobs").doc(jobId);
             transaction.update(jobRef, {
               status: "completed",
-              updated_at: admin12.firestore.FieldValue.serverTimestamp()
+              updated_at: admin11.firestore.FieldValue.serverTimestamp()
             });
             transaction.update(matchRef, {
               status: "completed",
-              updated_at: admin12.firestore.FieldValue.serverTimestamp()
+              updated_at: admin11.firestore.FieldValue.serverTimestamp()
             });
             transaction.update(artisanRef, {
-              completed_jobs: admin12.firestore.FieldValue.increment(1),
-              updated_at: admin12.firestore.FieldValue.serverTimestamp()
+              completed_jobs: admin11.firestore.FieldValue.increment(1),
+              updated_at: admin11.firestore.FieldValue.serverTimestamp()
             });
           });
           const netAmount = lockedJobValue - commissionRetained;
@@ -73969,6 +74261,16 @@ var init_job_service = __esm({
             }
           }
           this.logOperation("job-completed", { jobId, clientUid });
+          try {
+            new AnalyticsService().trackEvent("job_completed", clientUid, {
+              job_id: jobId,
+              artisan_uid: matchData.artisan_uid,
+              locked_job_value: lockedJobValue,
+              commission_retained: commissionRetained
+            }).catch(() => {
+            });
+          } catch {
+          }
           return {
             message: "Job marked complete and escrow released successfully",
             transaction: {
@@ -73994,7 +74296,7 @@ var init_job_service = __esm({
           }
           await this.db.collection(COLLECTIONS.JOBS).doc(jobId).update({
             status: "cancelled",
-            updated_at: admin12.firestore.FieldValue.serverTimestamp()
+            updated_at: admin11.firestore.FieldValue.serverTimestamp()
           });
           this.logOperation("job-cancelled", { jobId, clientUid });
         } catch (error51) {
@@ -74014,7 +74316,7 @@ var init_job_service = __esm({
           }
           await this.db.collection(COLLECTIONS.JOBS).doc(jobId).update({
             tracking_state: state,
-            updated_at: admin12.firestore.FieldValue.serverTimestamp()
+            updated_at: admin11.firestore.FieldValue.serverTimestamp()
           });
           this.logOperation("job-tracking-updated", { jobId, artisanUid, state });
         } catch (error51) {
@@ -74061,15 +74363,16 @@ var init_job_service = __esm({
 });
 
 // src/services/payment.service.ts
-var admin13, import_firestore2, PaymentService;
+var admin12, import_firestore4, PaymentService;
 var init_payment_service = __esm({
   "src/services/payment.service.ts"() {
     "use strict";
-    admin13 = __toESM(require("firebase-admin"));
-    import_firestore2 = require("firebase-admin/firestore");
+    admin12 = __toESM(require("firebase-admin"));
+    import_firestore4 = require("firebase-admin/firestore");
     init_axios2();
     init_base_service();
     init_constants();
+    init_analytics_service();
     PaymentService = class extends BaseService {
       constructor() {
         super();
@@ -74078,9 +74381,9 @@ var init_payment_service = __esm({
       }
       get db() {
         try {
-          return (0, import_firestore2.getFirestore)();
+          return (0, import_firestore4.getFirestore)();
         } catch {
-          return admin13.firestore ? admin13.firestore() : {};
+          return admin12.firestore ? admin12.firestore() : {};
         }
       }
       /**
@@ -74111,7 +74414,7 @@ var init_payment_service = __esm({
           await transactionDoc.ref.update({
             status: newStatus,
             escrow_status: transaction.type === "escrow" ? "HELD" : void 0,
-            updated_at: import_firestore2.FieldValue.serverTimestamp()
+            updated_at: import_firestore4.FieldValue.serverTimestamp()
           });
           if (transaction.type === "escrow" && transaction.match_id) {
             const matchRef = this.db.collection(COLLECTIONS.MATCHES).doc(transaction.match_id);
@@ -74123,23 +74426,30 @@ var init_payment_service = __esm({
               let timerHours = 4;
               if (jobDoc.exists) {
                 const urgency = jobDoc.data()?.urgency;
-                if (urgency === "Today") {
-                  timerHours = 2;
-                } else if (urgency === "This Week") {
-                  timerHours = 4;
-                } else if (urgency === "Flexible") {
-                  timerHours = 12;
-                }
+                if (urgency === "Today") timerHours = 2;
+                else if (urgency === "This Week") timerHours = 4;
+                else if (urgency === "Flexible") timerHours = 12;
               }
               const expiryDate = /* @__PURE__ */ new Date();
               expiryDate.setHours(expiryDate.getHours() + timerHours);
               await matchRef.update({
                 status: "paid",
-                // Active/Paid
-                no_response_timer_expiry: import_firestore2.Timestamp.fromDate(expiryDate),
-                updated_at: import_firestore2.FieldValue.serverTimestamp()
+                no_response_timer_expiry: import_firestore4.Timestamp.fromDate(expiryDate),
+                updated_at: import_firestore4.FieldValue.serverTimestamp()
+              });
+              await this.db.collection(COLLECTIONS.JOBS).doc(matchData.job_id).update({
+                chat_unlocked: true,
+                chat_unlocked_at: import_firestore4.FieldValue.serverTimestamp(),
+                updated_at: import_firestore4.FieldValue.serverTimestamp()
               });
             }
+            new AnalyticsService().trackEvent("payment_success", transaction.client_uid, {
+              reference,
+              match_id: transaction.match_id,
+              job_id: transaction.job_id,
+              total_charged: transaction.amounts?.total_charged || transaction.amount
+            }).catch(() => {
+            });
           }
           this.logOperation("payment-success-handled", { reference, newStatus });
         } catch (error51) {
@@ -74193,16 +74503,16 @@ var init_payment_service = __esm({
 });
 
 // src/services/escrow.service.ts
-var admin14, EscrowService;
+var admin13, EscrowService;
 var init_escrow_service = __esm({
   "src/services/escrow.service.ts"() {
     "use strict";
-    admin14 = __toESM(require("firebase-admin"));
+    admin13 = __toESM(require("firebase-admin"));
     init_base_service();
     init_constants();
     EscrowService = class extends BaseService {
       get db() {
-        return admin14.firestore();
+        return admin13.firestore();
       }
       constructor() {
         super();
@@ -74242,13 +74552,13 @@ var init_escrow_service = __esm({
             status: "released",
             // keep legacy field in sync
             commission_retained: commissionRetained,
-            released_at: admin14.firestore.FieldValue.serverTimestamp(),
-            updated_at: admin14.firestore.FieldValue.serverTimestamp()
+            released_at: admin13.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin13.firestore.FieldValue.serverTimestamp()
           });
           await jobDoc.ref.update({
             status: "completed",
-            completed_at: admin14.firestore.FieldValue.serverTimestamp(),
-            updated_at: admin14.firestore.FieldValue.serverTimestamp()
+            completed_at: admin13.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin13.firestore.FieldValue.serverTimestamp()
           });
           this.logOperation("escrow-released", {
             jobId,
@@ -74352,7 +74662,7 @@ var init_escrow_service = __esm({
               ...transaction?.metadata,
               refund_reason: reason
             },
-            updated_at: admin14.firestore.FieldValue.serverTimestamp()
+            updated_at: admin13.firestore.FieldValue.serverTimestamp()
           });
           this.logOperation("escrow-refunded", {
             transactionId,
@@ -74367,12 +74677,24 @@ var init_escrow_service = __esm({
 });
 
 // src/services/rating.service.ts
-var RatingService;
+var rating_service_exports = {};
+__export(rating_service_exports, {
+  DuplicateRatingError: () => DuplicateRatingError,
+  RatingService: () => RatingService
+});
+var DuplicateRatingError, RatingService;
 var init_rating_service = __esm({
   "src/services/rating.service.ts"() {
     "use strict";
     init_base_service();
     init_repositories();
+    init_analytics_service();
+    DuplicateRatingError = class extends Error {
+      constructor() {
+        super("Rating already exists for this job");
+        this.name = "DuplicateRatingError";
+      }
+    };
     RatingService = class extends BaseService {
       constructor() {
         super();
@@ -74392,7 +74714,7 @@ var init_rating_service = __esm({
           }
           const existingRating = await this.ratingRepo.findByJobId(data.jobId);
           if (existingRating) {
-            throw new Error("Rating already exists for this job");
+            throw new DuplicateRatingError();
           }
           const rating = await this.ratingRepo.createRating({
             job_id: data.jobId,
@@ -74406,6 +74728,12 @@ var init_rating_service = __esm({
             jobId: data.jobId,
             artisanUid: data.artisanUid,
             score: data.score
+          });
+          new AnalyticsService().trackEvent("rating_submitted", data.clientUid, {
+            job_id: data.jobId,
+            artisan_uid: data.artisanUid,
+            score: data.score
+          }).catch(() => {
           });
           return rating;
         } catch (error51) {
@@ -74473,17 +74801,17 @@ var init_rating_service = __esm({
 });
 
 // src/services/admin.service.ts
-var admin15, AdminService;
+var admin14, AdminService;
 var init_admin_service = __esm({
   "src/services/admin.service.ts"() {
     "use strict";
-    admin15 = __toESM(require("firebase-admin"));
+    admin14 = __toESM(require("firebase-admin"));
     init_base_service();
     init_repositories();
     init_constants();
     AdminService = class extends BaseService {
       get db() {
-        return admin15.firestore();
+        return admin14.firestore();
       }
       constructor() {
         super();
@@ -74625,11 +74953,12 @@ var init_admin_service = __esm({
           const artisansSnapshot = await this.db.collection(COLLECTIONS.ARTISANS).get();
           let verifiedArtisans = 0;
           artisansSnapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.is_verified) verifiedArtisans++;
+            if (doc.data().is_verified) verifiedArtisans++;
           });
           const jobsSnapshot = await this.db.collection(COLLECTIONS.JOBS).get();
-          let openJobs = 0, matchedJobs = 0, completedJobs = 0, cancelledJobs = 0;
+          let openJobs = 0, matchedJobs = 0, completedJobs = 0, cancelledJobs = 0, jobsCompletedToday = 0;
+          const todayStart = /* @__PURE__ */ new Date();
+          todayStart.setHours(0, 0, 0, 0);
           jobsSnapshot.forEach((doc) => {
             const data = doc.data();
             switch (data.status) {
@@ -74642,6 +74971,10 @@ var init_admin_service = __esm({
                 break;
               case "completed":
                 completedJobs++;
+                if (data.completed_at) {
+                  const completedAt = data.completed_at.toDate ? data.completed_at.toDate() : new Date(data.completed_at);
+                  if (completedAt >= todayStart) jobsCompletedToday++;
+                }
                 break;
               case "cancelled":
                 cancelledJobs++;
@@ -74650,12 +74983,14 @@ var init_admin_service = __esm({
           });
           const matchesSnapshot = await this.db.collection(COLLECTIONS.MATCHES).get();
           let pendingMatches = 0, acceptedMatches = 0, completedMatches = 0;
+          let totalMatchesForNoResponse = 0, noResponseCount = 0;
           matchesSnapshot.forEach((doc) => {
             const data = doc.data();
             switch (data.status) {
               case "pending":
                 pendingMatches++;
                 break;
+              case "paid":
               case "accepted":
                 acceptedMatches++;
                 break;
@@ -74663,44 +74998,46 @@ var init_admin_service = __esm({
                 completedMatches++;
                 break;
             }
-          });
-          const transactionsSnapshot = await this.db.collection(COLLECTIONS.TRANSACTIONS).get();
-          let totalHeld = 0, totalReleased = 0, totalCommission = 0;
-          transactionsSnapshot.forEach((doc) => {
-            const data = doc.data();
-            const amount = data.amount || 0;
-            const commission = data.commission_retained || 0;
-            if (data.status === "held") {
-              totalHeld += amount;
-            } else if (data.status === "released") {
-              totalReleased += amount;
-              totalCommission += commission;
+            if (data.no_response_timer_expiry) {
+              totalMatchesForNoResponse++;
+              if (data.status === "refunded") noResponseCount++;
             }
           });
+          const transactionsSnapshot = await this.db.collection(COLLECTIONS.TRANSACTIONS).get();
+          let totalHeld = 0, totalReleased = 0, totalCommission = 0, totalMatchFees = 0;
+          transactionsSnapshot.forEach((doc) => {
+            const data = doc.data();
+            const jobValue = data.amounts?.job_value || data.locked_job_value || 0;
+            const commission = data.amounts ? jobValue - (data.amounts.artisan_net_labor ?? jobValue) : data.commission_retained ?? 0;
+            const matchFee = data.amounts?.platform_match_fee || 500;
+            const isHeld = data.escrow_status === "HELD" || data.escrow_status === "DISBURSED_PARTIAL" || data.status === "held";
+            const isReleased = data.escrow_status === "RELEASED" || data.status === "released";
+            if (isHeld) {
+              totalHeld += jobValue;
+              totalMatchFees += matchFee;
+            } else if (isReleased) {
+              totalReleased += jobValue;
+              totalCommission += commission;
+              totalMatchFees += matchFee;
+            }
+          });
+          const totalPosted = jobsSnapshot.size;
+          const noResponseRate = totalMatchesForNoResponse > 0 ? Math.round(noResponseCount / totalMatchesForNoResponse * 1e3) / 10 : 0;
           return {
-            users: {
-              total: usersSnapshot.size,
-              clients: clientCount,
-              artisans: artisanCount,
-              verified_artisans: verifiedArtisans
-            },
-            jobs: {
-              total: jobsSnapshot.size,
-              open: openJobs,
-              matched: matchedJobs,
-              completed: completedJobs,
-              cancelled: cancelledJobs
-            },
-            matches: {
-              total: matchesSnapshot.size,
-              pending: pendingMatches,
-              accepted: acceptedMatches,
-              completed: completedMatches
-            },
-            revenue: {
-              total_held: totalHeld,
-              total_released: totalReleased,
-              total_commission: totalCommission
+            users: { total: usersSnapshot.size, clients: clientCount, artisans: artisanCount, verified_artisans: verifiedArtisans },
+            jobs: { total: totalPosted, open: openJobs, matched: matchedJobs, completed: completedJobs, cancelled: cancelledJobs },
+            matches: { total: matchesSnapshot.size, pending: pendingMatches, accepted: acceptedMatches, completed: completedMatches },
+            revenue: { total_held: totalHeld, total_released: totalReleased, total_commission: totalCommission },
+            // PRD AD-003 additions
+            no_response_rate: noResponseRate,
+            jobs_completed_today: jobsCompletedToday,
+            total_match_fees: totalMatchFees,
+            conversion_funnel: {
+              jobs_posted: totalPosted,
+              jobs_matched: matchedJobs + completedJobs,
+              jobs_completed: completedJobs,
+              match_conversion_pct: totalPosted > 0 ? Math.round((matchedJobs + completedJobs) / totalPosted * 1e3) / 10 : 0,
+              completion_pct: matchedJobs + completedJobs > 0 ? Math.round(completedJobs / (matchedJobs + completedJobs) * 1e3) / 10 : 0
             }
           };
         } catch (error51) {
@@ -74711,31 +75048,52 @@ var init_admin_service = __esm({
   }
 });
 
-// src/services/analytics.service.ts
-var init_analytics_service = __esm({
-  "src/services/analytics.service.ts"() {
+// src/utils/priorityCalculator.ts
+var calculatePriorityScore;
+var init_priorityCalculator = __esm({
+  "src/utils/priorityCalculator.ts"() {
     "use strict";
-    init_base_service();
-    init_repositories();
+    calculatePriorityScore = (artisan) => {
+      const repScore = Math.max(0, Math.min(5, artisan.reputation_score || 0));
+      const repWeight = repScore / 5 * 0.4;
+      const jobsCompleted = Math.max(0, artisan.completed_jobs || 0);
+      const jobsWeight = Math.min(jobsCompleted, 50) / 50 * 0.3;
+      const avgSpeed = artisan.avg_response_minutes ?? 60;
+      let speedWeight = 0;
+      if (avgSpeed < 30) {
+        speedWeight = 0.2;
+      } else if (avgSpeed < 120) {
+        speedWeight = 0.1;
+      } else if (avgSpeed < 1440) {
+        speedWeight = 0.04;
+      } else {
+        speedWeight = 0;
+      }
+      const verifyWeight = artisan.verified ? 0.1 : 0;
+      const totalScore = repWeight + jobsWeight + speedWeight + verifyWeight;
+      return Math.round(totalScore * 1e4) / 1e4;
+    };
   }
 });
 
 // src/services/matching.service.ts
-var admin16, MatchingService;
+var admin15, MatchingService;
 var init_matching_service = __esm({
   "src/services/matching.service.ts"() {
     "use strict";
-    admin16 = __toESM(require("firebase-admin"));
+    admin15 = __toESM(require("firebase-admin"));
     init_base_service();
+    init_priorityCalculator();
+    init_analytics_service();
     MatchingService = class extends BaseService {
       get db() {
-        return admin16.firestore();
-      }
-      constructor() {
-        super();
+        return admin15.firestore();
       }
       /**
-       * Match artisans to a job
+       * Match artisans to a job using the PRD §7.2 priority score algorithm.
+       * Hard filters: trade = job.trade AND is_available = true AND is_verified = true
+       * Sort: priority score descending (concentration-fix rotation weight applied)
+       * Returns empty list with zero-result analytics event when no artisans found.
        */
       async matchArtisansToJob(jobId, limit = 5) {
         const jobDoc = await this.db.collection("jobs").doc(jobId).get();
@@ -74743,38 +75101,56 @@ var init_matching_service = __esm({
           throw new Error("Job not found");
         }
         const jobData = jobDoc.data();
-        const artisansSnapshot = await this.db.collection("artisan_profiles").where("trade", "==", jobData.trade_needed).where("is_available", "==", true).where("is_verified", "==", true).get();
+        const targetTrade = jobData.trade_needed || jobData.trade;
+        const artisansSnapshot = await this.db.collection("artisan_profiles").where("trade", "==", targetTrade).where("is_available", "==", true).where("is_verified", "==", true).get();
         if (artisansSnapshot.empty) {
+          try {
+            new AnalyticsService().trackEvent("zero_match_results", jobData.client_uid, {
+              job_id: jobId,
+              trade: targetTrade
+            }).catch(() => {
+            });
+          } catch {
+          }
           return { matches: [], count: 0 };
         }
         const artisans = artisansSnapshot.docs.map((doc) => ({
           uid: doc.id,
           ...doc.data()
         }));
-        artisans.sort((a, b) => {
-          const calcPriority = (artisan) => {
-            const avg_rating = artisan.reputation_score || 0;
-            const completed_jobs = Math.min(artisan.completed_jobs || 0, 50);
-            const response_speed_score = 1;
-            const verification_bonus = 1;
-            return avg_rating * 0.4 + completed_jobs / 50 * 0.3 + response_speed_score * 0.2 + verification_bonus * 0.1;
-          };
-          const aPriority = calcPriority(a);
-          const bPriority = calcPriority(b);
-          return bPriority - aPriority;
+        let recentlyMatchedUids = /* @__PURE__ */ new Set();
+        try {
+          const lastMatchSnapshot = await this.db.collection("matches").where("status", "in", ["pending", "paid", "accepted", "completed"]).orderBy("created_at", "desc").limit(10).get();
+          recentlyMatchedUids = new Set(
+            lastMatchSnapshot.docs.map((d) => d.data().artisan_uid).filter(Boolean)
+          );
+        } catch {
+        }
+        const scored = artisans.map((artisan) => {
+          const base = calculatePriorityScore({
+            reputation_score: artisan.reputation_score ?? 0,
+            completed_jobs: artisan.completed_jobs ?? 0,
+            avg_response_minutes: 60,
+            // default until response tracking is live
+            verified: artisan.is_verified
+          });
+          const rotationPenalty = recentlyMatchedUids.has(artisan.uid) ? 0.15 : 0;
+          return { artisan, score: Math.max(0, base - rotationPenalty) };
         });
-        const topMatches = artisans.slice(0, limit);
+        scored.sort((a, b) => b.score - a.score);
+        const topMatches = scored.slice(0, limit).map((s) => s.artisan);
         const matchResults = await this.db.runTransaction(async (transaction) => {
           const matchesRef = this.db.collection("matches");
           const createdMatches = [];
           for (const artisan of topMatches) {
             const matchData = {
               job_id: jobId,
+              client_uid: jobData.client_uid,
               artisan_uid: artisan.uid,
               status: "pending",
               rating: null,
-              created_at: admin16.firestore.FieldValue.serverTimestamp(),
-              updated_at: admin16.firestore.FieldValue.serverTimestamp()
+              created_at: admin15.firestore.FieldValue.serverTimestamp(),
+              updated_at: admin15.firestore.FieldValue.serverTimestamp()
             };
             const matchDocRef = matchesRef.doc();
             transaction.set(matchDocRef, matchData);
@@ -74787,16 +75163,26 @@ var init_matching_service = __esm({
                 location: artisan.location,
                 completed_jobs: artisan.completed_jobs,
                 reputation_score: artisan.reputation_score,
-                tagline: artisan.tagline
+                tagline: artisan.tagline,
+                is_verified: artisan.is_verified
               }
             });
           }
           transaction.update(jobDoc.ref, {
             status: "matched",
-            updated_at: admin16.firestore.FieldValue.serverTimestamp()
+            updated_at: admin15.firestore.FieldValue.serverTimestamp()
           });
           return createdMatches;
         });
+        try {
+          new AnalyticsService().trackEvent("artisan_matched", jobData.client_uid, {
+            job_id: jobId,
+            trade: targetTrade,
+            match_count: matchResults.length
+          }).catch(() => {
+          });
+        } catch {
+        }
         return { matches: matchResults, count: matchResults.length };
       }
     };
@@ -75021,7 +75407,9 @@ var init_artisan_controller = __esm({
       async getProfile(req, res) {
         try {
           const { uid } = req.params;
-          const profile = await this.artisanService.getProfile(uid);
+          const adminUid = process.env.ADMIN_UID;
+          const isAdmin = req.user?.uid === adminUid;
+          const profile = await this.artisanService.getProfile(uid, req.user?.uid, isAdmin);
           this.sendSuccess(res, "Profile fetched successfully", { profile });
         } catch (error51) {
           this.handleError(error51, res, "Get profile");
@@ -75040,101 +75428,14 @@ var init_artisan_controller = __esm({
   }
 });
 
-// src/controllers/rating.controller.ts
-var rating_controller_exports = {};
-__export(rating_controller_exports, {
-  RatingController: () => RatingController
-});
-var RatingController;
-var init_rating_controller = __esm({
-  "src/controllers/rating.controller.ts"() {
-    "use strict";
-    init_base_controller();
-    init_services();
-    RatingController = class extends BaseController {
-      constructor() {
-        super();
-        this.ratingService = new RatingService();
-      }
-      /**
-       * POST /api/jobs/:id/rating
-       */
-      async submitRating(req, res) {
-        try {
-          if (!req.user) {
-            return this.sendUnauthorized(res, "Authentication required");
-          }
-          const { id: jobId } = req.params;
-          const { artisan_uid, score, review } = req.body;
-          const rating = await this.ratingService.submitRating({
-            jobId,
-            artisanUid: artisan_uid,
-            clientUid: req.user.uid,
-            score,
-            review
-          });
-          this.sendCreated(res, "Rating submitted successfully", { rating });
-        } catch (error51) {
-          if (error51.message && error51.message.includes("already exists")) {
-            return this.sendConflict(res, "Rating already exists for this job");
-          }
-          this.handleError(error51, res, "Submit rating");
-        }
-      }
-      /**
-       * GET /api/artisans/:uid/ratings
-       */
-      async getArtisanRatings(req, res) {
-        try {
-          const { uid } = req.params;
-          const ratings = await this.ratingService.getArtisanRatings(uid);
-          this.sendSuccess(res, "Ratings fetched successfully", {
-            ratings,
-            count: ratings.length
-          });
-        } catch (error51) {
-          this.handleError(error51, res, "Get artisan ratings");
-        }
-      }
-      /**
-       * GET /api/artisans/:uid/rating-stats
-       */
-      async getRatingStats(req, res) {
-        try {
-          const { uid } = req.params;
-          const stats = await this.ratingService.getArtisanRatingStats(uid);
-          this.sendSuccess(res, "Rating statistics fetched successfully", stats);
-        } catch (error51) {
-          this.handleError(error51, res, "Get rating stats");
-        }
-      }
-      /**
-       * GET /api/jobs/:id/rating
-       */
-      async getJobRating(req, res) {
-        try {
-          const { id: jobId } = req.params;
-          const rating = await this.ratingService.getRatingForJob(jobId);
-          if (!rating) {
-            return this.sendNotFound(res, "No rating found for this job");
-          }
-          this.sendSuccess(res, "Rating fetched successfully", { rating });
-        } catch (error51) {
-          this.handleError(error51, res, "Get job rating");
-        }
-      }
-    };
-  }
-});
-
 // src/controllers/job.controller.ts
-var admin17, JobController;
+var admin16, JobController;
 var init_job_controller = __esm({
   "src/controllers/job.controller.ts"() {
     "use strict";
     init_base_controller();
     init_services();
-    admin17 = __toESM(require("firebase-admin"));
+    admin16 = __toESM(require("firebase-admin"));
     JobController = class extends BaseController {
       constructor() {
         super();
@@ -75211,19 +75512,19 @@ var init_job_controller = __esm({
           if (!artisan_id) {
             return this.sendBadRequest(res, "Artisan ID is required");
           }
-          const db = admin17.firestore();
-          const matchesSnapshot = await db.collection("matches").where("job_id", "==", id).where("artisan_uid", "==", artisan_id).limit(1).get();
+          const db2 = admin16.firestore();
+          const matchesSnapshot = await db2.collection("matches").where("job_id", "==", id).where("artisan_uid", "==", artisan_id).limit(1).get();
           if (matchesSnapshot.empty) {
-            const matchRef = db.collection("matches").doc();
+            const matchRef = db2.collection("matches").doc();
             await matchRef.set({
               job_id: id,
               artisan_uid: artisan_id,
               status: "accepted",
               rating: null,
-              created_at: admin17.firestore.FieldValue.serverTimestamp(),
-              updated_at: admin17.firestore.FieldValue.serverTimestamp()
+              created_at: admin16.firestore.FieldValue.serverTimestamp(),
+              updated_at: admin16.firestore.FieldValue.serverTimestamp()
             });
-            await db.collection("jobs").doc(id).update({
+            await db2.collection("jobs").doc(id).update({
               status: "matched",
               assigned_artisan_uid: artisan_id
             });
@@ -75232,7 +75533,7 @@ var init_job_controller = __esm({
           }
           const matchDoc = matchesSnapshot.docs[0];
           await matchDoc.ref.update({ status: "accepted" });
-          await db.collection("jobs").doc(id).update({
+          await db2.collection("jobs").doc(id).update({
             status: "matched",
             assigned_artisan_uid: artisan_id
           });
@@ -75248,34 +75549,43 @@ var init_job_controller = __esm({
           }
           const { id } = req.params;
           let { match_id, rating, review } = req.body;
+          const db2 = admin16.firestore();
           if (!match_id) {
-            const matchesSnapshot = await admin17.firestore().collection("matches").where("job_id", "==", id).where("status", "==", "accepted").limit(1).get();
-            if (!matchesSnapshot.empty) {
-              match_id = matchesSnapshot.docs[0].id;
+            const paidSnapshot = await db2.collection("matches").where("job_id", "==", id).where("status", "==", "paid").limit(1).get();
+            if (!paidSnapshot.empty) {
+              match_id = paidSnapshot.docs[0].id;
             } else {
-              const allMatches = await admin17.firestore().collection("matches").where("job_id", "==", id).get();
-              if (allMatches.size === 1) {
-                match_id = allMatches.docs[0].id;
+              const acceptedSnapshot = await db2.collection("matches").where("job_id", "==", id).where("status", "==", "accepted").limit(1).get();
+              if (!acceptedSnapshot.empty) {
+                match_id = acceptedSnapshot.docs[0].id;
               } else {
-                return this.sendBadRequest(res, "Match ID could not be determined automatically");
+                const allMatches = await db2.collection("matches").where("job_id", "==", id).get();
+                if (allMatches.size === 1) {
+                  match_id = allMatches.docs[0].id;
+                } else {
+                  return this.sendBadRequest(res, "match_id is required");
+                }
               }
             }
           }
           const result = await this.jobService.markComplete(id, req.user.uid, match_id);
           if (rating) {
             try {
-              const { RatingController: RatingController2 } = (init_rating_controller(), __toCommonJS(rating_controller_exports));
-              const ratingController = new RatingController2();
-              const ratingReq = { ...req, params: { id }, body: { score: rating, review } };
-              const ratingRes = {
-                status: () => ({ json: () => {
-                } }),
-                json: () => {
-                }
-              };
-              await ratingController.submitRating(ratingReq, ratingRes);
+              const matchDoc = await db2.collection("matches").doc(match_id).get();
+              const artisan_uid = matchDoc.data()?.artisan_uid;
+              if (artisan_uid) {
+                const { RatingService: RatingService2, DuplicateRatingError: DuplicateRatingError2 } = (init_rating_service(), __toCommonJS(rating_service_exports));
+                const ratingService = new RatingService2();
+                await ratingService.submitRating({
+                  jobId: id,
+                  artisanUid: artisan_uid,
+                  clientUid: req.user.uid,
+                  score: rating,
+                  review
+                });
+              }
             } catch (e) {
-              console.error("Error submitting rating inline", e);
+              this.logger.warn("Inline rating submission skipped", { error: e?.message });
             }
           }
           this.sendSuccess(res, "Job marked complete and escrow released successfully", result);
@@ -75310,8 +75620,8 @@ var init_job_controller = __esm({
             return this.sendUnauthorized(res, "Authentication required");
           }
           const { id } = req.params;
-          const db = admin17.firestore();
-          const jobDoc = await db.collection("jobs").doc(id).get();
+          const db2 = admin16.firestore();
+          const jobDoc = await db2.collection("jobs").doc(id).get();
           if (!jobDoc.exists) {
             return this.sendNotFound(res, "Job not found");
           }
@@ -75324,13 +75634,13 @@ var init_job_controller = __esm({
           }
           const { matches, count } = await this.matchingService.matchArtisansToJob(id);
           if (count === 0) {
-            await db.collection("analytics_events").add({
+            await db2.collection("analytics_events").add({
               event_type: "zero_results",
               job_id: id,
               trade: jobData.trade_needed || jobData.trade,
               location: jobData.location,
               client_uid: req.user.uid,
-              timestamp: admin17.firestore.FieldValue.serverTimestamp()
+              timestamp: admin16.firestore.FieldValue.serverTimestamp()
             });
             this.sendSuccess(res, "No available artisans found for this trade", { matches: [], count: 0 });
             return;
@@ -75346,8 +75656,8 @@ var init_job_controller = __esm({
             return this.sendUnauthorized(res, "Authentication required");
           }
           const { id } = req.params;
-          const db = admin17.firestore();
-          const jobRef = db.collection("jobs").doc(id);
+          const db2 = admin16.firestore();
+          const jobRef = db2.collection("jobs").doc(id);
           const jobDoc = await jobRef.get();
           if (!jobDoc.exists) {
             return this.sendNotFound(res, "Job not found");
@@ -75356,14 +75666,14 @@ var init_job_controller = __esm({
           if (jobData?.client_uid !== req.user.uid) {
             return this.sendForbidden(res, "Forbidden: You do not own this job");
           }
-          const matchesSnapshot = await db.collection("matches").where("job_id", "==", id).orderBy("created_at", "desc").get();
+          const matchesSnapshot = await db2.collection("matches").where("job_id", "==", id).orderBy("created_at", "desc").get();
           const artisanUids = [...new Set(matchesSnapshot.docs.map((doc) => doc.data().artisan_uid))];
           const artisanProfiles = {};
           if (artisanUids.length > 0) {
             const batchSize = 10;
             for (let i = 0; i < artisanUids.length; i += batchSize) {
               const batch = artisanUids.slice(i, i + batchSize);
-              const artisansSnapshot = await db.collection("artisan_profiles").where(admin17.firestore.FieldPath.documentId(), "in", batch).get();
+              const artisansSnapshot = await db2.collection("artisan_profiles").where(admin16.firestore.FieldPath.documentId(), "in", batch).get();
               artisansSnapshot.docs.forEach((doc) => {
                 artisanProfiles[doc.id] = doc.data();
               });
@@ -75497,29 +75807,33 @@ var init_payment_controller = __esm({
 });
 
 // src/services/proforma.service.ts
-var admin18, ProformaService;
+var admin17, ProformaService;
 var init_proforma_service = __esm({
   "src/services/proforma.service.ts"() {
     "use strict";
-    admin18 = __toESM(require("firebase-admin"));
+    admin17 = __toESM(require("firebase-admin"));
+    init_axios2();
     init_base_service();
     ProformaService = class extends BaseService {
       get db() {
-        return admin18.firestore();
+        return admin17.firestore();
       }
       async submitProforma(artisanUid, data) {
         try {
           const jobDoc = await this.db.collection("jobs").doc(data.job_id).get();
           if (!jobDoc.exists) throw new Error("Job not found");
-          const matchSnapshot = await this.db.collection("matches").where("job_id", "==", data.job_id).where("artisan_uid", "==", artisanUid).where("status", "==", "accepted").limit(1).get();
-          if (matchSnapshot.empty) {
+          const matchSnapshot = await this.db.collection("matches").where("job_id", "==", data.job_id).where("artisan_uid", "==", artisanUid).limit(1).get();
+          const isAssigned = !matchSnapshot.empty || jobDoc.data()?.matched_artisan_uid === artisanUid;
+          if (!isAssigned) {
             throw new Error("Forbidden: You are not the assigned artisan for this job");
           }
+          const invoiceDocUrl = data.invoice_document_url || data.receipt_url || "";
           const invoiceData = {
             ...data,
+            invoice_document_url: invoiceDocUrl,
             artisan_uid: artisanUid,
             status: "pending",
-            created_at: admin18.firestore.FieldValue.serverTimestamp()
+            created_at: admin17.firestore.FieldValue.serverTimestamp()
           };
           const docRef = await this.db.collection("proformas").add(invoiceData);
           this.logOperation("proforma-submitted", {
@@ -75578,26 +75892,61 @@ var init_proforma_service = __esm({
             throw new Error("Proforma invoice not found");
           }
           const proformaData = doc.data();
+          if (proformaData.status !== "pending") {
+            throw new Error(`Proforma is already ${proformaData.status}`);
+          }
+          const supplierAmount = Math.round((proformaData.total_amount || 0) * 100);
+          let transferReference = null;
+          if (proformaData.supplier_recipient_code && supplierAmount > 0) {
+            const paystackKey = process.env.PAYSTACK_SECRET_KEY || "";
+            try {
+              const transferRes = await axios_default.post(
+                "https://api.paystack.co/transfer",
+                {
+                  source: "balance",
+                  amount: supplierAmount,
+                  recipient: proformaData.supplier_recipient_code,
+                  reason: `Artiva proforma payout \u2014 invoice ${proformaId}`
+                },
+                {
+                  headers: {
+                    Authorization: `Bearer ${paystackKey}`,
+                    "Content-Type": "application/json"
+                  }
+                }
+              );
+              transferReference = transferRes.data?.data?.transfer_code || null;
+            } catch (transferErr) {
+              this.logger.error("Paystack Transfer failed for proforma", {
+                proformaId,
+                error: transferErr.response?.data?.message || transferErr.message
+              });
+            }
+          } else {
+            this.logger.warn("No supplier_recipient_code on proforma \u2014 skipping automated transfer", { proformaId });
+          }
           await docRef.update({
             status: "approved",
             admin_notes: notes || null,
-            updated_at: admin18.firestore.FieldValue.serverTimestamp()
+            transfer_reference: transferReference,
+            updated_at: admin17.firestore.FieldValue.serverTimestamp()
           });
-          const txSnapshot = await this.db.collection("transactions").where("job_id", "==", proformaData.job_id).where("type", "==", "escrow").where("escrow_status", "==", "HELD").limit(1).get();
+          const txSnapshot = await this.db.collection("transactions").where("job_id", "==", proformaData.job_id).where("type", "==", "escrow").where("escrow_status", "in", ["HELD", "DISBURSED_PARTIAL"]).limit(1).get();
           if (!txSnapshot.empty) {
             const txDoc = txSnapshot.docs[0];
             await txDoc.ref.update({
               escrow_status: "DISBURSED_PARTIAL",
-              proforma_invoices: admin18.firestore.FieldValue.arrayUnion({
+              proforma_invoices: admin17.firestore.FieldValue.arrayUnion({
                 invoice_id: proformaId,
                 supplier_name: proformaData.supplier_name,
                 amount: proformaData.total_amount,
+                transfer_reference: transferReference,
                 status: "approved"
               }),
-              updated_at: admin18.firestore.FieldValue.serverTimestamp()
+              updated_at: admin17.firestore.FieldValue.serverTimestamp()
             });
           }
-          this.logOperation("proforma-approved", { proformaId, jobId: proformaData.job_id });
+          this.logOperation("proforma-approved", { proformaId, jobId: proformaData.job_id, transferReference });
         } catch (error51) {
           this.handleError(error51, "Approve proforma");
         }
@@ -75608,7 +75957,7 @@ var init_proforma_service = __esm({
           await docRef.update({
             status: "rejected",
             admin_notes: reason,
-            updated_at: admin18.firestore.FieldValue.serverTimestamp()
+            updated_at: admin17.firestore.FieldValue.serverTimestamp()
           });
           this.logOperation("proforma-rejected", { proformaId });
         } catch (error51) {
@@ -75752,16 +76101,104 @@ var init_admin_controller = __esm({
   }
 });
 
+// src/controllers/rating.controller.ts
+var rating_controller_exports = {};
+__export(rating_controller_exports, {
+  RatingController: () => RatingController
+});
+var RatingController;
+var init_rating_controller = __esm({
+  "src/controllers/rating.controller.ts"() {
+    "use strict";
+    init_base_controller();
+    init_rating_service();
+    RatingController = class extends BaseController {
+      constructor() {
+        super();
+        this.ratingService = new RatingService();
+      }
+      /**
+       * POST /api/jobs/:id/rating
+       */
+      async submitRating(req, res) {
+        try {
+          if (!req.user) {
+            return this.sendUnauthorized(res, "Authentication required");
+          }
+          const { id: jobId } = req.params;
+          const { artisan_uid, score, review } = req.body;
+          const rating = await this.ratingService.submitRating({
+            jobId,
+            artisanUid: artisan_uid,
+            clientUid: req.user.uid,
+            score,
+            review
+          });
+          this.sendCreated(res, "Rating submitted successfully", { rating });
+        } catch (error51) {
+          if (error51 instanceof DuplicateRatingError) {
+            return this.sendConflict(res, error51.message);
+          }
+          this.handleError(error51, res, "Submit rating");
+        }
+      }
+      /**
+       * GET /api/artisans/:uid/ratings
+       */
+      async getArtisanRatings(req, res) {
+        try {
+          const { uid } = req.params;
+          const ratings = await this.ratingService.getArtisanRatings(uid);
+          this.sendSuccess(res, "Ratings fetched successfully", {
+            ratings,
+            count: ratings.length
+          });
+        } catch (error51) {
+          this.handleError(error51, res, "Get artisan ratings");
+        }
+      }
+      /**
+       * GET /api/artisans/:uid/rating-stats
+       */
+      async getRatingStats(req, res) {
+        try {
+          const { uid } = req.params;
+          const stats = await this.ratingService.getArtisanRatingStats(uid);
+          this.sendSuccess(res, "Rating statistics fetched successfully", stats);
+        } catch (error51) {
+          this.handleError(error51, res, "Get rating stats");
+        }
+      }
+      /**
+       * GET /api/jobs/:id/rating
+       */
+      async getJobRating(req, res) {
+        try {
+          const { id: jobId } = req.params;
+          const rating = await this.ratingService.getRatingForJob(jobId);
+          if (!rating) {
+            return this.sendNotFound(res, "No rating found for this job");
+          }
+          this.sendSuccess(res, "Rating fetched successfully", { rating });
+        } catch (error51) {
+          this.handleError(error51, res, "Get job rating");
+        }
+      }
+    };
+  }
+});
+
 // src/services/chat.service.ts
-var admin19, ChatService;
+var admin18, ChatService;
 var init_chat_service = __esm({
   "src/services/chat.service.ts"() {
     "use strict";
-    admin19 = __toESM(require("firebase-admin"));
+    admin18 = __toESM(require("firebase-admin"));
     init_base_service();
+    init_analytics_service();
     ChatService = class extends BaseService {
       get db() {
-        return admin19.firestore();
+        return admin18.firestore();
       }
       /**
        * Verify if a user is allowed to access the chat for a given job.
@@ -75778,7 +76215,7 @@ var init_chat_service = __esm({
         const matchSnapshot = await this.db.collection("matches").where("job_id", "==", jobId).where("artisan_uid", "==", uid).limit(1).get();
         if (!matchSnapshot.empty) {
           const status = matchSnapshot.docs[0].data().status;
-          if (["pending", "accepted", "completed"].includes(status)) {
+          if (["pending", "paid", "accepted", "completed"].includes(status)) {
             return true;
           }
         }
@@ -75810,15 +76247,18 @@ var init_chat_service = __esm({
             sender_uid: senderUid,
             content,
             is_read: false,
-            created_at: admin19.firestore.FieldValue.serverTimestamp()
+            created_at: admin18.firestore.FieldValue.serverTimestamp()
           };
           const docRef = await this.db.collection("jobs").doc(jobId).collection("messages").add(messageData);
           this.logOperation("chat-message-sent", { jobId, senderUid });
+          new AnalyticsService().trackEvent("message_sent", senderUid, {
+            job_id: jobId
+          }).catch(() => {
+          });
           return {
             id: docRef.id,
             ...messageData,
             created_at: /* @__PURE__ */ new Date()
-            // Fallback for immediate return
           };
         } catch (error51) {
           this.handleError(error51, "Send message");
@@ -75829,11 +76269,11 @@ var init_chat_service = __esm({
 });
 
 // src/controllers/chat.controller.ts
-var admin20, ChatController;
+var admin19, ChatController;
 var init_chat_controller = __esm({
   "src/controllers/chat.controller.ts"() {
     "use strict";
-    admin20 = __toESM(require("firebase-admin"));
+    admin19 = __toESM(require("firebase-admin"));
     init_base_controller();
     init_chat_service();
     ChatController = class extends BaseController {
@@ -75848,7 +76288,7 @@ var init_chat_controller = __esm({
           }
           const { matchId } = req.params;
           if (!matchId) return this.sendBadRequest(res, "Match ID is required");
-          const matchDoc = await admin20.firestore().collection("matches").doc(matchId).get();
+          const matchDoc = await admin19.firestore().collection("matches").doc(matchId).get();
           if (!matchDoc.exists) return this.sendNotFound(res, "Match not found");
           const jobId = matchDoc.data()?.job_id;
           const limit = req.query.limit ? parseInt(req.query.limit) : 50;
@@ -75869,7 +76309,7 @@ var init_chat_controller = __esm({
           }
           const { matchId } = req.params;
           if (!matchId) return this.sendBadRequest(res, "Match ID is required");
-          const matchDoc = await admin20.firestore().collection("matches").doc(matchId).get();
+          const matchDoc = await admin19.firestore().collection("matches").doc(matchId).get();
           if (!matchDoc.exists) return this.sendNotFound(res, "Match not found");
           const jobId = matchDoc.data()?.job_id;
           const { content } = req.body;
@@ -75977,9 +76417,27 @@ module.exports = __toCommonJS(index_exports);
 
 // src/initFirebase.ts
 var import_app = require("firebase-admin/app");
+var import_firestore = require("firebase-admin/firestore");
+var import_auth = require("firebase-admin/auth");
 if (!(0, import_app.getApps)().length) {
   (0, import_app.initializeApp)();
 }
+try {
+  const adminMod = require("firebase-admin");
+  const dbInst = (0, import_firestore.getFirestore)();
+  if (typeof adminMod.firestore !== "function") {
+    adminMod.firestore = () => dbInst;
+    adminMod.firestore.FieldValue = import_firestore.FieldValue;
+    adminMod.firestore.Timestamp = import_firestore.Timestamp;
+  }
+  const authInst = (0, import_auth.getAuth)();
+  if (typeof adminMod.auth !== "function") {
+    adminMod.auth = () => authInst;
+  }
+} catch (e) {
+}
+var db = (0, import_firestore.getFirestore)();
+var auth = (0, import_auth.getAuth)();
 
 // src/index.ts
 var import_express8 = __toESM(require("express"));
@@ -76103,16 +76561,16 @@ var options = {
 var swaggerSpec = (0, import_swagger_jsdoc.default)(options);
 
 // src/middleware/security.ts
-var admin = __toESM(require("firebase-admin"));
+var import_firestore2 = require("firebase-admin/firestore");
 init_logger();
 var rateLimit = (maxRequests = 100, windowMs = 15 * 60 * 1e3) => {
   return async (req, res, next) => {
     const ip = req.ip || req.socket.remoteAddress || "unknown";
     const now = Date.now();
-    const db = admin.firestore();
-    const docRef = db.collection("rate_limits").doc(ip.replace(/:/g, "_"));
     try {
-      await db.runTransaction(async (transaction) => {
+      const db2 = (0, import_firestore2.getFirestore)();
+      const docRef = db2.collection("rate_limits").doc(ip.replace(/:/g, "_"));
+      await db2.runTransaction(async (transaction) => {
         const doc = await transaction.get(docRef);
         if (!doc.exists || now > doc.data().resetTime) {
           transaction.set(docRef, { count: 1, resetTime: now + windowMs });
@@ -76122,7 +76580,7 @@ var rateLimit = (maxRequests = 100, windowMs = 15 * 60 * 1e3) => {
         if (data.count > maxRequests) {
           return { allowed: false, resetTime: data.resetTime };
         }
-        transaction.update(docRef, { count: admin.firestore.FieldValue.increment(1) });
+        transaction.update(docRef, { count: import_firestore2.FieldValue.increment(1) });
         return { allowed: true };
       }).then((result) => {
         if (!result.allowed) {
@@ -76155,9 +76613,9 @@ var securityHeaders = (req, res, next) => {
 var monitorIP = async (req, res, next) => {
   const ip = req.ip || req.socket.remoteAddress || "unknown";
   const now = Date.now();
-  const db = admin.firestore();
-  const docRef = db.collection("ip_monitoring").doc(ip.replace(/:/g, "_"));
   try {
+    const db2 = (0, import_firestore2.getFirestore)();
+    const docRef = db2.collection("ip_monitoring").doc(ip.replace(/:/g, "_"));
     const doc = await docRef.get();
     if (doc.exists) {
       const data = doc.data();
@@ -76182,10 +76640,10 @@ var monitorIP = async (req, res, next) => {
 };
 var recordFailedAuth = async (ip) => {
   try {
-    const db = admin.firestore();
-    const docRef = db.collection("ip_monitoring").doc(ip.replace(/:/g, "_"));
+    const db2 = (0, import_firestore2.getFirestore)();
+    const docRef = db2.collection("ip_monitoring").doc(ip.replace(/:/g, "_"));
     const now = Date.now();
-    await db.runTransaction(async (transaction) => {
+    await db2.runTransaction(async (transaction) => {
       const doc = await transaction.get(docRef);
       const activity = `Failed auth at ${(/* @__PURE__ */ new Date()).toISOString()}`;
       if (!doc.exists) {
@@ -76199,7 +76657,7 @@ var recordFailedAuth = async (ip) => {
       const attempts = (data.failedAttempts || 0) + 1;
       const updateData = {
         failedAttempts: attempts,
-        suspiciousActivity: admin.firestore.FieldValue.arrayUnion(activity)
+        suspiciousActivity: import_firestore2.FieldValue.arrayUnion(activity)
       };
       if (attempts >= 5) {
         const blockDuration = 15 * 60 * 1e3;
@@ -76214,10 +76672,10 @@ var recordFailedAuth = async (ip) => {
 };
 var auditLog = async (log) => {
   try {
-    const db = admin.firestore();
-    await db.collection("audit_logs").add({
+    const db2 = (0, import_firestore2.getFirestore)();
+    await db2.collection("audit_logs").add({
       ...log,
-      timestamp: admin.firestore.FieldValue.serverTimestamp()
+      timestamp: import_firestore2.FieldValue.serverTimestamp()
     });
   } catch (error51) {
     Logger.error("Failed to write audit log", error51);
@@ -76282,12 +76740,13 @@ init_encryption();
 init_logger();
 
 // src/services/refund.service.ts
-var admin2 = __toESM(require("firebase-admin"));
+var admin6 = __toESM(require("firebase-admin"));
 init_axios2();
 init_logger();
+init_analytics_service();
 var RefundService = class {
   get db() {
-    return admin2.firestore();
+    return admin6.firestore();
   }
   constructor() {
     this.paystackSecretKey = process.env.PAYSTACK_SECRET_KEY || "";
@@ -76298,8 +76757,8 @@ var RefundService = class {
    */
   async processNoResponseRefunds() {
     Logger.info("Starting 4-Hour No-Response Auto-Refund execution...");
-    const now = admin2.firestore.Timestamp.now();
-    const expiredMatchesSnapshot = await this.db.collection("matches").where("status", "==", "active").where("no_response_timer_expiry", "<", now).get();
+    const now = admin6.firestore.Timestamp.now();
+    const expiredMatchesSnapshot = await this.db.collection("matches").where("status", "==", "paid").where("no_response_timer_expiry", "<", now).get();
     if (expiredMatchesSnapshot.empty) {
       Logger.info("No expired matches found for auto-refund processing.");
       return { processed: 0, refunded: 0, cancelled: 0, errors: 0 };
@@ -76312,11 +76771,11 @@ var RefundService = class {
       const matchId = matchDoc.id;
       const { job_id, artisan_uid, client_uid } = matchData;
       try {
-        const messagesSnapshot = await this.db.collection("matches").doc(matchId).collection("messages").where("sender_uid", "==", artisan_uid).limit(1).get();
+        const messagesSnapshot = await this.db.collection("jobs").doc(job_id).collection("messages").where("sender_uid", "==", artisan_uid).limit(1).get();
         if (!messagesSnapshot.empty) {
           await this.db.collection("matches").doc(matchId).update({
             no_response_timer_expiry: null,
-            updatedAt: admin2.firestore.FieldValue.serverTimestamp()
+            updatedAt: admin6.firestore.FieldValue.serverTimestamp()
           });
           cancelledCount++;
           Logger.info(`Match ${matchId}: Timer cancelled because artisan ${artisan_uid} responded.`);
@@ -76324,6 +76783,12 @@ var RefundService = class {
           await this.executeAutoRefund(matchId, job_id, artisan_uid, client_uid);
           refundedCount++;
           Logger.info(`Match ${matchId}: Auto-refund successfully processed.`);
+          new AnalyticsService().trackEvent("no_response_refund", client_uid, {
+            match_id: matchId,
+            job_id,
+            artisan_uid
+          }).catch(() => {
+          });
         }
       } catch (err) {
         errorCount++;
@@ -76384,33 +76849,43 @@ var RefundService = class {
         status: "refunded",
         // keep legacy field in sync
         refund_reason: "Auto-refund: 4-hour no response timer expired",
-        updatedAt: admin2.firestore.FieldValue.serverTimestamp()
+        updatedAt: admin6.firestore.FieldValue.serverTimestamp()
       });
       transaction.update(matchRef, {
         status: "refunded",
-        updatedAt: admin2.firestore.FieldValue.serverTimestamp()
+        updatedAt: admin6.firestore.FieldValue.serverTimestamp()
       });
       transaction.update(jobRef, {
         status: "refunded",
-        updatedAt: admin2.firestore.FieldValue.serverTimestamp()
+        updatedAt: admin6.firestore.FieldValue.serverTimestamp()
       });
       const artisanDoc = await transaction.get(artisanRef);
       if (artisanDoc.exists) {
         const currentFlags = artisanDoc.data()?.no_response_flags || 0;
         const currentLocked = artisanDoc.data()?.locked_job_value || 0;
         const newFlags = currentFlags + 1;
-        const isSuspended = newFlags >= 2;
+        const isSuspended = newFlags >= 3;
         transaction.update(artisanRef, {
           no_response_flags: newFlags,
           locked_job_value: Math.max(0, currentLocked - (locked_job_value || 0)),
-          verified: isSuspended ? false : artisanDoc.data()?.verified,
-          available: isSuspended ? false : artisanDoc.data()?.available,
-          updatedAt: admin2.firestore.FieldValue.serverTimestamp()
+          is_verified: isSuspended ? false : artisanDoc.data()?.is_verified,
+          is_available: isSuspended ? false : artisanDoc.data()?.is_available,
+          updatedAt: admin6.firestore.FieldValue.serverTimestamp()
         });
         if (isSuspended) {
           Logger.warn(`Artisan ${artisanUid} automatically suspended due to ${newFlags} no-response flags.`);
         }
       }
+      const notificationRef = this.db.collection("notifications").doc();
+      transaction.set(notificationRef, {
+        recipient_uid: artisanUid,
+        type: "no_response_refund",
+        job_id: jobId,
+        match_id: matchId,
+        message: "A client was refunded because no response was received within the required window. This has been flagged on your profile.",
+        read: false,
+        created_at: admin6.firestore.FieldValue.serverTimestamp()
+      });
     });
   }
 };
@@ -76420,7 +76895,7 @@ var import_express = require("express");
 init_controllers();
 
 // src/middleware/auth.ts
-var admin21 = __toESM(require("firebase-admin"));
+var admin20 = __toESM(require("firebase-admin"));
 init_logger();
 var authenticate = async (req, res, next) => {
   try {
@@ -76431,7 +76906,7 @@ var authenticate = async (req, res, next) => {
     }
     const token = authHeader.split("Bearer ")[1];
     try {
-      const decodedToken = await admin21.auth().verifyIdToken(token);
+      const decodedToken = await admin20.auth().verifyIdToken(token);
       req.user = decodedToken;
       const ip = req.ip || req.socket.remoteAddress || "unknown";
       await auditLog({
@@ -76655,15 +77130,22 @@ var LocationSchema2 = external_exports.object({
 });
 var CreateJobSchema = external_exports.object({
   body: external_exports.object({
+    // Accept trade or trade_needed — controller normalises to trade_needed
     trade_needed: external_exports.enum(VALID_TRADES).optional(),
     trade: external_exports.enum(VALID_TRADES).optional(),
     title: external_exports.string().min(5).max(100),
     description: external_exports.string().min(10).max(1e3),
     location: external_exports.union([LocationSchema2, external_exports.string()]),
+    // Accept urgency or timing (frontend sends timing)
     urgency: external_exports.enum(["Today", "This Week", "Flexible"]).optional(),
     timing: external_exports.string().optional(),
-    match_fee: external_exports.number().positive().optional()
-  })
+    match_fee: external_exports.number().positive().optional(),
+    // budget is the frontend field name for job_value
+    budget: external_exports.number().positive().optional()
+  }).refine(
+    (data) => !!(data.trade_needed || data.trade),
+    { message: "trade or trade_needed is required", path: ["trade_needed"] }
+  )
 });
 var UpdateJobSchema = external_exports.object({
   body: external_exports.object({
@@ -76746,6 +77228,37 @@ router3.post(
   authenticate,
   (req, res) => jobController.arriveTracking(req, res)
 );
+router3.post("/:id/notify-me", authenticate, async (req, res) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    const { id: jobId } = req.params;
+    const db2 = require("firebase-admin").firestore();
+    const jobDoc = await db2.collection("jobs").doc(jobId).get();
+    if (!jobDoc.exists) {
+      res.status(404).json({ error: "Job not found" });
+      return;
+    }
+    if (jobDoc.data().client_uid !== req.user.uid) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    await db2.collection("notify_me_requests").add({
+      job_id: jobId,
+      client_uid: req.user.uid,
+      trade: jobDoc.data().trade_needed || jobDoc.data().trade,
+      created_at: require("firebase-admin").firestore.FieldValue.serverTimestamp()
+    });
+    const { AnalyticsService: AnalyticsService2 } = (init_analytics_service(), __toCommonJS(analytics_service_exports));
+    await new AnalyticsService2().trackEvent("notify_me_registered", req.user.uid, { job_id: jobId }).catch(() => {
+    });
+    res.status(200).json({ success: true, message: "You will be notified when an artisan becomes available" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to register notify me request" });
+  }
+});
 router3.post(
   "/:id/cancel",
   authenticate,
@@ -76760,7 +77273,7 @@ var job_default = router3;
 
 // src/routes/payment.ts
 var import_express4 = require("express");
-var admin22 = __toESM(require("firebase-admin"));
+var admin21 = __toESM(require("firebase-admin"));
 init_paystack();
 init_controllers();
 init_logger();
@@ -76781,15 +77294,15 @@ router4.post(["/initialise", "/initialize"], authenticate, async (req, res) => {
       res.status(400).json({ error: "Valid job_value is required" });
       return;
     }
-    const db = admin22.firestore();
-    const matchRef = db.collection("matches").doc(match_id);
+    const db2 = admin21.firestore();
+    const matchRef = db2.collection("matches").doc(match_id);
     const matchDoc = await matchRef.get();
     if (!matchDoc.exists) {
       res.status(404).json({ error: "Match not found" });
       return;
     }
     const matchData = matchDoc.data();
-    const jobRef = db.collection("jobs").doc(matchData.job_id);
+    const jobRef = db2.collection("jobs").doc(matchData.job_id);
     const jobDoc = await jobRef.get();
     if (!jobDoc.exists) {
       res.status(404).json({ error: "Job not found" });
@@ -76800,7 +77313,7 @@ router4.post(["/initialise", "/initialize"], authenticate, async (req, res) => {
       res.status(403).json({ error: "Forbidden: You do not own this job" });
       return;
     }
-    const userRef = db.collection("users").doc(req.user.uid);
+    const userRef = db2.collection("users").doc(req.user.uid);
     const userDoc = await userRef.get();
     const userData = userDoc.data();
     const email3 = userData?.email || `${userData?.phone.replace("+", "")}@verifix.app`;
@@ -76827,6 +77340,8 @@ router4.post(["/initialise", "/initialize"], authenticate, async (req, res) => {
       return;
     }
     const transactionData = {
+      job_id: jobData.job_id || matchData.job_id,
+      client_uid: req.user.uid,
       match_id,
       artisan_uid: matchData.artisan_uid,
       type: "escrow",
@@ -76845,9 +77360,9 @@ router4.post(["/initialise", "/initialize"], authenticate, async (req, res) => {
       locked_job_value: lockedJobValue,
       commission_retained: commissionRetained,
       released_at: null,
-      created_at: admin22.firestore.FieldValue.serverTimestamp()
+      created_at: admin21.firestore.FieldValue.serverTimestamp()
     };
-    const transactionRef = await db.collection("transactions").add(transactionData);
+    const transactionRef = await db2.collection("transactions").add(transactionData);
     res.status(200).json({
       message: "Payment initialized successfully",
       transaction_id: transactionRef.id,
@@ -77002,6 +77517,34 @@ router6.post(
   validate(SendMessageSchema),
   (req, res) => chatController.sendMessage(req, res)
 );
+router6.get("/job/:jobId", authenticate, async (req, res) => {
+  try {
+    const db2 = require("firebase-admin").firestore();
+    const snap = await db2.collection("matches").where("job_id", "==", req.params.jobId).where("status", "in", ["pending", "paid", "accepted", "completed"]).limit(1).get();
+    if (snap.empty) {
+      res.status(404).json({ error: "No active match for this job" });
+      return;
+    }
+    req.params.matchId = snap.docs[0].id;
+    return chatController.getMessages(req, res);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+router6.post("/job/:jobId", authenticate, async (req, res) => {
+  try {
+    const db2 = require("firebase-admin").firestore();
+    const snap = await db2.collection("matches").where("job_id", "==", req.params.jobId).where("status", "in", ["pending", "paid", "accepted", "completed"]).limit(1).get();
+    if (snap.empty) {
+      res.status(404).json({ error: "No active match for this job" });
+      return;
+    }
+    req.params.matchId = snap.docs[0].id;
+    return chatController.sendMessage(req, res);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 var chat_default = router6;
 
 // src/routes/proforma.ts
@@ -77013,9 +77556,19 @@ var CreateProformaSchema = external_exports.object({
   body: external_exports.object({
     job_id: external_exports.string(),
     supplier_name: external_exports.string().min(2),
+    supplier_recipient_code: external_exports.string().optional(),
     total_amount: external_exports.number().positive(),
-    invoice_document_url: external_exports.string().url()
-  })
+    // Accept both field names: invoice_document_url (canonical) or receipt_url (frontend alias)
+    invoice_document_url: external_exports.string().url().optional(),
+    receipt_url: external_exports.string().url().optional(),
+    // Additional frontend-submitted fields (ignored by service, stored for audit)
+    materials_cost: external_exports.number().nonnegative().optional(),
+    labor_cost: external_exports.number().nonnegative().optional(),
+    items: external_exports.array(external_exports.any()).optional()
+  }).refine(
+    (data) => !!(data.invoice_document_url || data.receipt_url),
+    { message: "invoice_document_url or receipt_url is required", path: ["invoice_document_url"] }
+  )
 });
 
 // src/routes/proforma.ts
@@ -77091,17 +77644,16 @@ app.use(import_express8.default.json({
 app.use(import_express8.default.urlencoded({ extended: true, limit: "10mb" }));
 app.use(validateContentType);
 app.use(ndprMaskingMiddleware);
-app.use("/api/docs", import_swagger_ui_express.default.serve, import_swagger_ui_express.default.setup(swaggerSpec));
-app.use("/api/auth", auth_default);
-app.use("/api/users", auth_default);
-app.use("/api/artisans", artisan_default);
-app.use("/api/jobs", job_default);
-app.use("/api/payments", payment_default);
-app.use("/api/admin", admin_default);
-app.use("/api/chat", chat_default);
-app.use("/api/proforma", proforma_default);
-app.use("/api/proformas", proforma_default);
-app.get("/health", (req, res) => {
+app.use(["/api/docs", "/docs"], import_swagger_ui_express.default.serve, import_swagger_ui_express.default.setup(swaggerSpec));
+app.use(["/api/auth", "/auth"], auth_default);
+app.use(["/api/users", "/users"], auth_default);
+app.use(["/api/artisans", "/artisans"], artisan_default);
+app.use(["/api/jobs", "/jobs"], job_default);
+app.use(["/api/payments", "/payments"], payment_default);
+app.use(["/api/admin", "/admin"], admin_default);
+app.use(["/api/chat", "/chat"], chat_default);
+app.use(["/api/proforma", "/proforma", "/api/proformas", "/proformas"], proforma_default);
+app.get(["/api/health", "/health"], (req, res) => {
   res.json({
     status: "healthy",
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),

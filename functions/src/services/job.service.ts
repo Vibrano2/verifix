@@ -4,6 +4,7 @@ import { COLLECTIONS } from '../constants';
 import { Job, CreateJobDTO, UpdateJobDTO } from '../models/job.model';
 import { isValidTrade, Trade } from '../constants/trades';
 import { initiateTransfer } from '../utils/paystack';
+import { AnalyticsService } from './analytics.service';
 
 export class JobService extends BaseService {
   private get db() { return admin.firestore(); }
@@ -41,6 +42,15 @@ export class JobService extends BaseService {
 
       const docRef = await this.db.collection(COLLECTIONS.JOBS).add(jobData);
       this.logOperation('job-created', { jobId: docRef.id, clientUid, trade: data.trade_needed });
+
+      // PRD §5.1: fire job_posted analytics event (fire-and-forget, non-blocking)
+      try {
+        new AnalyticsService().trackEvent('job_posted', clientUid, {
+          job_id: docRef.id,
+          trade: data.trade_needed,
+          urgency: data.urgency
+        }).catch(() => {});
+      } catch { /* analytics never blocks the main flow */ }
 
       return {
         job_id: docRef.id,
@@ -196,11 +206,21 @@ export class JobService extends BaseService {
         throw new Error('Match does not belong to this job');
       }
 
-      const transactionsSnapshot = await this.db.collection('transactions')
+      // Query by escrow_status (v1.9 canonical field) with fallback to legacy status field
+      let transactionsSnapshot = await this.db.collection('transactions')
         .where('match_id', '==', matchId)
-        .where('status', '==', 'held')
+        .where('escrow_status', '==', 'HELD')
         .limit(1)
         .get();
+
+      if (transactionsSnapshot.empty) {
+        // Fallback: legacy transactions only have flat status field
+        transactionsSnapshot = await this.db.collection('transactions')
+          .where('match_id', '==', matchId)
+          .where('status', '==', 'held')
+          .limit(1)
+          .get();
+      }
 
       if (transactionsSnapshot.empty) {
         throw new Error('No held transaction found for this match. Payment may not have been completed.');
@@ -232,6 +252,7 @@ export class JobService extends BaseService {
       await this.db.runTransaction(async (transaction) => {
         transaction.update(transactionDoc.ref, {
           status: 'released',
+          escrow_status: 'RELEASED',  // PRD §7.3 step 4a: canonical v1.9 field
           commission_retained: commissionRetained,
           released_at: admin.firestore.FieldValue.serverTimestamp()
         });
@@ -268,6 +289,16 @@ export class JobService extends BaseService {
       }
 
       this.logOperation('job-completed', { jobId, clientUid });
+
+      // PRD §5.1: fire job_completed analytics event (fire-and-forget, non-blocking)
+      try {
+        new AnalyticsService().trackEvent('job_completed', clientUid, {
+          job_id: jobId,
+          artisan_uid: matchData!.artisan_uid,
+          locked_job_value: lockedJobValue,
+          commission_retained: commissionRetained
+        }).catch(() => {});
+      } catch { /* analytics never blocks the main flow */ }
 
       return {
         message: 'Job marked complete and escrow released successfully',

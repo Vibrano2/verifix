@@ -131,6 +131,8 @@ router.post(['/initialise', '/initialize'], authenticate, async (req: Authentica
 
     // Create transaction record with v1.9 schema
     const transactionData = {
+      job_id: jobData!.job_id || matchData!.job_id,
+      client_uid: req.user.uid,
       match_id,
       artisan_uid: matchData!.artisan_uid,
       type: 'escrow',

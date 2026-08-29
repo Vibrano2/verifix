@@ -9,9 +9,12 @@ service cloud.firestore {
     function isOwner(uid) {
       return isAuthenticated() && request.auth.uid == uid;
     }
-    
+
+    // Admin is identified by UID stored in the ADMIN_UID env var, which the
+    // backend embeds as a custom claim at token mint time via auth.setCustomUserClaims.
+    // The claim name matches what Firebase Admin SDK sets: { artiva_admin: true }
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.admin == true;
+      return isAuthenticated() && request.auth.token.artiva_admin == true;
     }
     
     match /users/{userId} {
@@ -53,6 +56,21 @@ service cloud.firestore {
       allow update: if (isOwner(resource.data.client_uid)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'match_fee', 'budget', 'client_uid', 'created_at']))
         || isAdmin();
+
+      // In-app chat: stored as jobs/{jobId}/messages subcollection
+      match /messages/{messageId} {
+        // Read: job owner (client) or the artisan matched to this job
+        allow read: if isAuthenticated() && (
+          isOwner(get(/databases/$(database)/documents/jobs/$(jobId)).data.client_uid)
+          || exists(/databases/$(database)/documents/matches/$(request.auth.uid + '_' + jobId))
+          || isAdmin()
+        );
+        // Write: any authenticated participant — service layer enforces the match check
+        allow create: if isAuthenticated()
+          && request.resource.data.sender_uid == request.auth.uid
+          && request.resource.data.keys().hasAll(['job_id', 'sender_uid', 'content', 'created_at']);
+        allow update, delete: if false;
+      }
     }
     
     match /matches/{matchId} {
@@ -73,6 +91,41 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Supplier proforma invoices
+    match /proformas/{proformaId} {
+      // Client and artisan on the job can read; admin can read all
+      allow read: if isAdmin()
+        || isOwner(resource.data.artisan_uid)
+        || isOwner(get(/databases/$(database)/documents/jobs/$(resource.data.job_id)).data.client_uid);
+      // Only the matched artisan can submit a proforma; immutable once created
+      allow create: if isAuthenticated()
+        && request.resource.data.artisan_uid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasAll(['job_id', 'artisan_uid', 'supplier_name', 'total_amount', 'invoice_document_url']);
+      // Only admin can update (approve/reject)
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Dispute records — written server-side only
+    match /disputes/{disputeId} {
+      allow read: if isAdmin()
+        || isOwner(resource.data.raised_by_uid);
+      allow create, update, delete: if false;
+    }
+
+    // Ratings — client writes once per job; artisan reads own
+    match /ratings/{ratingId} {
+      allow read: if isOwner(resource.data.artisan_uid)
+        || isOwner(resource.data.client_uid)
+        || isAdmin();
+      allow create: if isAuthenticated()
+        && request.resource.data.client_uid == request.auth.uid
+        && request.resource.data.score >= 1
+        && request.resource.data.score <= 5;
+      allow update, delete: if false;
+    }
+
     match /otps/{docId} {
       allow read, write: if false;
     }
@@ -91,6 +144,20 @@ service cloud.firestore {
 
     match /otp_rate_limits/{docId} {
       allow read, write: if false;
+    }
+
+    // In-app notifications (PRD A-008 no-response alerts)
+    match /notifications/{notifId} {
+      allow read: if isOwner(resource.data.recipient_uid) || isAdmin();
+      allow create, update, delete: if false; // server-side only
+    }
+
+    // Notify Me requests (PRD C-007 empty-match Notify Me button)
+    match /notify_me_requests/{reqId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated()
+        && request.resource.data.client_uid == request.auth.uid;
+      allow update, delete: if false;
     }
   }
 }

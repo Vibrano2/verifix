@@ -6,6 +6,7 @@
 import * as admin from 'firebase-admin';
 import axios from 'axios';
 import { Logger } from '../utils/logger';
+import { AnalyticsService } from './analytics.service';
 
 export class RefundService {
   private get db() { return admin.firestore(); }
@@ -24,9 +25,9 @@ export class RefundService {
     Logger.info('Starting 4-Hour No-Response Auto-Refund execution...');
     const now = admin.firestore.Timestamp.now();
 
-    // Query active matches whose 4-hour timer has expired
+    // Query paid matches (payment confirmed, timer running) whose 4-hour timer has expired
     const expiredMatchesSnapshot = await this.db.collection('matches')
-      .where('status', '==', 'active')
+      .where('status', '==', 'paid')
       .where('no_response_timer_expiry', '<', now)
       .get();
 
@@ -45,9 +46,9 @@ export class RefundService {
       const { job_id, artisan_uid, client_uid } = matchData;
 
       try {
-        // Query messages subcollection for any message sent by the assigned artisan
-        const messagesSnapshot = await this.db.collection('matches')
-          .doc(matchId)
+        // PRD §7.4: messages are stored at jobs/{jobId}/messages (not matches/.../messages)
+        const messagesSnapshot = await this.db.collection('jobs')
+          .doc(job_id)
           .collection('messages')
           .where('sender_uid', '==', artisan_uid)
           .limit(1)
@@ -66,6 +67,13 @@ export class RefundService {
           await this.executeAutoRefund(matchId, job_id, artisan_uid, client_uid);
           refundedCount++;
           Logger.info(`Match ${matchId}: Auto-refund successfully processed.`);
+
+          // PRD §5.1: fire no_response_refund analytics event
+          new AnalyticsService().trackEvent('no_response_refund', client_uid, {
+            match_id: matchId,
+            job_id,
+            artisan_uid
+          }).catch(() => {});
         }
       } catch (err: any) {
         errorCount++;
@@ -160,13 +168,13 @@ export class RefundService {
         const currentFlags = artisanDoc.data()?.no_response_flags || 0;
         const currentLocked = artisanDoc.data()?.locked_job_value || 0;
         const newFlags = currentFlags + 1;
-        const isSuspended = newFlags >= 2;
+        const isSuspended = newFlags >= 3; // suspend at 3 flags (one warning buffer)
 
         transaction.update(artisanRef, {
           no_response_flags: newFlags,
           locked_job_value: Math.max(0, currentLocked - (locked_job_value || 0)),
-          verified: isSuspended ? false : artisanDoc.data()?.verified,
-          available: isSuspended ? false : artisanDoc.data()?.available,
+          is_verified: isSuspended ? false : artisanDoc.data()?.is_verified,
+          is_available: isSuspended ? false : artisanDoc.data()?.is_available,
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
@@ -174,6 +182,18 @@ export class RefundService {
           Logger.warn(`Artisan ${artisanUid} automatically suspended due to ${newFlags} no-response flags.`);
         }
       }
+
+      // PRD A-008: write in-app notification so artisan sees the flag on their dashboard
+      const notificationRef = this.db.collection('notifications').doc();
+      transaction.set(notificationRef, {
+        recipient_uid: artisanUid,
+        type: 'no_response_refund',
+        job_id: jobId,
+        match_id: matchId,
+        message: 'A client was refunded because no response was received within the required window. This has been flagged on your profile.',
+        read: false,
+        created_at: admin.firestore.FieldValue.serverTimestamp()
+      });
     });
   }
 }

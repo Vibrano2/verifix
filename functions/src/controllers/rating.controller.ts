@@ -5,7 +5,7 @@
 
 import { Response } from 'express';
 import { BaseController } from './base.controller';
-import { RatingService } from '../services';
+import { RatingService, DuplicateRatingError } from '../services/rating.service';
 import { AuthenticatedRequest } from '../types';
 
 export class RatingController extends BaseController {
@@ -38,9 +38,8 @@ export class RatingController extends BaseController {
 
       this.sendCreated(res, 'Rating submitted successfully', { rating });
     } catch (error: any) {
-      // Check for duplicate rating
-      if (error.message && error.message.includes('already exists')) {
-        return this.sendConflict(res, 'Rating already exists for this job');
+      if (error instanceof DuplicateRatingError) {
+        return this.sendConflict(res, error.message);
       }
       this.handleError(error, res, 'Submit rating');
     }
