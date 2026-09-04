@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'functions/**'
+      - 'artiva/**'
       - 'firebase.json'
       - '.github/workflows/firebase-deploy.yml'
 
@@ -27,6 +28,14 @@ jobs:
         working-directory: functions
         run: npm install
 
+      - name: Install Frontend Dependencies
+        working-directory: artiva
+        run: npm ci
+
+      - name: Build Frontend
+        working-directory: artiva
+        run: npm run build
+
       - name: Build TypeScript
         working-directory: functions
         run: npm run build
@@ -38,4 +47,4 @@ jobs:
 
       - name: Deploy to Firebase
         working-directory: functions
-        run: npx firebase-tools deploy --only functions --project artiva-f24a8 --token ${{ secrets.FIREBASE_TOKEN }}
+        run: npx firebase-tools deploy --only functions,hosting,firestore,auth --project artiva-f24a8 --token ${{ secrets.FIREBASE_TOKEN }}

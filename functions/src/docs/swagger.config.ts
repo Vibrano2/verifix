@@ -18,11 +18,11 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       {
-        url: 'http://localhost:5001/verifix-app/us-central1/api',
+        url: 'http://127.0.0.1:5005/artiva-f24a8/us-central1/api',
         description: 'Local Emulator Server'
       },
       {
-        url: 'https://us-central1-verifix.cloudfunctions.net/api',
+        url: 'https://us-central1-artiva-f24a8.cloudfunctions.net/api',
         description: 'Production Cloud Functions Server'
       }
     ],

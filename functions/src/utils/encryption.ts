@@ -8,10 +8,13 @@ import { Logger } from './logger';
 
 // Get encryption key from environment variable
 // In production, use Firebase Secret Manager or KMS
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-dev-key-change-in-production-32char';
-
-// Ensure key is exactly 32 bytes for AES-256
-const KEY = Buffer.from(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32), 'utf8');
+function getEncryptionKey(): Buffer {
+  const encryptionKey = process.env.ENCRYPTION_KEY;
+  if (!encryptionKey || encryptionKey.length < 32) {
+    throw new Error('ENCRYPTION_KEY must be configured with at least 32 characters');
+  }
+  return Buffer.from(encryptionKey.padEnd(32, '0').slice(0, 32), 'utf8');
+}
 
 /**
  * Encrypt sensitive data
@@ -24,7 +27,7 @@ export function encrypt(text: string): string {
     const iv = crypto.randomBytes(16);
     
     // Create cipher
-    const cipher = crypto.createCipheriv('aes-256-gcm', KEY, iv);
+    const cipher = crypto.createCipheriv('aes-256-gcm', getEncryptionKey(), iv);
     
     // Encrypt the text
     let encrypted = cipher.update(text, 'utf8', 'hex');
@@ -61,7 +64,7 @@ export function decrypt(encryptedText: string): string {
     const authTag = Buffer.from(authTagHex, 'hex');
     
     // Create decipher
-    const decipher = crypto.createDecipheriv('aes-256-gcm', KEY, iv);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', getEncryptionKey(), iv);
     decipher.setAuthTag(authTag);
     
     // Decrypt the data
@@ -215,6 +218,8 @@ export function validateEncryptionKey(): boolean {
  * Initialize encryption and validate configuration
  */
 export function initializeEncryption(): void {
-  validateEncryptionKey();
+  if (!validateEncryptionKey()) {
+    throw new Error('ENCRYPTION_KEY must be configured with at least 32 characters');
+  }
   Logger.info('🔐 Encryption module initialized');
 }

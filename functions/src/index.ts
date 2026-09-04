@@ -85,20 +85,25 @@ app.get(['/api/health', '/health'], (req, res) => {
 
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { defineSecret } from 'firebase-functions/params';
+
+const paystackSecretKey = defineSecret('PAYSTACK_SECRET_KEY');
+const encryptionKey = defineSecret('ENCRYPTION_KEY');
 
 export const api = onRequest({ 
   cors: false, 
   timeoutSeconds: 60, 
   memory: '512MiB',
-  invoker: 'public'
+  invoker: 'public',
+  secrets: [paystackSecretKey, encryptionKey]
 }, app);
 
 export const processNoResponseRefundsScheduler = onSchedule({
   schedule: 'every 15 minutes',
+  secrets: [paystackSecretKey, encryptionKey]
 }, async () => {
   Logger.info('Triggering processNoResponseRefundsScheduler cron task...');
   const refundService = new RefundService();
   await refundService.processNoResponseRefunds();
 });
-
 

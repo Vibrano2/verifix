@@ -1,7 +1,7 @@
 {
   "functions": [
     {
-      "source": "functions/lib",
+      "source": "functions",
       "codebase": "default",
       "ignore": [
         "node_modules",
@@ -15,7 +15,7 @@
     }
   ],
   "hosting": {
-    "public": "public",
+    "public": "artiva/dist",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -55,8 +55,10 @@
   "auth": {
     "authorizedDomains": [
       "localhost",
-      "artiva-a0594.firebaseapp.com",
-      "artiva-a0594.web.app"
+      "artiva-f24a8.firebaseapp.com",
+      "artiva-f24a8.web.app",
+      "verifix.app",
+      "www.verifix.app"
     ],
     "providers": {
       "emailPassword": true
