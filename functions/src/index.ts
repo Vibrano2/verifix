@@ -75,10 +75,22 @@ app.use(['/api/admin', '/admin'], adminRoutes);
 app.use(['/api/chat', '/chat'], chatRoutes);
 app.use(['/api/proforma', '/proforma', '/api/proformas', '/proformas'], proformaRoutes);
 
-app.get(['/api/health', '/health'], (req, res) => {
+app.get(['/api/health', '/health'], async (req, res) => {
+  let sa = 'unknown';
+  try {
+    const axios = require('axios');
+    const metaRes = await axios.get('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email', {
+      headers: { 'Metadata-Flavor': 'Google' },
+      timeout: 2000
+    });
+    sa = metaRes.data;
+  } catch (e: any) {
+    sa = e.message;
+  }
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
+    serviceAccount: sa,
     documentation: '/api/docs'
   });
 });
@@ -90,11 +102,13 @@ export const api = onRequest({
   cors: false, 
   timeoutSeconds: 60, 
   memory: '512MiB',
-  invoker: 'public'
+  invoker: 'public',
+  serviceAccount: 'artiva-f24a8@appspot.gserviceaccount.com'
 }, app);
 
 export const processNoResponseRefundsScheduler = onSchedule({
   schedule: 'every 15 minutes',
+  serviceAccount: 'artiva-f24a8@appspot.gserviceaccount.com'
 }, async () => {
   Logger.info('Triggering processNoResponseRefundsScheduler cron task...');
   const refundService = new RefundService();

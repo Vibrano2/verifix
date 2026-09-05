@@ -3,7 +3,9 @@ import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
 if (!getApps().length) {
-  initializeApp();
+  initializeApp({
+    projectId: process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT_ID || 'artiva-f24a8'
+  });
 }
 
 try {

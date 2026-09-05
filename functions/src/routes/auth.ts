@@ -56,6 +56,7 @@ router.post('/phone/send-otp', (req, res) => authController.sendOTP(req, res));
  * Verify OTP and create session
  */
 router.post('/phone/verify-otp', (req, res) => authController.verifyOTP(req, res));
+router.post('/verify', (req, res) => authController.verifyOTP(req, res));
 
 /**
  * GET /api/auth/me

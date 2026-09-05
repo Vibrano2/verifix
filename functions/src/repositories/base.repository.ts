@@ -13,7 +13,7 @@ export abstract class BaseRepository<T extends { [key: string]: any }> {
   protected collectionName: string;
 
   constructor(collectionName: string) {
-    this.db = getFirestore('default');
+    this.db = getFirestore();
     this.collectionName = collectionName;
   }
 
