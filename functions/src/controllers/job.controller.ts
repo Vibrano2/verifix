@@ -23,7 +23,13 @@ export class JobController extends BaseController {
       const body = { ...req.body };
       if (body.trade && !body.trade_needed) body.trade_needed = body.trade;
       if (body.timing && !body.urgency) body.urgency = body.timing === 'ASAP' ? 'Today' : 'Flexible';
-      if (typeof body.location === 'string') body.location = { address: body.location, city: '', state: '', lga: '' };
+      if (typeof body.location === 'string') {
+        body.location = { address: body.location, city: 'Abuja', state: 'FCT', lga: 'Abuja Municipal' };
+      }
+      if (!body.title) {
+        const locStr = typeof body.location === 'object' ? (body.location.address || body.location.city || 'Abuja') : (body.location || 'Abuja');
+        body.title = `${body.trade_needed || 'Artisan'} Service Request - ${locStr}`.slice(0, 100);
+      }
 
       const job = await this.jobService.createJob(req.user.uid, body);
       this.sendCreated(res, 'Job created successfully', { data: job });

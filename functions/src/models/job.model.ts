@@ -33,15 +33,18 @@ export const CreateJobSchema = z.object({
     // Accept trade or trade_needed — controller normalises to trade_needed
     trade_needed: z.enum(VALID_TRADES as [string, ...string[]]).optional(),
     trade: z.enum(VALID_TRADES as [string, ...string[]]).optional(),
-    title: z.string().min(5).max(100),
-    description: z.string().min(10).max(1000),
+    title: z.string().min(1).max(100).optional(),
+    description: z.string().min(3).max(2000),
     location: z.union([LocationSchema, z.string()]),
     // Accept urgency or timing (frontend sends timing)
     urgency: z.enum(['Today', 'This Week', 'Flexible']).optional(),
     timing: z.string().optional(),
     match_fee: z.number().positive().optional(),
     // budget is the frontend field name for job_value
-    budget: z.number().positive().optional()
+    budget: z.number().nonnegative().optional(),
+    job_value: z.number().nonnegative().optional(),
+    photos: z.array(z.string()).optional(),
+    client_uid: z.string().optional()
   }).refine(
     data => !!(data.trade_needed || data.trade),
     { message: 'trade or trade_needed is required', path: ['trade_needed'] }

@@ -75460,7 +75460,13 @@ var init_job_controller = __esm({
           const body = { ...req.body };
           if (body.trade && !body.trade_needed) body.trade_needed = body.trade;
           if (body.timing && !body.urgency) body.urgency = body.timing === "ASAP" ? "Today" : "Flexible";
-          if (typeof body.location === "string") body.location = { address: body.location, city: "", state: "", lga: "" };
+          if (typeof body.location === "string") {
+            body.location = { address: body.location, city: "Abuja", state: "FCT", lga: "Abuja Municipal" };
+          }
+          if (!body.title) {
+            const locStr = typeof body.location === "object" ? body.location.address || body.location.city || "Abuja" : body.location || "Abuja";
+            body.title = `${body.trade_needed || "Artisan"} Service Request - ${locStr}`.slice(0, 100);
+          }
           const job = await this.jobService.createJob(req.user.uid, body);
           this.sendCreated(res, "Job created successfully", { data: job });
         } catch (error51) {
@@ -81913,17 +81919,18 @@ var validate = (schema) => async (req, res, next) => {
     });
     next();
   } catch (error51) {
-    if (error51 instanceof ZodError) {
+    const issues = error51?.issues || error51?.errors || [];
+    if (error51 instanceof ZodError || error51?.name === "ZodError" || issues.length > 0) {
       res.status(400).json({
         error: "Validation failed",
-        details: error51.errors.map((err) => ({
-          field: err.path.join("."),
+        details: issues.map((err) => ({
+          field: Array.isArray(err.path) ? err.path.join(".") : String(err.path || ""),
           message: err.message
         }))
       });
     } else {
       Logger.error("Unexpected validation error", error51);
-      res.status(500).json({ error: "Internal server error during validation" });
+      res.status(500).json({ error: error51?.message || "Internal server error during validation" });
     }
   }
 };
@@ -81946,15 +81953,18 @@ var CreateJobSchema = external_exports.object({
     // Accept trade or trade_needed — controller normalises to trade_needed
     trade_needed: external_exports.enum(VALID_TRADES).optional(),
     trade: external_exports.enum(VALID_TRADES).optional(),
-    title: external_exports.string().min(5).max(100),
-    description: external_exports.string().min(10).max(1e3),
+    title: external_exports.string().min(1).max(100).optional(),
+    description: external_exports.string().min(3).max(2e3),
     location: external_exports.union([LocationSchema2, external_exports.string()]),
     // Accept urgency or timing (frontend sends timing)
     urgency: external_exports.enum(["Today", "This Week", "Flexible"]).optional(),
     timing: external_exports.string().optional(),
     match_fee: external_exports.number().positive().optional(),
     // budget is the frontend field name for job_value
-    budget: external_exports.number().positive().optional()
+    budget: external_exports.number().nonnegative().optional(),
+    job_value: external_exports.number().nonnegative().optional(),
+    photos: external_exports.array(external_exports.string()).optional(),
+    client_uid: external_exports.string().optional()
   }).refine(
     (data) => !!(data.trade_needed || data.trade),
     { message: "trade or trade_needed is required", path: ["trade_needed"] }

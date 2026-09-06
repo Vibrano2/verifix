@@ -12,17 +12,18 @@ export const validate = (schema: z.ZodObject<any, any>) =>
       });
       next();
     } catch (error: any) {
-      if (error instanceof ZodError) {
+      const issues = error?.issues || error?.errors || [];
+      if (error instanceof ZodError || error?.name === 'ZodError' || issues.length > 0) {
         res.status(400).json({
           error: 'Validation failed',
-          details: (error as any).errors.map((err: any) => ({
-            field: err.path.join('.'),
+          details: issues.map((err: any) => ({
+            field: Array.isArray(err.path) ? err.path.join('.') : String(err.path || ''),
             message: err.message
           }))
         });
       } else {
         Logger.error('Unexpected validation error', error);
-        res.status(500).json({ error: 'Internal server error during validation' });
+        res.status(500).json({ error: error?.message || 'Internal server error during validation' });
       }
     }
   };
