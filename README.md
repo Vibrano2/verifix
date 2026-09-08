@@ -1,300 +1,74 @@
-# Artiva Backend
+# Verifix backend
 
-Firebase + Paystack backend for the Artiva marketplace platform. Connects clients with verified local artisans (electricians, plumbers, carpenters, etc.) in Nigeria.
+Verifix is the canonical Firebase backend for the Artiva marketplace. It provides the authenticated REST API, Firestore and Storage policy, Paystack payment orchestration, and an optional private Cloud Run matching service. The separate `artiva` repository owns the web frontend and Firebase Hosting configuration.
 
-## 🏗️ Architecture
+## Runtime architecture
 
-**Stack:**
-- Firebase Cloud Functions (Node.js 18, TypeScript)
-- Firestore (NoSQL database)
-- Firebase Authentication (Phone/OTP)
-- Firebase Storage (file uploads)
-- Paystack (payment processing)
-- Express.js (API routing)
+- Firebase Cloud Functions, Node.js 20, TypeScript, Express
+- Firebase Authentication, Firestore, and Cloud Storage
+- Paystack transaction, transfer-recipient, transfer, refund, verification, and webhook APIs
+- Python 3.12 Flask/Gunicorn ML service on private Cloud Run
 
-**Key Features:**
-- Phone-based authentication with OTP
-- Artisan verification workflow
-- Smart matching algorithm (trade + availability + reputation)
-- Escrow payment system with 10% platform commission
-- Rating and reputation system
-- File uploads with security validation
-- Admin dashboard
+Clients authenticate with a Firebase ID token in `Authorization: Bearer <token>`. Authorization is derived on the server from the persisted user role and the configured `ADMIN_UID`. Browser code is not trusted to choose a role, payment amount, recipient, resource owner, or final payment state.
 
-## 📁 Project Structure
+## Local development
 
-```
-verifix/
-├── functions/
-│   ├── src/
-│   │   ├── index.ts              # Main entry point
-│   │   ├── types/
-│   │   │   └── index.ts          # TypeScript types & enums
-│   │   ├── middleware/
-│   │   │   ├── auth.ts           # Authentication & authorization
-│   │   │   └── validation.ts     # Input validation
-│   │   ├── routes/
-│   │   │   ├── auth.ts           # Authentication endpoints
-│   │   │   ├── artisan.ts        # Artisan management
-│   │   │   ├── job.ts            # Job & matching
-│   │   │   ├── payment.ts        # Paystack integration
-│   │   │   └── admin.ts          # Admin functions
-│   │   └── utils/
-│   │       ├── paystack.ts       # Paystack helpers
-│   │       └── fileUpload.ts     # File validation & upload
-│   ├── package.json
-│   └── tsconfig.json
-├── firestore.rules                # Security rules
-├── firestore.indexes.json         # Database indexes
-├── firebase.json                  # Firebase config
-├── .env.example                   # Environment template
-├── .gitignore
-├── SECURITY.md                    # Security documentation
-└── README.md
-```
-
-## 🗄️ Firestore Collections
-
-### `users`
-User accounts (clients and artisans)
-- `uid`, `first_name`, `last_name`, `phone`, `role`, timestamps
-
-### `artisan_profiles`
-Artisan details and verification
-- `uid`, `trade`, `category`, `location`, `available`, `verified`
-- `id_document_url`, `work_photos[]`, `completed_jobs`, `reputation_score`, `tagline`
-
-### `jobs`
-Client job postings
-- `job_id`, `client_uid`, `trade`, `location`, `urgency`, `budget`
-- `description`, `match_fee`, `status`, timestamps
-
-### `matches`
-Job-artisan pairings
-- `match_id`, `job_id`, `artisan_uid`, `status`, `rating`, timestamps
-
-### `transactions`
-Payment records with escrow
-- `transaction_id`, `match_id`, `artisan_uid`, `amount`, `status`
-- `paystack_reference`, `locked_job_value`, `commission_retained`, `released_at`
-
-## 🔐 Security Features
-
-✅ All endpoints require authentication (Firebase ID token)
-✅ IDOR protection with ownership checks
-✅ Webhook signature verification (Paystack)
-✅ File upload validation (actual MIME type/signature)
-✅ Payment gate for contact reveal
-✅ Admin access via environment variable (never hardcoded)
-✅ Idempotent operations (no double-release)
-✅ Input validation (locked enums, length limits)
-✅ Firestore security rules
-
-See [SECURITY.md](./SECURITY.md) for complete security documentation.
-
-## 🚀 Setup & Installation
-
-### Prerequisites
-- Node.js 18
-- Firebase CLI: `npm install -g firebase-tools`
-- Firebase project created
-- Paystack account (test mode for development)
-
-### 1. Clone and Install
+Prerequisites are Node.js 20, Java 21 or later for Firebase emulators, Python 3.12, and the Firebase CLI installed by the functions package.
 
 ```bash
-cd verifix/functions
-npm install
-```
-
-### 2. Configure Environment
-
-Create `functions/.env` from template:
-
-```bash
-cp .env.example functions/.env
-```
-
-Edit `functions/.env`:
-
-```env
-PAYSTACK_SECRET_KEY=sk_test_your_key_here
-PAYSTACK_PUBLIC_KEY=pk_test_your_key_here
-ADMIN_UID=your_firebase_admin_uid_here
-FIREBASE_PROJECT_ID=your-project-id
-```
-
-### 3. Firebase Setup
-
-```bash
-# Login to Firebase
-firebase login
-
-# Initialize project (if needed)
-firebase init
-
-# Deploy Firestore rules and indexes
-firebase deploy --only firestore:rules
-firebase deploy --only firestore:indexes
-```
-
-### 4. Deploy Functions
-
-```bash
-# Build TypeScript
 cd functions
-npm run build
-
-# Deploy to Firebase
-firebase deploy --only functions
+npm ci
+npm run check
+npm run test:rules
 ```
 
-### 5. Configure Paystack Webhook
+Copy `functions/.env.example` to `functions/.env` only for non-secret emulator configuration. Development OTP endpoints exist only when both `FUNCTIONS_EMULATOR=true` and `ENABLE_DEV_AUTH=true`; they are not registered in production.
 
-In your Paystack dashboard:
-1. Go to Settings → Webhooks
-2. Add webhook URL: `https://<region>-<project-id>.cloudfunctions.net/api/payments/webhook`
-3. Enable `charge.success` event
-
-## 📡 API Endpoints
-
-### Authentication
-- `POST /api/auth/send-otp` - Send OTP to phone
-- `POST /api/auth/verify-otp` - Verify OTP and create user
-- `POST /api/auth/create-custom-token` - Dev helper
-
-### Artisans
-- `POST /api/artisans/signup` - Complete artisan profile
-- `PATCH /api/artisans/:uid/availability` - Toggle availability
-- `POST /api/artisans/:uid/photo` - Upload work photo
-- `POST /api/artisans/:uid/id-document` - Upload ID document
-- `GET /api/artisans/:uid` - Get profile
-- `PATCH /api/artisans/:uid/profile` - Update profile
-- `GET /api/artisans/:uid/dashboard` - Dashboard data
-
-### Jobs
-- `POST /api/jobs` - Create job
-- `GET /api/jobs` - List user's jobs
-- `GET /api/jobs/:id` - Get job details
-- `PATCH /api/jobs/:id` - Update job
-- `POST /api/jobs/:id/match` - Find matching artisans
-- `GET /api/jobs/:id/matches` - Get matches for job
-- `POST /api/jobs/:id/complete` - Mark complete & release escrow
-- `POST /api/jobs/:id/rating` - Submit rating
-
-### Payments
-- `POST /api/payments/initialize` - Initialize Paystack payment
-- `POST /api/payments/webhook` - Paystack webhook (public)
-- `POST /api/jobs/:id/reveal-contact` - Reveal artisan contact (requires payment)
-- `GET /api/payments/verify/:reference` - Verify payment
-
-### Admin
-- `GET /api/admin/verification-queue` - List unverified artisans
-- `POST /api/admin/verify/:uid` - Verify artisan
-- `POST /api/admin/reject/:uid` - Reject artisan
-- `GET /api/admin/stats` - Platform statistics
-
-## 🧪 Testing
-
-### Local Emulator
+ML checks:
 
 ```bash
-# Start Firebase emulators
-firebase emulators:start
-
-# Functions will be available at:
-# http://localhost:5001/<project-id>/<region>/api
+cd ml-service
+python -m pip install --requirement requirements.txt
+python -m unittest discover -s tests -v
+docker build --tag artiva-ml:test .
 ```
 
-### Test Authentication
+Model files are loaded only when their expected SHA-256 values are configured. Treat pickle files as executable artifacts: build them in a trusted pipeline, store them in a controlled bucket, and deploy their checksums as `ARTISAN_MODEL_SHA256` and `CUSTOMER_MODEL_SHA256`.
+
+## Production configuration
+
+Create function secrets without placing their values in a tracked file:
 
 ```bash
-# Create custom token (dev only)
-curl -X POST http://localhost:5001/api/auth/create-custom-token \
-  -H "Content-Type: application/json" \
-  -d '{"phone": "+2348012345678"}'
-
-# Use returned token in subsequent requests
-curl -X GET http://localhost:5001/api/jobs \
-  -H "Authorization: Bearer <token>"
+firebase functions:secrets:set PAYSTACK_SECRET_KEY
+firebase functions:secrets:set ENCRYPTION_KEY
+firebase functions:secrets:set ADMIN_UID
 ```
 
-## 📊 Matching Algorithm
+Set `FIREBASE_WEB_API_KEY` and `ALLOWED_ORIGINS` as runtime parameters. Keep `ENABLE_API_DOCS` and `ENABLE_DEV_AUTH` disabled in production. The encryption key must be a cryptographically random value of at least 32 bytes and must have a documented rotation and recovery procedure.
 
-Artisans matched based on:
-1. **Trade** - exact match with job requirement
-2. **Availability** - currently available
-3. **Verification** - admin-verified only
-4. **Sorting**:
-   - Primary: `completed_jobs` (descending)
-   - Tiebreaker: `reputation_score` (descending)
+Configure the Paystack webhook for the deployed `/api/payments/webhook` route. Confirm the exact generated function URL before saving it because Firebase URLs vary by generation and routing setup. Paystack is the authority for final charge, transfer, and refund status; the API verifies webhook HMAC signatures against the exact raw body and reconciles event metadata before changing state.
 
-Returns top 5 matches per job.
+## Deployment
 
-## 💰 Commission & Escrow
+The workflows in `.github/workflows` use GitHub OIDC and Google Workload Identity Federation. Configure:
 
-1. Client posts job with estimated budget
-2. System creates matches
-3. Client pays match fee (₦500 default) to reveal contact
-4. **Payment capture:** `locked_job_value` saved at payment time
-5. Client and artisan work together
-6. Client marks job complete
-7. **Escrow release:** 10% commission calculated from `locked_job_value`
-8. Artisan receives 90% of original agreed value
+- `GCP_PROJECT_ID`
+- `WIF_PROVIDER`
+- `WIF_SERVICE_ACCOUNT`
+- `MODEL_BUCKET_NAME`
+- `ARTISAN_MODEL_SHA256`
+- `CUSTOMER_MODEL_SHA256`
 
-**Key Security:** Commission always uses `locked_job_value` (captured at payment), never current job value (prevents manipulation).
+Grant the deployment service account only the roles needed for Functions, Firestore rules/indexes, Storage rules, Artifact Registry, and Cloud Run. The ML service is deployed without unauthenticated access.
 
-## 🔧 Troubleshooting
+## Security model
 
-### Functions won't deploy
-- Check Node.js version: `node --version` (must be 18)
-- Build TypeScript: `npm run build`
-- Check for syntax errors in compiled `lib/` folder
+- Firestore and Storage are deny-by-default. Sensitive writes, admin operations, payments, matching, chat membership, completion, ratings, and identity-document review go through the Admin SDK API.
+- Direct Firestore access is limited to each user's notifications and tightly scoped participant or owner reads. An `artiva_admin` custom claim does not grant direct database access.
+- Identity documents and payout details are stored outside public artisan profiles. Sensitive strings use authenticated encryption; audit identifiers use keyed hashing.
+- Uploads have byte limits, generated object names, allowlisted content types, and magic-byte validation.
+- Payment initialization derives the amount and selected artisan from server state. Completion and rating use transactions and deterministic locks to prevent duplicate processing.
+- API responses use strict CORS, security headers, request-size limits, rate limiting, generic production errors, and minimized health output.
 
-### Authentication errors
-- Verify Firebase ID token is valid
-- Check token in `Authorization: Bearer <token>` header
-- Token must not be expired
-
-### Paystack webhook not working
-- Verify webhook URL in Paystack dashboard
-- Check signature validation is passing
-- Review Cloud Functions logs: `firebase functions:log`
-
-### File uploads failing
-- Check file size (5MB photos, 10MB documents)
-- Verify file type (JPEG, PNG, WebP only)
-- Ensure Firebase Storage bucket exists
-
-## 📝 Development Guidelines
-
-### Code Style
-- Use TypeScript strict mode
-- Async/await over promises
-- Descriptive error messages
-- Log errors with context
-
-### Commits
-- Never commit `.env` files
-- Never commit real Paystack keys
-- Use semantic commit messages
-
-### Testing
-- Test with Paystack test mode keys
-- Use Firebase emulators for local development
-- Test all ownership checks (try accessing other users' resources)
-
-## 📞 Support
-
-For issues or questions:
-- Check [SECURITY.md](./SECURITY.md) for security concerns
-- Review Firebase Functions logs: `firebase functions:log`
-- Check Firestore data for consistency
-
-## 📄 License
-
-Proprietary - Verifix Platform
-
----
-
-**Built with ❤️ for Nigerian artisans and their clients**
+See [SECURITY.md](./SECURITY.md) for operating requirements and residual risks.

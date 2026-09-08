@@ -3,7 +3,6 @@ import { BaseService } from './base.service';
 import { COLLECTIONS } from '../constants';
 import { Job, CreateJobDTO, UpdateJobDTO } from '../models/job.model';
 import { isValidTrade, Trade } from '../constants/trades';
-import { initiateTransfer } from '../utils/paystack';
 import { AnalyticsService } from './analytics.service';
 
 export class JobService extends BaseService {
@@ -34,11 +33,20 @@ export class JobService extends BaseService {
         description: data.description,
         location: data.location,
         urgency: data.urgency,
-        match_fee: data.match_fee || 500,
+        match_fee: 500,
         status: 'open',
         created_at: admin.firestore.FieldValue.serverTimestamp(),
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       };
+
+      const budget = data.budget ?? data.job_value;
+      if (budget !== undefined) {
+        jobData.budget = budget;
+        jobData.job_value = budget;
+      }
+      if (data.photos) {
+        jobData.photos = data.photos;
+      }
 
       const docRef = await this.db.collection(COLLECTIONS.JOBS).add(jobData);
       this.logOperation('job-created', { jobId: docRef.id, clientUid, trade: data.trade_needed });
@@ -77,15 +85,27 @@ export class JobService extends BaseService {
     }
   }
 
-  async updateJob(jobId: string, updates: UpdateJobDTO): Promise<Job> {
+  async updateJob(jobId: string, callerUid: string, updates: UpdateJobDTO, isAdmin = false): Promise<Job> {
     try {
       const job = await this.getJobById(jobId);
       if (!job) throw new Error('Job not found');
+      if (job.client_uid !== callerUid && !isAdmin) {
+        throw new Error('Forbidden: You do not own this job');
+      }
+      if (job.status !== 'open') {
+        throw new Error('Invalid job state: Only open jobs can be edited');
+      }
 
       const updateData: any = {
         ...updates,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       };
+
+      const budget = updates.budget ?? updates.job_value;
+      if (budget !== undefined) {
+        updateData.budget = budget;
+        updateData.job_value = budget;
+      }
 
       await this.db.collection(COLLECTIONS.JOBS).doc(jobId).update(updateData);
       this.logOperation('job-updated', { jobId });
@@ -113,6 +133,46 @@ export class JobService extends BaseService {
     }
   }
 
+  async getJobsForArtisan(artisanUid: string, requestedLimit?: number): Promise<Job[]> {
+    try {
+      const limit = requestedLimit && requestedLimit > 0 ? Math.min(requestedLimit, 100) : 50;
+      const matches = await this.db.collection(COLLECTIONS.MATCHES)
+        .where('artisan_uid', '==', artisanUid)
+        .orderBy('created_at', 'desc')
+        .limit(limit)
+        .get();
+      const matchByJob = new Map<string, { match_id: string; match_status: string }>();
+      matches.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.job_id && !matchByJob.has(data.job_id)) {
+          matchByJob.set(data.job_id, { match_id: doc.id, match_status: data.status });
+        }
+      });
+      const jobIds = [...new Set(matches.docs.map(doc => doc.data().job_id).filter(Boolean))] as string[];
+      if (jobIds.length === 0) return [];
+
+      const jobs: Job[] = [];
+      for (let index = 0; index < jobIds.length; index += 30) {
+        const chunk = jobIds.slice(index, index + 30);
+        const snapshot = await this.db.collection(COLLECTIONS.JOBS)
+          .where(admin.firestore.FieldPath.documentId(), 'in', chunk)
+          .get();
+        jobs.push(...snapshot.docs.map(doc => ({
+          job_id: doc.id,
+          ...doc.data(),
+          ...(matchByJob.get(doc.id) || {})
+        } as unknown as Job)));
+      }
+      return jobs.sort((a: any, b: any) => {
+        const left = a.created_at?.toMillis?.() || 0;
+        const right = b.created_at?.toMillis?.() || 0;
+        return right - left;
+      });
+    } catch (error) {
+      this.handleError(error, 'Get jobs for artisan');
+    }
+  }
+
   async raiseDispute(jobId: string, uid: string, reason: string): Promise<void> {
     try {
       // Allow client or artisan to raise a dispute
@@ -120,7 +180,7 @@ export class JobService extends BaseService {
       if (!job) throw new Error('Job not found');
 
       const isClient = job.client_uid === uid;
-      const isArtisan = job.matched_artisan_uid === uid;
+      const isArtisan = job.matched_artisan_uid === uid || job.assigned_artisan_uid === uid;
       if (!isClient && !isArtisan) {
         throw new Error('Unauthorized: You must be the client or assigned artisan to dispute this job');
       }
@@ -188,148 +248,46 @@ export class JobService extends BaseService {
     }
   }
 
-  async markComplete(jobId: string, clientUid: string, matchId: string): Promise<any> {
-    try {
-      const job = await this.getJobById(jobId);
-      if (!job) throw new Error('Job not found');
-
-      if (job.client_uid !== clientUid) {
-        throw new Error('Forbidden: Only the client who posted this job can mark it complete');
-      }
-
-      const matchRef = this.db.collection('matches').doc(matchId);
-      const matchDoc = await matchRef.get();
-      if (!matchDoc.exists) throw new Error('Match not found');
-
-      const matchData = matchDoc.data();
-      if (matchData?.job_id !== jobId) {
-        throw new Error('Match does not belong to this job');
-      }
-
-      // Query by escrow_status (v1.9 canonical field) with fallback to legacy status field
-      let transactionsSnapshot = await this.db.collection('transactions')
-        .where('match_id', '==', matchId)
-        .where('escrow_status', '==', 'HELD')
-        .limit(1)
-        .get();
-
-      if (transactionsSnapshot.empty) {
-        // Fallback: legacy transactions only have flat status field
-        transactionsSnapshot = await this.db.collection('transactions')
-          .where('match_id', '==', matchId)
-          .where('status', '==', 'held')
-          .limit(1)
-          .get();
-      }
-
-      if (transactionsSnapshot.empty) {
-        throw new Error('No held transaction found for this match. Payment may not have been completed.');
-      }
-
-      const transactionDoc = transactionsSnapshot.docs[0];
-      const transactionData = transactionDoc.data();
-
-      if (transactionData?.status === 'released') {
-        return {
-          message: 'Job already marked complete (idempotent)',
-          already_completed: true,
-          transaction: {
-            transaction_id: transactionDoc.id,
-            status: 'released',
-            commission_retained: transactionData.commission_retained,
-            released_at: transactionData.released_at
-          }
-        };
-      }
-
-      const lockedJobValue = transactionData?.locked_job_value || 0;
-      const commissionRetained = Math.round(lockedJobValue * 0.10);
-
-      const artisanRef = this.db.collection('artisan_profiles').doc(matchData!.artisan_uid);
-      const artisanDoc = await artisanRef.get();
-      const artisanData = artisanDoc.data();
-
-      await this.db.runTransaction(async (transaction) => {
-        transaction.update(transactionDoc.ref, {
-          status: 'released',
-          escrow_status: 'RELEASED',  // PRD §7.3 step 4a: canonical v1.9 field
-          commission_retained: commissionRetained,
-          released_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        const jobRef = this.db.collection('jobs').doc(jobId);
-        transaction.update(jobRef, {
-          status: 'completed',
-          completed_at: admin.firestore.FieldValue.serverTimestamp(),
-          updated_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        transaction.update(matchRef, {
-          status: 'completed',
-          updated_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        transaction.update(artisanRef, {
-          completed_jobs: admin.firestore.FieldValue.increment(1),
-          updated_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-      });
-
-      const netAmount = lockedJobValue - commissionRetained;
-      let transferResult = null;
-      if (artisanData?.paystack_recipient_code && netAmount > 0) {
-        try {
-          transferResult = await initiateTransfer(
-            artisanData.paystack_recipient_code,
-            netAmount,
-            `Payment for Job ${jobId}`
-          );
-        } catch (transferError: any) {
-          this.logger.error(`Failed to transfer funds to artisan ${matchData!.artisan_uid} for job ${jobId}`, transferError);
-        }
-      }
-
-      this.logOperation('job-completed', { jobId, clientUid });
-
-      // PRD §5.1: fire job_completed analytics event (fire-and-forget, non-blocking)
-      try {
-        new AnalyticsService().trackEvent('job_completed', clientUid, {
-          job_id: jobId,
-          artisan_uid: matchData!.artisan_uid,
-          locked_job_value: lockedJobValue,
-          commission_retained: commissionRetained
-        }).catch(() => {});
-      } catch { /* analytics never blocks the main flow */ }
-
-      return {
-        message: 'Job marked complete and escrow released successfully',
-        transaction: {
-          transaction_id: transactionDoc.id,
-          status: 'released',
-          locked_job_value: lockedJobValue,
-          commission_retained: commissionRetained,
-          artisan_receives: netAmount,
-          transfer_triggered: !!transferResult,
-          released_at: new Date()
-        }
-      };
-    } catch (error) {
-      this.handleError(error, 'Mark job complete');
-    }
-  }
-
   async cancelJob(jobId: string, clientUid: string): Promise<void> {
     try {
-      const job = await this.getJobById(jobId);
-      if (!job) throw new Error('Job not found');
+      const jobRef = this.db.collection(COLLECTIONS.JOBS).doc(jobId);
+      const matchesQuery = this.db.collection(COLLECTIONS.MATCHES).where('job_id', '==', jobId);
+      const escrowQuery = this.db.collection(COLLECTIONS.TRANSACTIONS)
+        .where('job_id', '==', jobId)
+        .where('type', '==', 'escrow')
+        .limit(10);
 
-      if (job.client_uid !== clientUid) {
-        throw new Error('Unauthorized: You can only cancel your own jobs');
-      }
+      await this.db.runTransaction(async transaction => {
+        const [jobDoc, matches, escrows] = await Promise.all([
+          transaction.get(jobRef),
+          transaction.get(matchesQuery),
+          transaction.get(escrowQuery)
+        ]);
+        const job = jobDoc.data();
+        if (!job) throw new Error('Job not found');
+        if (job.client_uid !== clientUid) {
+          throw new Error('Unauthorized: You can only cancel your own jobs');
+        }
+        if (!['open', 'matched'].includes(job.status)) {
+          throw new Error('Invalid job state: This job can no longer be cancelled');
+        }
+        const hasPaidEscrow = escrows.docs.some(doc =>
+          ['PENDING', 'PAYMENT_RECONCILIATION_REQUIRED', 'HELD', 'DISBURSED_PARTIAL', 'RELEASE_PENDING', 'RELEASED', 'REFUND_PENDING']
+            .includes(doc.data().escrow_status)
+          || ['pending', 'reconciliation_required', 'held', 'released', 'refund_pending'].includes(doc.data().status)
+        );
+        if (hasPaidEscrow) {
+          throw new Error('Invalid job state: Paid jobs must be refunded before cancellation');
+        }
 
-      await this.db.collection(COLLECTIONS.JOBS).doc(jobId).update({
-        status: 'cancelled',
-        updated_at: admin.firestore.FieldValue.serverTimestamp()
+        transaction.update(jobRef, {
+          status: 'cancelled',
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+        matches.docs.forEach(match => transaction.update(match.ref, {
+          status: 'cancelled',
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        }));
       });
 
       this.logOperation('job-cancelled', { jobId, clientUid });
@@ -350,12 +308,12 @@ export class JobService extends BaseService {
       const matchSnapshot = await this.db.collection('matches')
         .where('job_id', '==', jobId)
         .where('artisan_uid', '==', artisanUid)
-        .where('status', '==', 'accepted')
+        .where('status', '==', 'paid')
         .limit(1)
         .get();
 
       if (matchSnapshot.empty) {
-        throw new Error('Unauthorized: You are not the accepted artisan for this job');
+        throw new Error('Unauthorized: You are not the paid artisan for this job');
       }
 
       await this.db.collection(COLLECTIONS.JOBS).doc(jobId).update({

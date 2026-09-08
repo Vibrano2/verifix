@@ -6,22 +6,20 @@
  */
 
 import * as admin from 'firebase-admin';
-import * as crypto from 'crypto';
 import { Logger } from './logger';
+import { hashData } from './encryption';
 
 function hashPII(data: string): string {
   if (!data) return '';
-  return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16);
+  return hashData(data.trim()).substring(0, 16);
 }
 
 interface OTPAttempt {
-  phone: string;
   timestamp: Date;
   success: boolean;
 }
 
 interface OTPRateLimit {
-  phone: string;
   attempts: OTPAttempt[];
   locked_until?: Date;
 }
@@ -43,7 +41,7 @@ export async function checkOTPRateLimit(phone: string): Promise<{
   resetAt?: Date;
 }> {
   try {
-    const docRef = getDb().collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
+    const docRef = getDb().collection(OTP_RATE_LIMIT_COLLECTION).doc(hashData(phone.trim()));
     const doc = await docRef.get();
 
     if (!doc.exists) {
@@ -93,8 +91,7 @@ export async function checkOTPRateLimit(phone: string): Promise<{
     return { allowed: true };
   } catch (error) {
     Logger.error('Error checking OTP rate limit', { phone: hashPII(phone), error });
-    // Fail open - allow the request if there's a database error
-    return { allowed: true };
+    return { allowed: false, reason: 'OTP service is temporarily unavailable' };
   }
 }
 
@@ -103,62 +100,35 @@ export async function checkOTPRateLimit(phone: string): Promise<{
  */
 export async function recordOTPAttempt(phone: string, success: boolean): Promise<void> {
   try {
-    const docRef = getDb().collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
-    const doc = await docRef.get();
-
-    const attempt: OTPAttempt = {
-      phone,
-      timestamp: new Date(),
-      success
-    };
-
-    if (!doc.exists) {
-      // Create new record
-      await docRef.set({
-        phone,
-        attempts: [attempt],
-        locked_until: null
+    const docRef = getDb().collection(OTP_RATE_LIMIT_COLLECTION).doc(hashData(phone.trim()));
+    await getDb().runTransaction(async transaction => {
+      const doc = await transaction.get(docRef);
+      const data = doc.exists ? doc.data() as OTPRateLimit : { attempts: [] };
+      const attempt: OTPAttempt = { timestamp: new Date(), success };
+      const twentyFourHoursAgo = new Date(Date.now() - LOCKOUT_DURATION_MS);
+      const recentAttempts = (Array.isArray(data.attempts) ? data.attempts : []).filter(item => {
+        const attemptTime = item.timestamp instanceof admin.firestore.Timestamp
+          ? item.timestamp.toDate()
+          : new Date(item.timestamp);
+        return attemptTime > twentyFourHoursAgo;
       });
-      return;
-    }
+      recentAttempts.push(attempt);
 
-    const data = doc.data() as OTPRateLimit;
-    
-    // Clean up old attempts (older than 24 hours)
-    const twentyFourHoursAgo = new Date(Date.now() - LOCKOUT_DURATION_MS);
-    const recentAttempts = data.attempts.filter(a => {
-      const attemptTime = a.timestamp instanceof admin.firestore.Timestamp
-        ? a.timestamp.toDate()
-        : new Date(a.timestamp);
-      return attemptTime > twentyFourHoursAgo;
-    });
-
-    // Add new attempt
-    recentAttempts.push(attempt);
-
-    // Check for 5 failed attempts (trigger lockout)
-    if (!success) {
-      const failedAttempts = recentAttempts.filter(a => !a.success);
-      
-      if (failedAttempts.length >= MAX_FAILED_ATTEMPTS) {
-        const lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
-        await docRef.update({
-          attempts: recentAttempts,
-          locked_until: admin.firestore.Timestamp.fromDate(lockedUntil)
+      const failedAttempts = recentAttempts.filter(item => !item.success).length;
+      const lockedUntil = failedAttempts >= MAX_FAILED_ATTEMPTS
+        ? admin.firestore.Timestamp.fromMillis(Date.now() + LOCKOUT_DURATION_MS)
+        : data.locked_until || null;
+      transaction.set(docRef, {
+        attempts: recentAttempts,
+        locked_until: lockedUntil,
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+      if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+        Logger.warn('Phone number locked due to failed OTP attempts', {
+          phone: hashPII(phone),
+          failedAttempts
         });
-        
-        Logger.warn('Phone number locked due to failed OTP attempts', { 
-          phone: hashPII(phone), 
-          failedAttempts: failedAttempts.length,
-          lockedUntil 
-        });
-        return;
       }
-    }
-
-    // Update attempts
-    await docRef.update({
-      attempts: recentAttempts
     });
   } catch (error) {
     Logger.error('Error recording OTP attempt', { phone: hashPII(phone), success, error });
@@ -171,7 +141,7 @@ export async function recordOTPAttempt(phone: string, success: boolean): Promise
  */
 export async function resetOTPRateLimit(phone: string): Promise<void> {
   try {
-    const docRef = getDb().collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
+    const docRef = getDb().collection(OTP_RATE_LIMIT_COLLECTION).doc(hashData(phone.trim()));
     await docRef.delete();
     Logger.info('OTP rate limit reset', { phone: hashPII(phone) });
   } catch (error) {
@@ -190,7 +160,7 @@ export async function getOTPRateLimitStatus(phone: string): Promise<{
   lockedUntil?: Date;
 }> {
   try {
-    const docRef = getDb().collection(OTP_RATE_LIMIT_COLLECTION).doc(phone);
+    const docRef = getDb().collection(OTP_RATE_LIMIT_COLLECTION).doc(hashData(phone.trim()));
     const doc = await docRef.get();
 
     if (!doc.exists) {

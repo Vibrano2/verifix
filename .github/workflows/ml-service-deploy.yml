@@ -1,53 +1,101 @@
-name: Deploy ML Service to Cloud Run
+name: ML service
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
-      - 'ml-service/**'
-      - '.github/workflows/ml-service-deploy.yml'
+      - ml-service/**
+      - .github/workflows/ml-service-deploy.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - ml-service/**
+      - .github/workflows/ml-service-deploy.yml
+
+permissions:
+  contents: read
+
+env:
+  REGION: us-central1
+  SERVICE_NAME: artisan-hub-ml-service
+  GAR_LOCATION: us-central1
+  REPOSITORY: ml-repo
 
 jobs:
-  deploy:
+  quality:
+    name: Test and build container
     runs-on: ubuntu-latest
-    env:
-      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      REGION: us-central1
-      SERVICE_NAME: artisan-hub-ml-service
-      GAR_LOCATION: us-central1
-      REPOSITORY: ml-repo
-
+    timeout-minutes: 20
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - name: Google Auth
-        id: auth
-        uses: 'google-github-actions/auth@v2'
+      - name: Set up Python
+        uses: actions/setup-python@v7
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
-          # If using Workload Identity Federation (recommended):
-          # workload_identity_provider: '${{ secrets.WIF_PROVIDER }}'
-          # service_account: '${{ secrets.WIF_SERVICE_ACCOUNT }}'
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ml-service/requirements.txt
 
-      - name: Docker Auth
-        id: docker-auth
-        uses: 'docker/login-action@v3'
-        with:
-          username: 'oauth2accesstoken'
-          password: '${{ steps.auth.outputs.access_token }}'
-          registry: '${{ env.GAR_LOCATION }}-docker.pkg.dev'
-
-      - name: Build and Push Container
+      - name: Install dependencies
         working-directory: ml-service
-        run: |-
-          docker build -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}" .
-          docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+        run: python -m pip install --requirement requirements.txt
+
+      - name: Run tests
+        working-directory: ml-service
+        run: python -m unittest discover -s tests -v
+
+      - name: Build container
+        run: docker build --tag artiva-ml:test ./ml-service
+
+  deploy:
+    name: Deploy production service
+    if: github.event_name == 'push'
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: ml-service-production
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          token_format: access_token
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Authenticate Docker to Artifact Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.GAR_LOCATION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Build and push container
+        uses: docker/build-push-action@v7
+        with:
+          context: ./ml-service
+          push: true
+          tags: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
 
       - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@v3
         with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.REGION }}
-          image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          env_vars_update_strategy: merge
+          env_vars: |-
+            MODEL_BUCKET_NAME=${{ vars.MODEL_BUCKET_NAME }}
+            ARTISAN_MODEL_SHA256=${{ vars.ARTISAN_MODEL_SHA256 }}
+            CUSTOMER_MODEL_SHA256=${{ vars.CUSTOMER_MODEL_SHA256 }}

@@ -1,6 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { createHash, randomUUID } from 'crypto';
 import { Logger } from '../utils/logger';
+
+function hashIdentifier(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
 
 export const rateLimit = (maxRequests: number = 100, windowMs: number = 15 * 60 * 1000) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -9,7 +14,7 @@ export const rateLimit = (maxRequests: number = 100, windowMs: number = 15 * 60 
     
     try {
       const db = getFirestore();
-      const docRef = db.collection('rate_limits').doc(ip.replace(/:/g, '_'));
+      const docRef = db.collection('rate_limits').doc(hashIdentifier(ip));
 
       await db.runTransaction(async (transaction) => {
         const doc = await transaction.get(docRef);
@@ -19,7 +24,7 @@ export const rateLimit = (maxRequests: number = 100, windowMs: number = 15 * 60 
         }
 
         const data = doc.data()!;
-        if (data.count > maxRequests) {
+        if (data.count >= maxRequests) {
           return { allowed: false, resetTime: data.resetTime };
         }
 
@@ -32,7 +37,7 @@ export const rateLimit = (maxRequests: number = 100, windowMs: number = 15 * 60 
             message: 'Rate limit exceeded. Please try again later.',
             retryAfter: Math.ceil((result.resetTime! - now) / 1000)
           });
-          Logger.warn(`Rate limit exceeded for IP: ${ip}`);
+          Logger.warn('Rate limit exceeded', { ipHash: hashIdentifier(ip).slice(0, 16) });
         } else {
           next();
         }
@@ -61,7 +66,7 @@ export const monitorIP = async (req: Request, res: Response, next: NextFunction)
   
   try {
     const db = getFirestore();
-    const docRef = db.collection('ip_monitoring').doc(ip.replace(/:/g, '_'));
+    const docRef = db.collection('ip_monitoring').doc(hashIdentifier(ip));
     const doc = await docRef.get();
     if (doc.exists) {
       const data = doc.data()!;
@@ -89,7 +94,7 @@ export const monitorIP = async (req: Request, res: Response, next: NextFunction)
 export const recordFailedAuth = async (ip: string): Promise<void> => {
   try {
     const db = getFirestore();
-    const docRef = db.collection('ip_monitoring').doc(ip.replace(/:/g, '_'));
+    const docRef = db.collection('ip_monitoring').doc(hashIdentifier(ip));
     const now = Date.now();
     
     await db.runTransaction(async (transaction) => {
@@ -107,15 +112,21 @@ export const recordFailedAuth = async (ip: string): Promise<void> => {
       const data = doc.data()!;
       const attempts = (data.failedAttempts || 0) + 1;
       
+      const previousActivity = Array.isArray(data.suspiciousActivity)
+        ? data.suspiciousActivity.slice(-19)
+        : [];
       const updateData: any = {
         failedAttempts: attempts,
-        suspiciousActivity: FieldValue.arrayUnion(activity)
+        suspiciousActivity: [...previousActivity, activity]
       };
       
       if (attempts >= 5) {
         const blockDuration = 15 * 60 * 1000;
         updateData.blockedUntil = now + blockDuration;
-        Logger.warn(`IP ${ip} blocked for 15 minutes after ${attempts} failed attempts`);
+        Logger.warn('IP temporarily blocked after repeated auth failures', {
+          ipHash: hashIdentifier(ip).slice(0, 16),
+          attempts
+        });
       }
       
       transaction.update(docRef, updateData);
@@ -139,8 +150,20 @@ export interface AuditLog {
 export const auditLog = async (log: AuditLog): Promise<void> => {
   try {
     const db = getFirestore();
+    let details: string | undefined;
+    if (log.details !== undefined) {
+      try {
+        details = JSON.stringify(log.details).slice(0, 4000);
+      } catch {
+        details = '[unserializable]';
+      }
+    }
     await db.collection('audit_logs').add({
       ...log,
+      ip: hashIdentifier(log.ip),
+      userAgent: log.userAgent?.slice(0, 500) ?? null,
+      resource: log.resource?.slice(0, 500) ?? null,
+      details: details ?? null,
       timestamp: FieldValue.serverTimestamp()
     });
   } catch (error) {
@@ -176,7 +199,7 @@ export const auditMiddleware = (action: string) => {
 };
 
 export const requestId = (req: Request, res: Response, next: NextFunction): void => {
-  const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const id = randomUUID();
   req.headers['x-request-id'] = id;
   res.setHeader('X-Request-ID', id);
   next();

@@ -1,163 +1,99 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    function isAuthenticated() {
+    function signedIn() {
       return request.auth != null;
     }
-    
-    function isOwner(uid) {
-      return isAuthenticated() && request.auth.uid == uid;
+
+    function owns(uid) {
+      return signedIn() && request.auth.uid == uid;
     }
 
-    // Admin is identified by UID stored in the ADMIN_UID env var, which the
-    // backend embeds as a custom claim at token mint time via auth.setCustomUserClaims.
-    // The claim name matches what Firebase Admin SDK sets: { artiva_admin: true }
-    function isAdmin() {
-      return isAuthenticated() && request.auth.token.artiva_admin == true;
+    function job(jobId) {
+      return get(/databases/$(database)/documents/jobs/$(jobId));
     }
-    
+
+    function selectedMatch(jobId) {
+      return get(/databases/$(database)/documents/matches/$(job(jobId).data.chat_match_id));
+    }
+
+    function paidChatParticipant(jobId) {
+      return signedIn()
+        && job(jobId).data.chat_unlocked == true
+        && job(jobId).data.chat_match_id is string
+        && exists(/databases/$(database)/documents/matches/$(job(jobId).data.chat_match_id))
+        && selectedMatch(jobId).data.status in ['paid', 'completed']
+        && (owns(job(jobId).data.client_uid) || owns(selectedMatch(jobId).data.artisan_uid));
+    }
+
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) 
-        && request.resource.data.uid == userId
-        && request.resource.data.role in ['client', 'artisan'];
-      allow update: if isOwner(userId)
-        && request.resource.data.uid == userId
-        && request.resource.data.role == resource.data.role
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'email', 'uid', 'created_at']);
+      allow read: if owns(userId);
+      allow write: if false;
     }
-    
+
     match /artisan_profiles/{profileId} {
-      allow read: if resource.data.is_verified == true 
-        || resource.data.verified == true 
-        || isOwner(profileId)
-        || isAdmin();
-      allow create: if isOwner(profileId)
-        && request.resource.data.uid == profileId
-        && (request.resource.data.is_verified == false || request.resource.data.verified == false);
-      allow update: if (isOwner(profileId) 
-        && request.resource.data.uid == profileId
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['is_verified', 'verified', 'reputation_score', 'completed_jobs', 'paystack_recipient_code']))
-        || isAdmin();
-
-      match /private/{docId} {
-        allow read, write: if false;
-      }
+      // Public discovery goes through the API, which returns an explicit safe DTO.
+      // This also protects legacy profiles that may still contain PII.
+      allow read: if owns(profileId);
+      allow write: if false;
     }
-    
+
+    match /artisan_private/{profileId} {
+      allow read, write: if false;
+    }
+
     match /jobs/{jobId} {
-      allow read: if isOwner(resource.data.client_uid)
-        || (isAuthenticated() && resource.data.status == 'open')
-        || isAdmin();
-      allow create: if isAuthenticated()
-        && request.resource.data.client_uid == request.auth.uid
-        && request.resource.data.status == 'open';
-      allow update: if (isOwner(resource.data.client_uid)
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'match_fee', 'budget', 'client_uid', 'created_at']))
-        || isAdmin();
+      allow read: if owns(resource.data.client_uid)
+        || (signedIn()
+          && resource.data.chat_match_id is string
+          && exists(/databases/$(database)/documents/matches/$(resource.data.chat_match_id))
+          && owns(get(/databases/$(database)/documents/matches/$(resource.data.chat_match_id)).data.artisan_uid));
+      allow write: if false;
 
-      // In-app chat: stored as jobs/{jobId}/messages subcollection
       match /messages/{messageId} {
-        // Read: job owner (client) or the artisan matched to this job
-        allow read: if isAuthenticated() && (
-          isOwner(get(/databases/$(database)/documents/jobs/$(jobId)).data.client_uid)
-          || exists(/databases/$(database)/documents/matches/$(request.auth.uid + '_' + jobId))
-          || isAdmin()
-        );
-        // Write: any authenticated participant — service layer enforces the match check
-        allow create: if isAuthenticated()
-          && request.resource.data.sender_uid == request.auth.uid
-          && request.resource.data.keys().hasAll(['job_id', 'sender_uid', 'content', 'created_at']);
-        allow update, delete: if false;
+        allow read: if paidChatParticipant(jobId);
+        // Writes go through the API so the message and no-response marker are
+        // committed together. This closes the message/refund race.
+        allow create, update, delete: if false;
       }
     }
-    
+
     match /matches/{matchId} {
-      allow read: if isOwner(resource.data.client_uid) 
-        || isOwner(resource.data.artisan_uid)
-        || isAdmin();
-      allow create: if false;
-      allow update: if (isOwner(resource.data.artisan_uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at'])
-        && request.resource.data.status in ['accepted', 'declined'])
-        || isAdmin();
+      allow read: if owns(resource.data.client_uid) || owns(resource.data.artisan_uid);
+      allow write: if false;
     }
-    
+
     match /transactions/{transactionId} {
-      allow read: if isOwner(resource.data.artisan_uid) 
-        || isOwner(resource.data.client_uid)
-        || isAdmin();
-      allow create, update, delete: if false;
+      allow read: if owns(resource.data.client_uid) || owns(resource.data.artisan_uid);
+      allow write: if false;
     }
 
-    // Supplier proforma invoices
     match /proformas/{proformaId} {
-      // Client and artisan on the job can read; admin can read all
-      allow read: if isAdmin()
-        || isOwner(resource.data.artisan_uid)
-        || isOwner(get(/databases/$(database)/documents/jobs/$(resource.data.job_id)).data.client_uid);
-      // Only the matched artisan can submit a proforma; immutable once created
-      allow create: if isAuthenticated()
-        && request.resource.data.artisan_uid == request.auth.uid
-        && request.resource.data.status == 'pending'
-        && request.resource.data.keys().hasAll(['job_id', 'artisan_uid', 'supplier_name', 'total_amount', 'invoice_document_url']);
-      // Only admin can update (approve/reject)
-      allow update: if isAdmin();
-      allow delete: if false;
+      allow read: if owns(resource.data.artisan_uid)
+        || owns(job(resource.data.job_id).data.client_uid);
+      allow write: if false;
     }
 
-    // Dispute records — written server-side only
-    match /disputes/{disputeId} {
-      allow read: if isAdmin()
-        || isOwner(resource.data.raised_by_uid);
-      allow create, update, delete: if false;
-    }
-
-    // Ratings — client writes once per job; artisan reads own
     match /ratings/{ratingId} {
-      allow read: if isOwner(resource.data.artisan_uid)
-        || isOwner(resource.data.client_uid)
-        || isAdmin();
-      allow create: if isAuthenticated()
-        && request.resource.data.client_uid == request.auth.uid
-        && request.resource.data.score >= 1
-        && request.resource.data.score <= 5;
-      allow update, delete: if false;
+      allow read: if owns(resource.data.client_uid) || owns(resource.data.artisan_uid);
+      allow write: if false;
     }
 
-    match /otps/{docId} {
+    match /disputes/{disputeId} {
+      allow read: if owns(resource.data.raised_by_uid);
+      allow write: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if owns(resource.data.recipient_uid);
+      allow update: if owns(resource.data.recipient_uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read == true;
+      allow create, delete: if false;
+    }
+
+    match /{document=**} {
       allow read, write: if false;
-    }
-
-    match /rate_limits/{docId} {
-      allow read, write: if false;
-    }
-
-    match /ip_monitoring/{docId} {
-      allow read, write: if false;
-    }
-
-    match /audit_logs/{docId} {
-      allow read, write: if false;
-    }
-
-    match /otp_rate_limits/{docId} {
-      allow read, write: if false;
-    }
-
-    // In-app notifications (PRD A-008 no-response alerts)
-    match /notifications/{notifId} {
-      allow read: if isOwner(resource.data.recipient_uid) || isAdmin();
-      allow create, update, delete: if false; // server-side only
-    }
-
-    // Notify Me requests (PRD C-007 empty-match Notify Me button)
-    match /notify_me_requests/{reqId} {
-      allow read: if isAdmin();
-      allow create: if isAuthenticated()
-        && request.resource.data.client_uid == request.auth.uid;
-      allow update, delete: if false;
     }
   }
 }

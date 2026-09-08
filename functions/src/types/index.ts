@@ -1,13 +1,18 @@
 import { Request } from 'express';
 import { DecodedIdToken } from 'firebase-admin/auth';
 
+export type AuthenticatedUser = DecodedIdToken & {
+  role?: 'client' | 'artisan' | 'admin';
+  artiva_admin?: boolean;
+};
+
 // Extend Express Request to include Firebase user
 export interface AuthenticatedRequest extends Request {
-  user?: DecodedIdToken;
+  user?: AuthenticatedUser;
 }
 
 // User types
-export type UserRole = 'client' | 'artisan';
+export type UserRole = 'client' | 'artisan' | 'admin';
 
 export interface User {
   uid: string;

@@ -1,176 +1,94 @@
-import { JobService } from '../services/job.service';
-import * as admin from 'firebase-admin';
+const mockState: {
+  job: any;
+  matches: any[];
+  escrows: any[];
+  updates: Array<{ ref: any; data: any }>;
+} = {
+  job: null,
+  matches: [],
+  escrows: [],
+  updates: []
+};
 
-jest.mock('../utils/paystack', () => ({
-  initiateTransfer: jest.fn().mockResolvedValue({ status: true })
+const mockDocRef = (collection: string, id: string) => ({ kind: 'doc', collection, id });
+const mockQuery = (collection: string) => ({
+  kind: 'query',
+  collection,
+  where: jest.fn(function () { return this; }),
+  limit: jest.fn(function () { return this; }),
+  orderBy: jest.fn(function () { return this; }),
+  get: jest.fn()
+});
+
+const mockDb = {
+  collection: jest.fn((name: string) => ({
+    doc: jest.fn((id: string) => mockDocRef(name, id)),
+    where: jest.fn(() => mockQuery(name)),
+    add: jest.fn().mockResolvedValue({ id: 'analytics' })
+  })),
+  runTransaction: jest.fn(async (callback: any) => callback({
+    get: jest.fn(async (ref: any) => {
+      if (ref.kind === 'doc' && ref.collection === 'jobs') {
+        return { exists: Boolean(mockState.job), data: () => mockState.job };
+      }
+      const records = ref.collection === 'matches' ? mockState.matches : mockState.escrows;
+      return {
+        empty: records.length === 0,
+        docs: records.map((data, index) => ({
+          id: `${ref.collection}-${index}`,
+          data: () => data,
+          ref: mockDocRef(ref.collection, `${index}`)
+        }))
+      };
+    }),
+    update: jest.fn((ref: any, data: any) => mockState.updates.push({ ref, data }))
+  }))
+};
+
+jest.mock('firebase-admin', () => ({
+  firestore: Object.assign(jest.fn(() => mockDb), {
+    FieldValue: {
+      serverTimestamp: jest.fn(() => 'server-time'),
+      increment: jest.fn((value: number) => ({ increment: value }))
+    },
+    FieldPath: { documentId: jest.fn() }
+  })
 }));
 
-// Mock Firebase Admin
-jest.mock('firebase-admin', () => {
-  const getMock = jest.fn();
-  const whereMock = jest.fn();
-  const limitMock = jest.fn();
-  const updateMock = jest.fn();
-  
-  const docRefMock = {
-    get: getMock,
-    id: 'mock_doc_id',
-    ref: {}
-  };
-  
-  const collectionMock = {
-    doc: jest.fn(() => docRefMock),
-    where: whereMock,
-    get: getMock,
-  };
-  
-  whereMock.mockReturnValue({
-    where: whereMock,
-    limit: limitMock,
-    get: getMock
-  });
-  
-  limitMock.mockReturnValue({
-    get: getMock
-  });
-  
-  const dbMock = {
-    collection: jest.fn(() => collectionMock),
-    runTransaction: jest.fn(async (callback) => {
-      const transactionMock = {
-        update: updateMock,
-      };
-      return callback(transactionMock);
-    })
-  };
-  
-  return {
-    firestore: Object.assign(jest.fn(() => dbMock), {
-      FieldValue: {
-        serverTimestamp: jest.fn(() => 'mock_timestamp'),
-        increment: jest.fn((val) => `increment_${val}`)
-      }
-    }),
-    initializeApp: jest.fn()
-  };
-});
+import { JobService } from '../services/job.service';
 
-describe('JobService', () => {
-  let jobService: JobService;
-  let db: any;
-
+describe('JobService.cancelJob', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    db = (admin as any).firestore();
-    jobService = new JobService();
+    mockState.job = { client_uid: 'client-1', status: 'matched' };
+    mockState.matches = [{ status: 'pending' }, { status: 'accepted' }];
+    mockState.escrows = [];
+    mockState.updates = [];
   });
 
-  describe('markComplete', () => {
-    it('should throw an error if the job does not exist', async () => {
-      // Setup mock to return empty doc for job
-      const mockDoc = { exists: false };
-      const docRef = db.collection('jobs').doc('job_123');
-      (docRef.get as jest.Mock).mockResolvedValueOnce(mockDoc);
+  it('rejects a caller who does not own the job', async () => {
+    await expect(new JobService().cancelJob('job-1', 'client-2'))
+      .rejects.toThrow('You can only cancel your own jobs');
+    expect(mockState.updates).toHaveLength(0);
+  });
 
-      await expect(jobService.markComplete('job_123', 'client_1', 'match_1')).rejects.toThrow('Job not found');
-    });
+  it('rejects cancellation once an active payment intent exists', async () => {
+    mockState.escrows = [{ type: 'escrow', escrow_status: 'PENDING', status: 'pending' }];
+    await expect(new JobService().cancelJob('job-1', 'client-1'))
+      .rejects.toThrow('Paid jobs must be refunded before cancellation');
+    expect(mockState.updates).toHaveLength(0);
+  });
 
-    it('should throw an error if the user is not the client', async () => {
-      const mockJobDoc = { 
-        exists: true, 
-        data: () => ({ client_uid: 'client_2' }) 
-      };
-      const docRef = db.collection('jobs').doc('job_123');
-      (docRef.get as jest.Mock).mockResolvedValueOnce(mockJobDoc);
+  it('rejects cancellation from a terminal job state', async () => {
+    mockState.job.status = 'completed';
+    await expect(new JobService().cancelJob('job-1', 'client-1'))
+      .rejects.toThrow('This job can no longer be cancelled');
+  });
 
-      await expect(jobService.markComplete('job_123', 'client_1', 'match_1')).rejects.toThrow('Forbidden: Only the client who posted this job can mark it complete');
-    });
-
-    it('should throw an error if the match is not found', async () => {
-      const mockJobDoc = { 
-        exists: true, 
-        data: () => ({ client_uid: 'client_1' }) 
-      };
-      const jobDocRef = db.collection('jobs').doc('job_123');
-      (jobDocRef.get as jest.Mock).mockResolvedValueOnce(mockJobDoc);
-
-      const mockMatchDoc = { exists: false };
-      const matchDocRef = db.collection('matches').doc('match_1');
-      (matchDocRef.get as jest.Mock).mockResolvedValueOnce(mockMatchDoc);
-
-      await expect(jobService.markComplete('job_123', 'client_1', 'match_1')).rejects.toThrow('Match not found');
-    });
-
-    it('should throw an error if the match does not belong to the job', async () => {
-      const mockJobDoc = { 
-        exists: true, 
-        data: () => ({ client_uid: 'client_1' }) 
-      };
-      const jobDocRef = db.collection('jobs').doc('job_123');
-      (jobDocRef.get as jest.Mock).mockResolvedValueOnce(mockJobDoc);
-
-      const mockMatchDoc = { 
-        exists: true,
-        data: () => ({ job_id: 'job_456' })
-      };
-      const matchDocRef = db.collection('matches').doc('match_1');
-      (matchDocRef.get as jest.Mock).mockResolvedValueOnce(mockMatchDoc);
-
-      await expect(jobService.markComplete('job_123', 'client_1', 'match_1')).rejects.toThrow('Match does not belong to this job');
-    });
-
-    it('should correctly release escrow and return transaction details', async () => {
-      const mockJobDoc = { 
-        exists: true, 
-        data: () => ({ client_uid: 'client_1' }),
-        ref: {}
-      };
-      
-      const mockMatchDoc = { 
-        exists: true,
-        data: () => ({ job_id: 'job_123', artisan_uid: 'artisan_1' }),
-        ref: {}
-      };
-
-      const mockTransactionSnapshot = {
-        empty: false,
-        docs: [{
-          id: 'tx_123',
-          data: () => ({ status: 'held', locked_job_value: 10000 }),
-          ref: {}
-        }]
-      };
-
-      // Mock Firestore get calls in sequence
-      const collectionMock = db.collection as jest.Mock;
-      const docMock = collectionMock().doc as jest.Mock;
-      
-      // We'll just mock the implementations properly
-      docMock.mockImplementation((path) => {
-        if (path === 'job_123') return { get: jest.fn().mockResolvedValue(mockJobDoc), ref: {} };
-        if (path === 'match_1') return { get: jest.fn().mockResolvedValue(mockMatchDoc), ref: {} };
-        if (path === 'artisan_1') return { get: jest.fn().mockResolvedValue({ exists: true, data: () => ({ paystack_recipient_code: 'RCP_123' }) }), ref: {} };
-        return { get: jest.fn().mockResolvedValue({ exists: true, data: () => ({}) }), ref: {} };
-      });
-
-      const whereMock = collectionMock().where as jest.Mock;
-      whereMock.mockImplementation(() => ({
-        where: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        get: jest.fn().mockResolvedValue(mockTransactionSnapshot)
-      }));
-
-      const result = await jobService.markComplete('job_123', 'client_1', 'match_1');
-
-      // Check transaction was called
-      expect(db.runTransaction).toHaveBeenCalled();
-      
-      // Check results
-      expect(result.transaction.status).toBe('released');
-      expect(result.transaction.locked_job_value).toBe(10000);
-      expect(result.transaction.commission_retained).toBe(1000);
-      expect(result.transaction.artisan_receives).toBe(9000);
-    });
+  it('cancels the job and every candidate in one transaction', async () => {
+    await new JobService().cancelJob('job-1', 'client-1');
+    expect(mockState.updates).toHaveLength(3);
+    expect(mockState.updates[0].data.status).toBe('cancelled');
+    expect(mockState.updates.slice(1).every(update => update.data.status === 'cancelled')).toBe(true);
   });
 });
-

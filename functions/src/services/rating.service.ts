@@ -7,6 +7,7 @@ import { BaseService } from './base.service';
 import { RatingRepository, ArtisanRepository } from '../repositories';
 import { Rating } from '../models/rating.model';
 import { AnalyticsService } from './analytics.service';
+import * as admin from 'firebase-admin';
 
 // Typed duplicate-rating error so the controller can return 409 cleanly
 export class DuplicateRatingError extends Error {
@@ -19,6 +20,7 @@ export class DuplicateRatingError extends Error {
 export class RatingService extends BaseService {
   private ratingRepo: RatingRepository;
   private artisanRepo: ArtisanRepository;
+  private get db() { return admin.firestore(); }
 
   constructor() {
     super();
@@ -45,6 +47,23 @@ export class RatingService extends BaseService {
       if (data.score < 1 || data.score > 5 || !Number.isInteger(data.score)) {
         throw new Error('Rating score must be an integer between 1 and 5');
       }
+      if (data.review && data.review.length > 1000) {
+        throw new Error('Review must be 1000 characters or less');
+      }
+
+      const jobDoc = await this.db.collection('jobs').doc(data.jobId).get();
+      if (!jobDoc.exists) throw new Error('Job not found');
+      const job = jobDoc.data()!;
+      if (job.client_uid !== data.clientUid) {
+        throw new Error('Forbidden: Only the job owner can submit a rating');
+      }
+      if (job.matched_artisan_uid !== data.artisanUid
+        && job.assigned_artisan_uid !== data.artisanUid) {
+        throw new Error('Invalid artisan for this job');
+      }
+      if (job.status !== 'completed' && job.completion_requested !== true) {
+        throw new Error('Invalid job state: Complete the job before rating');
+      }
 
       // Check for duplicate rating — PRD C-006: duplicate rejected with 409
       const existingRating = await this.ratingRepo.findByJobId(data.jobId);
@@ -53,13 +72,22 @@ export class RatingService extends BaseService {
       }
 
       // Create rating
-      const rating = await this.ratingRepo.createRating({
-        job_id: data.jobId,
-        artisan_uid: data.artisanUid,
-        client_uid: data.clientUid,
-        score: data.score,
-        review: data.review
-      });
+      let rating: Rating;
+      try {
+        rating = await this.ratingRepo.createRating({
+          job_id: data.jobId,
+          artisan_uid: data.artisanUid,
+          client_uid: data.clientUid,
+          score: data.score,
+          review: data.review?.trim()
+        });
+      } catch (error: any) {
+        if (error?.code === 6 || error?.code === 'already-exists'
+          || error?.message?.includes('already exists')) {
+          throw new DuplicateRatingError();
+        }
+        throw error;
+      }
 
       // Recalculate artisan reputation_score
       await this.updateArtisanReputation(data.artisanUid);

@@ -6,9 +6,8 @@ export const CreateUserSchema = z.object({
     idToken: z.string().min(10),
     first_name: z.string().min(1).max(50),
     last_name: z.string().min(1).max(50),
-    role: z.enum(['client', 'artisan']),
-    email: z.string().email()
-  })
+    role: z.enum(['client', 'artisan'])
+  }).strict()
 });
 
 export const UpdateUserSchema = z.object({
@@ -17,7 +16,7 @@ export const UpdateUserSchema = z.object({
     last_name: z.string().min(1).max(50).optional(),
     email: z.string().email().optional(),
     phone: z.string().min(10).max(15).optional()
-  })
+  }).strict()
 });
 
 export interface User {

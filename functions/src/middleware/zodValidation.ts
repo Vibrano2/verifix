@@ -5,11 +5,14 @@ import { Logger } from '../utils/logger';
 export const validate = (schema: z.ZodObject<any, any>) => 
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      await schema.parseAsync({
+      const parsed = await schema.parseAsync({
         body: req.body,
         query: req.query,
         params: req.params,
       });
+      if (parsed.body !== undefined) req.body = parsed.body;
+      if (parsed.params && typeof parsed.params === 'object') req.params = parsed.params as any;
+      if (parsed.query && typeof parsed.query === 'object') req.query = parsed.query as any;
       next();
     } catch (error: any) {
       const issues = error?.issues || error?.errors || [];
@@ -23,7 +26,7 @@ export const validate = (schema: z.ZodObject<any, any>) =>
         });
       } else {
         Logger.error('Unexpected validation error', error);
-        res.status(500).json({ error: error?.message || 'Internal server error during validation' });
+        res.status(500).json({ error: 'Internal server error during validation' });
       }
     }
   };

@@ -17,15 +17,20 @@ export const sanitizeArtisanProfile = (data: any, isAdmin: boolean = false): any
   }
 
   if (typeof data === 'object') {
-    const sanitized = { ...data };
+    const prototype = Object.getPrototypeOf(data);
+    if (prototype !== Object.prototype && prototype !== null) return data;
+    const sanitized: Record<string, any> = {};
 
-    if (!isAdmin) {
-      delete sanitized.nin;
-      delete sanitized.id_document_url;
-      delete sanitized.phone_encrypted;
-      delete sanitized.email_encrypted;
-    } else if (sanitized.nin && typeof sanitized.nin === 'string' && sanitized.nin.length > 4) {
-      // Partial masking for admin view if needed: e.g. "******1234"
+    const protectedFields = new Set([
+      'nin', 'nin_hash', 'nin_encrypted', 'phone_hash', 'phone_encrypted',
+      'email_hash', 'email_encrypted', 'id_document_path', 'id_document_url',
+      'bank_details', 'paystack_recipient_code'
+    ]);
+    for (const [key, value] of Object.entries(data)) {
+      if (!isAdmin && protectedFields.has(key)) continue;
+      sanitized[key] = sanitizeArtisanProfile(value, isAdmin);
+    }
+    if (isAdmin && typeof sanitized.nin === 'string' && sanitized.nin.length > 4) {
       sanitized.nin_masked = `******${sanitized.nin.slice(-4)}`;
     }
 
@@ -42,7 +47,7 @@ export const ndprMaskingMiddleware = (req: AuthenticatedRequest, res: Response, 
   const originalJson = res.json;
 
   res.json = function (body: any): Response {
-    const isAdmin = req.user?.role === 'admin' || req.user?.uid === process.env.ADMIN_UID;
+    const isAdmin = Boolean(process.env.ADMIN_UID && req.user?.uid === process.env.ADMIN_UID);
 
     if (body && body.data) {
       body.data = sanitizeArtisanProfile(body.data, isAdmin);

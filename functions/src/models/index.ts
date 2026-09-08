@@ -10,13 +10,13 @@ export * from './user.model';
 export * from './artisan.model';
 
 // Job models
-export { Job, JobStatus, CreateJobDTO, UpdateJobDTO, JobMatch } from './job.model';
+export type { Job, JobStatus, CreateJobDTO, UpdateJobDTO, JobMatch } from './job.model';
 
 // Transaction models
 export * from './transaction.model';
 
 // Match models
-export { Match, MatchStatus, CreateMatchDTO } from './match.model';
+export type { Match, MatchStatus, CreateMatchDTO } from './match.model';
 
 // Rating models (separate collection per PRD v1.1)
 export * from './rating.model';

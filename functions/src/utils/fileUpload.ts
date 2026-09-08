@@ -1,130 +1,141 @@
 import { Request } from 'express';
 import Busboy from 'busboy';
-import * as admin from 'firebase-admin';
-import * as path from 'path';
+import { getStorage } from 'firebase-admin/storage';
+import { randomUUID } from 'crypto';
 import { Logger } from './logger';
 
-// Allowed MIME types for images
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+export const ALLOWED_UPLOAD_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf'
+] as const;
 
-// File type signatures (magic numbers) for validation
-const FILE_SIGNATURES: Record<string, number[][]> = {
-  'image/jpeg': [
-    [0xFF, 0xD8, 0xFF], // JPEG
-  ],
-  'image/png': [
-    [0x89, 0x50, 0x4E, 0x47], // PNG
-  ],
-  'image/webp': [
-    [0x52, 0x49, 0x46, 0x46], // RIFF (WebP container)
-  ],
-};
+type AllowedUploadType = typeof ALLOWED_UPLOAD_TYPES[number];
 
-/**
- * Validate file type by checking actual file signature (magic numbers)
- * This prevents relying on just file extension or declared MIME type
- */
 export function validateFileSignature(buffer: Buffer, declaredType: string = 'image/jpeg'): boolean {
-  if (!buffer || buffer.length < 4) return false;
-  const signatures = FILE_SIGNATURES[declaredType] || Object.values(FILE_SIGNATURES).flat();
-
-
-  return signatures.some(signature => {
-    for (let i = 0; i < signature.length; i++) {
-      if (buffer[i] !== signature[i]) return false;
-    }
-    return true;
-  });
+  if (!buffer || buffer.length < 12) return false;
+  switch (declaredType) {
+    case 'image/jpeg':
+      return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    case 'image/png':
+      return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    case 'image/webp':
+      return buffer.subarray(0, 4).toString('ascii') === 'RIFF'
+        && buffer.subarray(8, 12).toString('ascii') === 'WEBP';
+    case 'application/pdf':
+      return buffer.subarray(0, 5).toString('ascii') === '%PDF-';
+    default:
+      return false;
+  }
 }
 
-/**
- * Upload a file to Firebase Storage with validation
- */
+type UploadOptions = {
+  maxSizeBytes?: number;
+  allowedTypes?: AllowedUploadType[];
+  publicRead?: boolean;
+  accessLabel?: string;
+  customMetadata?: Record<string, string>;
+};
+
 export async function uploadFile(
   req: Request,
   folder: string,
-  maxSizeBytes: number = 5 * 1024 * 1024 // 5MB default
-): Promise<{ url: string; filename: string }> {
+  options: UploadOptions = {}
+): Promise<{ url?: string; path: string; filename: string }> {
+  const maxSizeBytes = options.maxSizeBytes ?? 5 * 1024 * 1024;
+  const allowedTypes = options.allowedTypes ?? ['image/jpeg', 'image/png', 'image/webp'];
+  const publicRead = options.publicRead ?? false;
+
+  if (!req.headers['content-type']?.includes('multipart/form-data')) {
+    throw new Error('Invalid file upload content type');
+  }
+
   return new Promise((resolve, reject) => {
-    const busboy = Busboy({ headers: req.headers });
-    let fileBuffer: Buffer = Buffer.alloc(0);
-    let filename = '';
-    let mimeType = '';
-    let fileSize = 0;
+    const busboy = Busboy({
+      headers: req.headers,
+      limits: { files: 1, fileSize: maxSizeBytes, fields: 10, parts: 11 }
+    });
+    const chunks: Buffer[] = [];
+    let originalFilename = '';
+    let mimeType: AllowedUploadType | undefined;
+    let fileSeen = false;
+    let failed = false;
 
-    busboy.on('file', (fieldname, file, info) => {
-      filename = info.filename;
-      mimeType = info.mimeType;
+    const fail = (error: Error) => {
+      if (failed) return;
+      failed = true;
+      reject(error);
+    };
 
-      // Check MIME type
-      if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
-        file.resume();
-        reject(new Error(`Invalid file type. Allowed types: ${ALLOWED_IMAGE_TYPES.join(', ')}`));
+    busboy.on('file', (_fieldname, stream, info) => {
+      if (fileSeen) {
+        stream.resume();
+        fail(new Error('Only one file may be uploaded'));
         return;
       }
+      fileSeen = true;
+      originalFilename = info.filename;
+      if (!allowedTypes.includes(info.mimeType as AllowedUploadType)) {
+        stream.resume();
+        fail(new Error(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`));
+        return;
+      }
+      mimeType = info.mimeType as AllowedUploadType;
 
-      // Collect file data
-      file.on('data', (data: Buffer) => {
-        fileSize += data.length;
-
-        // Check file size
-        if (fileSize > maxSizeBytes) {
-          file.resume();
-          reject(new Error(`File too large. Maximum size: ${maxSizeBytes / (1024 * 1024)}MB`));
-          return;
-        }
-
-        fileBuffer = Buffer.concat([fileBuffer, data]);
-      });
-
-      file.on('end', () => {
-        // Validate actual file signature
-        if (!validateFileSignature(fileBuffer, mimeType)) {
-          reject(new Error('File signature does not match declared type. Possible file type mismatch or corruption.'));
-          return;
-        }
-      });
+      stream.on('data', (data: Buffer) => chunks.push(data));
+      stream.on('limit', () => fail(new Error(`File too large. Maximum size: ${maxSizeBytes / (1024 * 1024)}MB`)));
+      stream.on('error', fail);
     });
 
+    busboy.on('filesLimit', () => fail(new Error('Only one file may be uploaded')));
+    busboy.on('partsLimit', () => fail(new Error('Too many multipart fields')));
+    busboy.on('error', fail);
     busboy.on('finish', async () => {
+      if (failed) return;
       try {
-        if (fileBuffer.length === 0) {
-          reject(new Error('No file uploaded'));
-          return;
+        const buffer = Buffer.concat(chunks);
+        if (!fileSeen || !mimeType || buffer.length === 0) throw new Error('No file uploaded');
+        if (buffer.length > maxSizeBytes) throw new Error(`File too large. Maximum size: ${maxSizeBytes / (1024 * 1024)}MB`);
+        if (!validateFileSignature(buffer, mimeType)) {
+          throw new Error('File signature does not match declared type');
         }
 
-        // Generate unique filename
-        const ext = path.extname(filename);
-        const uniqueFilename = `${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
-        const filePath = `${folder}/${uniqueFilename}`;
-
-        // Upload to Firebase Storage
-        const bucket = admin.storage().bucket();
-        const file = bucket.file(filePath);
-
-        await file.save(fileBuffer, {
+        const extensionByType: Record<AllowedUploadType, string> = {
+          'image/jpeg': '.jpg',
+          'image/png': '.png',
+          'image/webp': '.webp',
+          'application/pdf': '.pdf'
+        };
+        const filename = `${randomUUID()}${extensionByType[mimeType]}`;
+        const filePath = `${folder}/${filename}`;
+        const bucket = getStorage().bucket();
+        await bucket.file(filePath).save(buffer, {
+          resumable: false,
+          validation: 'crc32c',
           metadata: {
             contentType: mimeType,
-          },
+            cacheControl: publicRead ? 'public,max-age=86400' : 'private,no-store',
+            metadata: {
+              originalFilename: originalFilename.slice(0, 200),
+              access: options.accessLabel || (publicRead ? 'public-profile' : 'private'),
+              ...(options.customMetadata || {})
+            }
+          }
         });
 
-        // Make file publicly accessible
-        await file.makePublic();
-
-        // Get public URL
-        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
-
-        resolve({ url: publicUrl, filename: uniqueFilename });
+        const url = publicRead
+          ? `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media`
+          : undefined;
+        resolve({ url, path: filePath, filename });
       } catch (error) {
-        Logger.error('File upload error:', error);
-        reject(new Error('Failed to upload file'));
+        Logger.error('File upload error', error);
+        fail(error instanceof Error ? error : new Error('Failed to upload file'));
       }
     });
 
-    busboy.on('error', (error: Error) => {
-      reject(error);
-    });
-
-    req.pipe(busboy);
+    const rawBody = (req as any).rawBody;
+    if (Buffer.isBuffer(rawBody)) busboy.end(rawBody);
+    else req.pipe(busboy);
   });
 }

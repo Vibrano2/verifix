@@ -16,22 +16,30 @@ export abstract class BaseController {
    */
   protected handleError(error: any, res: Response, operation: string): Response {
     this.logger.error(`${operation} controller error`, error);
+    const message = error instanceof Error ? error.message : 'Unexpected error';
+    const normalized = message.toLowerCase();
 
     // Check for common error types
-    if (error.message.includes('not found')) {
-      return ResponseUtil.notFound(res, error.message);
+    if (normalized.includes('not found')) {
+      return ResponseUtil.notFound(res, message);
     }
 
-    if (error.message.includes('Unauthorized') || error.message.includes('forbidden')) {
-      return ResponseUtil.forbidden(res, error.message);
+    if (normalized.includes('unauthorized') || normalized.includes('authentication required')) {
+      return ResponseUtil.unauthorized(res, message);
     }
 
-    if (error.message.includes('already exists') || error.message.includes('duplicate')) {
-      return ResponseUtil.conflict(res, error.message);
+    if (normalized.includes('forbidden') || normalized.includes('only the')) {
+      return ResponseUtil.forbidden(res, message);
     }
 
-    if (error.message.includes('required') || error.message.includes('Invalid')) {
-      return ResponseUtil.badRequest(res, error.message);
+    if (normalized.includes('already exists') || normalized.includes('already ')
+      || normalized.includes('invalid job state') || normalized.includes('state transition')) {
+      return ResponseUtil.conflict(res, message);
+    }
+
+    if (normalized.includes('required') || normalized.includes('invalid')
+      || normalized.includes('must ') || normalized.includes('exceeds')) {
+      return ResponseUtil.badRequest(res, message);
     }
 
     // Default to server error

@@ -4,6 +4,8 @@ import { ArtisanRepository, UserRepository } from '../repositories';
 import { COLLECTIONS } from '../constants';
 import { Artisan } from '../models/artisan.model';
 import { AdminAnalytics } from '../models/analytics.model';
+import { decrypt } from '../utils/encryption';
+import { getStorage } from 'firebase-admin/storage';
 
 export class AdminService extends BaseService {
   private artisanRepo: ArtisanRepository;
@@ -14,7 +16,16 @@ export class AdminService extends BaseService {
     super();
     this.artisanRepo = new ArtisanRepository();
     this.userRepo = new UserRepository();
-    // this.db = admin.firestore();
+  }
+
+  private decryptForReview(value: unknown, uid: string, field: string): string | null {
+    if (typeof value !== 'string' || !value) return null;
+    try {
+      return decrypt(value);
+    } catch (error) {
+      this.logger.error('Failed to decrypt verification data', { uid, field, error });
+      return null;
+    }
   }
 
   isAdmin(uid: string): boolean {
@@ -42,14 +53,42 @@ export class AdminService extends BaseService {
 
       const artisansWithDetails = await Promise.all(
         artisans.map(async (artisan) => {
-          const user = await this.userRepo.findById(artisan.uid);
+          const [user, privateDoc] = await Promise.all([
+            this.userRepo.findById(artisan.uid),
+            this.db.collection('artisan_private').doc(artisan.uid).get()
+          ]);
+          const privateData = privateDoc.data();
+          let idDocumentUrl: string | null = null;
+          if (privateData?.id_document_path) {
+            try {
+              [idDocumentUrl] = await getStorage().bucket().file(privateData.id_document_path).getSignedUrl({
+                action: 'read',
+                expires: Date.now() + 10 * 60 * 1000
+              });
+            } catch (error) {
+              this.logger.error('Failed to create ID document review URL', { uid: artisan.uid, error });
+            }
+          }
+          const {
+            nin: _legacyNin,
+            bank_details: _legacyBank,
+            paystack_recipient_code: _legacyRecipient,
+            id_document_url: _legacyIdUrl,
+            ...publicArtisan
+          } = artisan as any;
           return {
-            ...artisan,
+            ...publicArtisan,
             user: {
               first_name: user?.first_name,
               last_name: user?.last_name,
-              phone: user?.phone
-            }
+              phone: this.decryptForReview(user?.phone_encrypted, artisan.uid, 'phone')
+            },
+            verification: privateData ? {
+              nin: this.decryptForReview(privateData.nin_encrypted, artisan.uid, 'nin'),
+              bank_account_last4: privateData.bank_details?.account_number_last4 || null,
+              payout_account_configured: Boolean(privateData.paystack_recipient_code),
+              id_document_url: idDocumentUrl
+            } : null
           };
         })
       );
@@ -74,6 +113,17 @@ export class AdminService extends BaseService {
       if (artisan.is_verified) {
         this.logger.info('Artisan already verified', { uid });
         return;
+      }
+
+      const privateDoc = await this.db.collection('artisan_private').doc(uid).get();
+      const privateData = privateDoc.data();
+      if (!privateData?.nin_encrypted || !privateData?.id_document_path || !privateData?.paystack_recipient_code) {
+        throw new Error('Invalid verification state: NIN, ID document, and payout account are required');
+      }
+      if (!Array.isArray(artisan.work_photos)
+        || artisan.work_photos.length < 3
+        || artisan.work_photos.length > 5) {
+        throw new Error('Invalid verification state: 3 to 5 work photos are required');
       }
 
       await this.artisanRepo.verify(uid);

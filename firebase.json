@@ -1,7 +1,7 @@
 {
   "functions": [
     {
-      "source": "functions/lib",
+      "source": "functions",
       "codebase": "default",
       "ignore": [
         "node_modules",
@@ -14,28 +14,13 @@
       ]
     }
   ],
-  "hosting": {
-    "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "/api/**",
-        "function": "api"
-      },
-      {
-        "source": "/health",
-        "function": "api"
-      }
-    ]
-  },
   "firestore": {
     "database": "(default)",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
   },
   "emulators": {
     "functions": {
@@ -50,16 +35,6 @@
     "ui": {
       "enabled": true,
       "port": 4005
-    }
-  },
-  "auth": {
-    "authorizedDomains": [
-      "localhost",
-      "artiva-a0594.firebaseapp.com",
-      "artiva-a0594.web.app"
-    ],
-    "providers": {
-      "emailPassword": true
     }
   }
 }

@@ -6,12 +6,15 @@ import { Logger } from './logger';
  * Uses AES-256-GCM encryption
  */
 
-// Get encryption key from environment variable
-// In production, use Firebase Secret Manager or KMS
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-dev-key-change-in-production-32char';
+let initialized = false;
 
-// Ensure key is exactly 32 bytes for AES-256
-const KEY = Buffer.from(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32), 'utf8');
+function getEncryptionKey(): Buffer {
+  const value = process.env.ENCRYPTION_KEY || '';
+  if (Buffer.byteLength(value, 'utf8') !== 32) {
+    throw new Error('ENCRYPTION_KEY must be configured with exactly 32 UTF-8 bytes');
+  }
+  return Buffer.from(value, 'utf8');
+}
 
 /**
  * Encrypt sensitive data
@@ -24,7 +27,7 @@ export function encrypt(text: string): string {
     const iv = crypto.randomBytes(16);
     
     // Create cipher
-    const cipher = crypto.createCipheriv('aes-256-gcm', KEY, iv);
+    const cipher = crypto.createCipheriv('aes-256-gcm', getEncryptionKey(), iv);
     
     // Encrypt the text
     let encrypted = cipher.update(text, 'utf8', 'hex');
@@ -61,7 +64,7 @@ export function decrypt(encryptedText: string): string {
     const authTag = Buffer.from(authTagHex, 'hex');
     
     // Create decipher
-    const decipher = crypto.createDecipheriv('aes-256-gcm', KEY, iv);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', getEncryptionKey(), iv);
     decipher.setAuthTag(authTag);
     
     // Decrypt the data
@@ -82,7 +85,7 @@ export function decrypt(encryptedText: string): string {
  * @returns SHA-256 hash
  */
 export function hashData(text: string): string {
-  return crypto.createHash('sha256').update(text).digest('hex');
+  return crypto.createHmac('sha256', getEncryptionKey()).update(text).digest('hex');
 }
 
 /**
@@ -205,16 +208,17 @@ export function generateSecureToken(length: number = 32): string {
  * @returns true if key is strong enough
  */
 export function validateEncryptionKey(): boolean {
-  if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length < 32) {
-    return false;
-  }
-  return true;
+  const value = process.env.ENCRYPTION_KEY || '';
+  return Buffer.byteLength(value, 'utf8') === 32;
 }
 
 /**
  * Initialize encryption and validate configuration
  */
 export function initializeEncryption(): void {
-  validateEncryptionKey();
-  Logger.info('🔐 Encryption module initialized');
+  getEncryptionKey();
+  if (!initialized) {
+    initialized = true;
+    Logger.info('Encryption module initialized');
+  }
 }

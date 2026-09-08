@@ -128,8 +128,8 @@ export class AdminController extends BaseController {
   async approveProforma(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { notes } = req.body;
-      await this.proformaService.approveProforma(id, notes);
+      const { notes, supplier_recipient_code } = req.body;
+      await this.proformaService.approveProforma(id, supplier_recipient_code, notes);
       this.sendSuccess(res, 'Proforma invoice approved successfully');
     } catch (error) {
       this.handleError(error, res, 'Approve proforma');

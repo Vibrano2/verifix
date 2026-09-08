@@ -1,0 +1,3 @@
+[submodule "artiva"]
+	path = artiva
+	url = https://github.com/Vibrano2/artiva.git

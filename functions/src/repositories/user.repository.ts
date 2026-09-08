@@ -7,7 +7,7 @@ import * as admin from 'firebase-admin';
 import { BaseRepository } from './base.repository';
 import { COLLECTIONS } from '../constants';
 import { User } from '../models/user.model';
-import { hashData } from '../utils/encryption';
+import { encryptUserData, hashData } from '../utils/encryption';
 import { Logger } from '../utils/logger';
 
 export class UserRepository extends BaseRepository<User> {
@@ -22,7 +22,7 @@ export class UserRepository extends BaseRepository<User> {
    */
   async findByPhone(phone: string): Promise<User | null> {
     try {
-      const phoneHash = hashData(phone);
+      const phoneHash = hashData(phone.trim());
       const snapshot = await this.getCollection()
         .where('phone_hash', '==', phoneHash)
         .limit(1)
@@ -74,7 +74,7 @@ export class UserRepository extends BaseRepository<User> {
    */
   async findByEmail(email: string): Promise<User | null> {
     try {
-      const emailHash = hashData(email);
+      const emailHash = hashData(email.trim().toLowerCase());
       const snapshot = await this.getCollection()
         .where('email_hash', '==', emailHash)
         .limit(1)
@@ -109,15 +109,12 @@ export class UserRepository extends BaseRepository<User> {
   async createUser(user: User): Promise<User | null> {
     try {
       // Add email hash for lookup (and phone hash if phone is provided)
-      const userData: any = {
+      const userData: any = encryptUserData({
         ...user,
-        email_hash: hashData(user.email),
+        email: user.email?.trim().toLowerCase(),
+        phone: user.phone?.trim(),
         created_at: admin.firestore.FieldValue.serverTimestamp()
-      };
-      
-      if (user.phone) {
-        userData.phone_hash = hashData(user.phone);
-      }
+      });
       
       await this.getCollection().doc(user.uid).set(userData);
       return await this.findById(user.uid);

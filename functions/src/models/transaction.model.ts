@@ -13,6 +13,7 @@ export type TransactionStatus =
   | 'released' 
   | 'held'
   | 'failed'
+  | 'reconciliation_required'
   | 'refunded';
 
 export interface Transaction {
@@ -30,7 +31,7 @@ export interface Transaction {
     total_charged: number;
     artisan_net_labor: number;
   };
-  escrow_status: 'HELD' | 'DISBURSED_PARTIAL' | 'RELEASED' | 'REFUNDED' | 'PENDING' | 'COMPLETED' | 'FAILED';
+  escrow_status: 'HELD' | 'DISBURSED_PARTIAL' | 'PROFORMA_RELEASE_PENDING' | 'RELEASE_PENDING' | 'RELEASED' | 'REFUND_PENDING' | 'REFUNDED' | 'PENDING' | 'PAYMENT_RECONCILIATION_REQUIRED' | 'RECONCILIATION_REQUIRED' | 'COMPLETED' | 'FAILED';
   proforma_invoices?: Array<{
     invoice_id: string;
     supplier_name: string;
@@ -66,7 +67,7 @@ export interface CreateTransactionDTO {
     total_charged: number;
     artisan_net_labor: number;
   };
-  escrow_status: 'HELD' | 'DISBURSED_PARTIAL' | 'RELEASED' | 'REFUNDED' | 'PENDING' | 'COMPLETED' | 'FAILED';
+  escrow_status: 'HELD' | 'DISBURSED_PARTIAL' | 'PROFORMA_RELEASE_PENDING' | 'RELEASE_PENDING' | 'RELEASED' | 'REFUND_PENDING' | 'REFUNDED' | 'PENDING' | 'PAYMENT_RECONCILIATION_REQUIRED' | 'RECONCILIATION_REQUIRED' | 'COMPLETED' | 'FAILED';
   
   paystack_reference: string;
   metadata?: Record<string, any>;

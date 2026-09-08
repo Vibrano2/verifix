@@ -44,7 +44,7 @@ export class ArtisanController extends BaseController {
       }
 
       const data = req.body;
-      const result = await this.artisanService.registerArtisan(req.user.uid, data);
+      const result = await this.artisanService.registerArtisan(req.user.uid, data, req.user.phone_number);
       this.sendCreated(res, 'Artisan registered successfully', { data: result?.profile });
     } catch (error) {
       this.handleError(error, res, 'Register artisan');
@@ -53,11 +53,12 @@ export class ArtisanController extends BaseController {
 
   async listArtisans(req: Request, res: Response): Promise<void> {
     try {
-      const { trade, location, available } = req.query;
+      const { trade, location, available, limit } = req.query;
       const artisans = await this.artisanService.listArtisans({
         trade: trade as string,
         location: location as string,
-        available: available === 'true'
+        available: available === undefined ? undefined : available === 'true',
+        limit: typeof limit === 'number' ? limit : undefined
       });
       this.sendSuccess(res, 'Artisans fetched successfully', { data: artisans });
     } catch (error) {
@@ -68,7 +69,7 @@ export class ArtisanController extends BaseController {
   async updateAvailability(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { uid } = req.params;
-      const { available } = req.body;
+      const available = req.body.available ?? req.body.is_available;
 
       await this.artisanService.updateAvailability(uid, available);
       this.sendSuccess(res, 'Availability updated successfully', { available });
@@ -92,14 +93,21 @@ export class ArtisanController extends BaseController {
   async addWorkPhoto(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { uid } = req.params;
-      const { url, filename } = await uploadFile(req, `artisan_photos/${uid}`, 5 * 1024 * 1024);
+      const { url, filename } = await uploadFile(req, `artisan_photos/${uid}`, {
+        maxSizeBytes: 5 * 1024 * 1024,
+        allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+        publicRead: true
+      });
 
-      await this.artisanService.addWorkPhoto(uid, url);
+      await this.artisanService.addWorkPhoto(uid, url!);
       this.sendSuccess(res, 'Photo uploaded successfully', { url, filename });
     } catch (error: any) {
-      if (error.message.includes('Invalid file type') || 
+      if (error.message.includes('Invalid file') ||
           error.message.includes('File too large') ||
-          error.message.includes('File signature')) {
+          error.message.includes('File signature') ||
+          error.message.includes('No file') ||
+          error.message.includes('Only one') ||
+          error.message.includes('Too many')) {
         this.sendBadRequest(res, error.message);
         return;
       }
@@ -110,14 +118,21 @@ export class ArtisanController extends BaseController {
   async uploadIDDocument(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { uid } = req.params;
-      const { url, filename } = await uploadFile(req, `id_documents/${uid}`, 10 * 1024 * 1024);
+      const { path, filename } = await uploadFile(req, `id_documents/${uid}`, {
+        maxSizeBytes: 10 * 1024 * 1024,
+        allowedTypes: ['image/jpeg', 'image/png', 'application/pdf'],
+        publicRead: false
+      });
 
-      await this.artisanService.uploadIDDocument(uid, url);
-      this.sendSuccess(res, 'ID document uploaded successfully', { url, filename });
+      await this.artisanService.uploadIDDocument(uid, path);
+      this.sendSuccess(res, 'ID document uploaded successfully', { filename });
     } catch (error: any) {
-      if (error.message.includes('Invalid file type') || 
+      if (error.message.includes('Invalid file') ||
           error.message.includes('File too large') ||
-          error.message.includes('File signature')) {
+          error.message.includes('File signature') ||
+          error.message.includes('No file') ||
+          error.message.includes('Only one') ||
+          error.message.includes('Too many')) {
         this.sendBadRequest(res, error.message);
         return;
       }
@@ -129,7 +144,7 @@ export class ArtisanController extends BaseController {
     try {
       const { uid } = req.params;
       const adminUid = process.env.ADMIN_UID;
-      const isAdmin = req.user?.uid === adminUid;
+      const isAdmin = Boolean(adminUid && req.user?.uid === adminUid);
       const profile = await this.artisanService.getProfile(uid, req.user?.uid, isAdmin);
       this.sendSuccess(res, 'Profile fetched successfully', { profile });
     } catch (error) {

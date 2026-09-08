@@ -2,6 +2,7 @@ import * as admin from 'firebase-admin';
 import { BaseService } from './base.service';
 import { Job } from '../models/job.model';
 import { Artisan } from '../models/artisan.model';
+import { mapToPublicArtisan } from '../models/artisan.model';
 import { calculatePriorityScore } from '../utils/priorityCalculator';
 import { AnalyticsService } from './analytics.service';
 
@@ -15,6 +16,7 @@ export class MatchingService extends BaseService {
    * Returns empty list with zero-result analytics event when no artisans found.
    */
   async matchArtisansToJob(jobId: string, limit: number = 5): Promise<{ matches: any[], count: number }> {
+    limit = Math.min(Math.max(Math.trunc(limit), 1), 10);
     const jobDoc = await this.db.collection('jobs').doc(jobId).get();
 
     if (!jobDoc.exists) {
@@ -29,6 +31,7 @@ export class MatchingService extends BaseService {
       .where('trade', '==', targetTrade)
       .where('is_available', '==', true)
       .where('is_verified', '==', true)
+      .limit(100)
       .get();
 
     if (artisansSnapshot.empty) {
@@ -84,10 +87,26 @@ export class MatchingService extends BaseService {
 
     // Atomically create match records and update job status
     const matchResults = await this.db.runTransaction(async (transaction: any) => {
+      const artisanRefs = topMatches.map(artisan => this.db.collection('artisan_profiles').doc(artisan.uid));
+      const [freshJob, ...freshArtisanDocs] = await Promise.all([
+        transaction.get(jobDoc.ref),
+        ...artisanRefs.map(ref => transaction.get(ref))
+      ]);
+      if (!freshJob.exists || freshJob.data()?.status !== 'open') {
+        throw new Error('Invalid job state: Job is no longer open for matching');
+      }
       const matchesRef = this.db.collection('matches');
       const createdMatches: any[] = [];
 
-      for (const artisan of topMatches) {
+      const stillEligible = topMatches.filter((artisan, index) => {
+        const current = freshArtisanDocs[index]?.data();
+        return current?.is_available === true
+          && current?.is_verified === true
+          && current?.trade === targetTrade;
+      });
+      if (stillEligible.length === 0) return createdMatches;
+
+      for (const artisan of stillEligible) {
         const matchData = {
           job_id: jobId,
           client_uid: jobData.client_uid,
@@ -104,15 +123,7 @@ export class MatchingService extends BaseService {
         createdMatches.push({
           match_id: matchDocRef.id,
           ...matchData,
-          artisan: {
-            uid: artisan.uid,
-            trade: artisan.trade,
-            location: artisan.location,
-            completed_jobs: artisan.completed_jobs,
-            reputation_score: artisan.reputation_score,
-            tagline: artisan.tagline,
-            is_verified: artisan.is_verified
-          }
+          artisan: mapToPublicArtisan(artisan)
         });
       }
 

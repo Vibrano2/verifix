@@ -18,6 +18,7 @@ export type AnalyticsEventType =
   | 'rating_submitted'
   | 'artisan_verified'
   | 'no_response_refund'
+  | 'no_response_refund_queued'
   | 'zero_match_results'
   | 'notify_me_registered'
   | 'contact_revealed'

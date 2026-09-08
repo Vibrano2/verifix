@@ -43,7 +43,7 @@ export class ArtisanRepository extends BaseRepository<Artisan> {
    * @param state - State location (optional)
    * @returns Array of available artisans
    */
-  async findAvailable(trade?: string, state?: string): Promise<Artisan[]> {
+  async findAvailable(trade?: string, state?: string, limit: number = 50): Promise<Artisan[]> {
     try {
       let query = this.getCollection()
         .where('is_available', '==', true)
@@ -57,11 +57,12 @@ export class ArtisanRepository extends BaseRepository<Artisan> {
         query = query.where('location.state', '==', state);
       }
       
-      // Sort by rating (highest first)
-      query = query.orderBy('rating', 'desc');
+      query = query.limit(Math.min(Math.max(limit, 1), 100));
       
       const snapshot = await query.get();
-      return snapshot.docs.map(doc => doc.data() as Artisan);
+      return snapshot.docs
+        .map(doc => doc.data() as Artisan)
+        .sort((left, right) => (right.reputation_score || 0) - (left.reputation_score || 0));
     } catch (error) {
       Logger.error('Error finding available artisans', error);
       throw error;

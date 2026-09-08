@@ -1,14 +1,15 @@
 import * as admin from 'firebase-admin';
 import { BaseService } from './base.service';
 import { ArtisanRepository, UserRepository } from '../repositories';
-import { Artisan, UpdateArtisanProfileDTO, PortfolioProject, PublicArtisanDTO, mapToPublicArtisan } from '../models/artisan.model';
+import { Artisan, CreateArtisanDTO, UpdateArtisanProfileDTO, PortfolioProject, PublicArtisanDTO, mapToPublicArtisan } from '../models/artisan.model';
 import { getCategoryForTrade, isValidTrade, Trade } from '../constants/trades';
-import { createTransferRecipient } from '../utils/paystack';
-import { validateFileSignature } from '../utils/fileUpload';
+import { createTransferRecipient, resolveBankAccount } from '../utils/paystack';
+import { encrypt, hashData, maskSensitiveData } from '../utils/encryption';
 
 export class ArtisanService extends BaseService {
   private artisanRepo: ArtisanRepository;
   private userRepo: UserRepository;
+  private get db() { return admin.firestore(); }
 
   constructor() {
     super();
@@ -49,7 +50,7 @@ export class ArtisanService extends BaseService {
         trade: data.trade as Trade,
         category,
         location: data.location,
-        tagline: data.tagline,
+        tagline: data.tagline.trim(),
         bio: data.bio,
         experience_years: data.experience_years,
         hourly_rate: data.hourly_rate,
@@ -73,7 +74,18 @@ export class ArtisanService extends BaseService {
     }
   }
 
-  async registerArtisan(uid: string, data: any): Promise<{ user: any, profile: Artisan }> {
+  private normalizePhone(phone: string): string {
+    const value = phone.replace(/[\s()-]/g, '');
+    if (/^0[789]\d{9}$/.test(value)) return `+234${value.slice(1)}`;
+    if (/^\+234[789]\d{9}$/.test(value)) return value;
+    throw new Error('Invalid verified phone number');
+  }
+
+  async registerArtisan(
+    uid: string,
+    data: CreateArtisanDTO,
+    verifiedPhone?: string
+  ): Promise<{ user: any, profile: Artisan }> {
     try {
       this.validateRequired(data, [
         'first_name', 'last_name', 'phone', 'trade', 'location', 'tagline'
@@ -83,51 +95,36 @@ export class ArtisanService extends BaseService {
         throw new Error('Invalid trade. Must be one of the 24 locked trades.');
       }
 
-      // Update the existing user document with their first/last name and phone
-      const userData: any = {
-        first_name: data.first_name.trim(),
-        last_name: data.last_name.trim(),
-        phone: data.phone,
-        role: 'artisan',
-        updated_at: new Date()
-      };
-      
-      const user = await this.userRepo.update(uid, userData);
+      const existingUser = await this.userRepo.findById(uid);
+      if (!existingUser || existingUser.role !== 'artisan') {
+        throw new Error('Only registered artisans can create an artisan profile');
+      }
+      if (!verifiedPhone || this.normalizePhone(verifiedPhone) !== this.normalizePhone(data.phone)) {
+        throw new Error('Phone number must match the verified Firebase phone number');
+      }
+      const normalizedPhone = this.normalizePhone(verifiedPhone);
 
+      const existingPrivate = await this.db.collection('artisan_private').doc(uid).get();
+      const existingPrivateData = existingPrivate.data();
       let paystack_recipient_code = '';
+      let resolvedAccountName = '';
       if (data.bank_details) {
-        paystack_recipient_code = await createTransferRecipient(
-          data.bank_details.account_name,
-          data.bank_details.account_number,
-          data.bank_details.bank_code
-        );
-      }
-
-      const bucket = admin.storage().bucket();
-      
-      let id_document_url = data.id_photo || '';
-      if (data.id_document_base64) {
-        const buffer = Buffer.from(data.id_document_base64, 'base64');
-        if (!validateFileSignature(buffer, 'image/jpeg') && !validateFileSignature(buffer, 'image/png')) {
-          throw new Error('Invalid ID document file format. Only JPEG and PNG images are allowed.');
-        }
-        const file = bucket.file(`id_documents/${uid}/id_doc_${Date.now()}.jpg`);
-        await file.save(buffer, { contentType: 'image/jpeg' });
-        await file.makePublic();
-        id_document_url = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
-      }
-
-      const work_photos: string[] = data.work_photos || [];
-      if (data.work_photos_base64 && Array.isArray(data.work_photos_base64)) {
-        for (let i = 0; i < data.work_photos_base64.length; i++) {
-          const buffer = Buffer.from(data.work_photos_base64[i], 'base64');
-          if (!validateFileSignature(buffer, 'image/jpeg') && !validateFileSignature(buffer, 'image/png')) {
-            continue;
-          }
-          const file = bucket.file(`artisan_photos/${uid}/work_${Date.now()}_${i}.jpg`);
-          await file.save(buffer, { contentType: 'image/jpeg' });
-          await file.makePublic();
-          work_photos.push(`https://storage.googleapis.com/${bucket.name}/${file.name}`);
+        const accountHash = hashData(`${data.bank_details.bank_code}:${data.bank_details.account_number}`);
+        if (existingPrivateData?.bank_details?.account_hash === accountHash
+          && existingPrivateData.paystack_recipient_code) {
+          paystack_recipient_code = existingPrivateData.paystack_recipient_code;
+          resolvedAccountName = existingPrivateData.bank_details?.account_name || data.bank_details.account_name;
+        } else {
+          const resolved = await resolveBankAccount(
+            data.bank_details.account_number,
+            data.bank_details.bank_code
+          );
+          resolvedAccountName = resolved.account_name;
+          paystack_recipient_code = await createTransferRecipient(
+            resolved.account_name,
+            data.bank_details.account_number,
+            data.bank_details.bank_code
+          );
         }
       }
 
@@ -135,6 +132,8 @@ export class ArtisanService extends BaseService {
       
       const artisanData: any = {
         uid,
+        first_name: data.first_name.trim(),
+        last_name: data.last_name.trim(),
         trade: data.trade as Trade,
         category,
         location: typeof data.location === 'string' ? { address: data.location } : data.location,
@@ -143,22 +142,83 @@ export class ArtisanService extends BaseService {
         experience_years: data.experience_years || 0,
         hourly_rate: data.hourly_rate || 0,
         skills: data.services || data.skills || [],
+        services: data.services || data.skills || [],
         portfolio: data.portfolio || [],
         is_available: false,
         is_verified: false,
         verification_status: 'pending',
-        work_photos,
-        id_document_url,
-        nin: data.nin || '',
-        bank_details: data.bank_details || null,
-        paystack_recipient_code,
+        work_photos: [],
         completed_jobs: 0,
         reputation_score: null,
-        created_at: new Date(),
-        updated_at: new Date()
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
       };
 
-      const profile = await this.artisanRepo.create(uid, artisanData);
+      const privateData: Record<string, any> = {
+        uid,
+        nin_encrypted: encrypt(data.nin),
+        nin_hash: hashData(data.nin),
+        nin_last4: data.nin.slice(-4),
+        paystack_recipient_code: paystack_recipient_code || null,
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      };
+      if (data.bank_details) {
+        privateData.bank_details = {
+          account_name: resolvedAccountName,
+          account_number_encrypted: encrypt(data.bank_details.account_number),
+          account_number_last4: data.bank_details.account_number.slice(-4),
+          account_hash: hashData(`${data.bank_details.bank_code}:${data.bank_details.account_number}`),
+          bank_code: data.bank_details.bank_code
+        };
+      }
+
+      const userRef = this.db.collection('users').doc(uid);
+      const profileRef = this.db.collection('artisan_profiles').doc(uid);
+      const privateRef = this.db.collection('artisan_private').doc(uid);
+      const ninRegistryRef = this.db.collection('nin_registry').doc(privateData.nin_hash);
+      await this.db.runTransaction(async transaction => {
+        const [freshUser, freshProfile, freshPrivate, ninRegistration] = await Promise.all([
+          transaction.get(userRef),
+          transaction.get(profileRef),
+          transaction.get(privateRef),
+          transaction.get(ninRegistryRef)
+        ]);
+        if (!freshUser.exists || freshUser.data()?.role !== 'artisan') {
+          throw new Error('Only registered artisans can create an artisan profile');
+        }
+        if (freshProfile.data()?.verification_status === 'approved') {
+          throw new Error('Verified profiles cannot be re-registered');
+        }
+        if (ninRegistration.exists && ninRegistration.data()?.uid !== uid) {
+          throw new Error('This NIN is already registered');
+        }
+        const previousNinHash = freshPrivate.data()?.nin_hash;
+        let previousNinRegistry: admin.firestore.DocumentSnapshot | undefined;
+        let previousNinRegistryRef: admin.firestore.DocumentReference | undefined;
+        if (previousNinHash && previousNinHash !== privateData.nin_hash) {
+          previousNinRegistryRef = this.db.collection('nin_registry').doc(previousNinHash);
+          previousNinRegistry = await transaction.get(previousNinRegistryRef);
+        }
+        transaction.set(userRef, {
+          first_name: data.first_name.trim(),
+          last_name: data.last_name.trim(),
+          phone_encrypted: encrypt(normalizedPhone),
+          phone_hash: hashData(normalizedPhone),
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        transaction.set(profileRef, artisanData, { merge: true });
+        transaction.set(privateRef, privateData, { merge: true });
+        transaction.set(ninRegistryRef, {
+          uid,
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        if (previousNinRegistryRef && previousNinRegistry?.data()?.uid === uid) {
+          transaction.delete(previousNinRegistryRef);
+        }
+      });
+
+      const user = await this.userRepo.findById(uid);
+      const profile = await this.artisanRepo.findById(uid);
       this.logOperation('artisan-registered', { uid });
 
       return { user, profile: profile! };
@@ -171,6 +231,9 @@ export class ArtisanService extends BaseService {
     try {
       const artisan = await this.artisanRepo.findById(uid);
       if (!artisan) throw new Error('Artisan profile not found');
+      if (available && !artisan.is_verified) {
+        throw new Error('Only verified artisans can become available');
+      }
 
       await this.artisanRepo.update(uid, {
         is_available: available,
@@ -187,6 +250,10 @@ export class ArtisanService extends BaseService {
     try {
       const artisan = await this.artisanRepo.findById(uid);
       if (!artisan) throw new Error('Artisan profile not found');
+
+      if (updates.is_available && !artisan.is_verified) {
+        throw new Error('Only verified artisans can become available');
+      }
 
       let updateData: any = { ...updates, updated_at: new Date() };
       
@@ -210,6 +277,7 @@ export class ArtisanService extends BaseService {
       if (!artisan) throw new Error('Artisan profile not found');
 
       const workPhotos = artisan.work_photos || [];
+      if (workPhotos.length >= 10) throw new Error('A maximum of 10 work photos is allowed');
       workPhotos.push(photoUrl);
 
       await this.artisanRepo.update(uid, {
@@ -223,15 +291,15 @@ export class ArtisanService extends BaseService {
     }
   }
 
-  async uploadIDDocument(uid: string, documentUrl: string): Promise<void> {
+  async uploadIDDocument(uid: string, documentPath: string): Promise<void> {
     try {
       const artisan = await this.artisanRepo.findById(uid);
       if (!artisan) throw new Error('Artisan profile not found');
 
-      await this.artisanRepo.update(uid, {
-        id_document_url: documentUrl,
-        updated_at: new Date()
-      } as any);
+      await this.db.collection('artisan_private').doc(uid).set({
+        id_document_path: documentPath,
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
 
       this.logOperation('id-document-uploaded', { uid });
     } catch (error) {
@@ -244,13 +312,20 @@ export class ArtisanService extends BaseService {
       const artisan = await this.artisanRepo.findById(uid);
       if (!artisan) throw new Error('Artisan profile not found');
 
-      // PRD §7.5 / §11.4: NIN and ID documents restricted to admin UID only
-      if (!isAdmin && requestorUid !== uid) {
-        const { nin, id_document_url, bank_details, paystack_recipient_code, rejection_reason, ...publicProfile } = artisan as any;
-        return publicProfile;
-      }
+      const publicProfile = mapToPublicArtisan(artisan);
+      if (!isAdmin && requestorUid !== uid) return publicProfile;
 
-      return artisan;
+      const privateDoc = await this.db.collection('artisan_private').doc(uid).get();
+      const privateData = privateDoc.data();
+      return {
+        ...publicProfile,
+        private_summary: privateData ? {
+          nin: privateData.nin_last4 ? maskSensitiveData(privateData.nin_last4, 4) : null,
+          bank_account_last4: privateData.bank_details?.account_number_last4 || null,
+          id_document_uploaded: Boolean(privateData.id_document_path),
+          payout_account_configured: Boolean(privateData.paystack_recipient_code)
+        } : null
+      } as any;
     } catch (error) {
       this.handleError(error, 'Get artisan profile');
     }
@@ -337,10 +412,12 @@ export class ArtisanService extends BaseService {
     }
   }
 
-  async listArtisans(filters: { trade?: string; location?: string; available?: boolean }): Promise<PublicArtisanDTO[]> {
+  async listArtisans(filters: { trade?: string; location?: string; available?: boolean; limit?: number }): Promise<PublicArtisanDTO[]> {
     try {
+      if (filters.trade && !isValidTrade(filters.trade)) throw new Error('Invalid trade');
+      const safeLimit = Math.min(Math.max(filters.limit || 50, 1), 100);
       if (filters.available === true || filters.available?.toString() === 'true') {
-        const availableArtisans = await this.artisanRepo.findAvailable(filters.trade, filters.location);
+        const availableArtisans = await this.artisanRepo.findAvailable(filters.trade, filters.location, safeLimit);
         return availableArtisans.map(mapToPublicArtisan);
       }
       
@@ -350,8 +427,11 @@ export class ArtisanService extends BaseService {
       if (filters.trade) {
         query = query.where('trade', '==', filters.trade);
       }
+      if (filters.available !== undefined) {
+        query = query.where('is_available', '==', filters.available);
+      }
       
-      const snapshot = await query.get();
+      const snapshot = await query.limit(safeLimit).get();
       let results = snapshot.docs.map((doc: any) => doc.data() as Artisan);
       
       if (filters.location) {

@@ -9,10 +9,7 @@ module.exports = {
   ],
   transform: {
     "^.+\\.(ts|tsx|js|jsx|mjs)$": [
-      "ts-jest",
-      {
-        isolatedModules: true
-      }
+      "ts-jest"
     ]
   }
 };

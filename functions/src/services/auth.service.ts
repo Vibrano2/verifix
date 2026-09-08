@@ -6,10 +6,15 @@ import { User } from '../models/user.model';
 import { Trade } from '../constants/trades';
 import { checkOTPRateLimit, recordOTPAttempt } from '../utils/rateLimit';
 import * as crypto from 'crypto';
+import axios from 'axios';
+import { defineString } from 'firebase-functions/params';
+import { hashData } from '../utils/encryption';
+
+const firebaseWebApiKey = defineString('FIREBASE_WEB_API_KEY');
 
 function hashPII(data: string): string {
   if (!data) return '';
-  return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16);
+  return hashData(data.trim().toLowerCase()).substring(0, 16);
 }
 
 export class AuthService extends BaseService {
@@ -20,6 +25,12 @@ export class AuthService extends BaseService {
     super();
     this.userRepo = new UserRepository();
     this.artisanRepo = new ArtisanRepository();
+  }
+
+  private withEffectiveRole(user: User): User {
+    return process.env.ADMIN_UID?.trim() === user.uid
+      ? { ...user, role: 'admin' }
+      : user;
   }
 
   async registerUser(data: {
@@ -36,23 +47,37 @@ export class AuthService extends BaseService {
         throw new Error(`Invalid role. Must be "${ROLES.CLIENT}" or "${ROLES.ARTISAN}"`);
       }
 
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const decodedToken = await admin.auth().verifyIdToken(
+        idToken,
+        process.env.FUNCTIONS_EMULATOR !== 'true'
+      );
       const uid = decodedToken.uid;
       const email = decodedToken.email;
       const phone = decodedToken.phone_number;
 
-
-      if (!email) {
-        throw new Error('Email is missing from the verified ID token.');
+      if (!email && !phone) {
+        throw new Error('The verified Firebase token must contain an email address or phone number.');
+      }
+      if (first_name.trim().length < 1 || first_name.trim().length > 80) {
+        throw new Error('Invalid first name');
+      }
+      if (last_name.trim().length < 1 || last_name.trim().length > 80) {
+        throw new Error('Invalid last name');
       }
 
       const existingUser = await this.userRepo.findById(uid);
       if (existingUser) {
+        if (existingUser.role !== role) {
+          throw new Error(`This account is already registered as ${existingUser.role}`);
+        }
+        if (role === ROLES.ARTISAN && !(await this.artisanRepo.exists(uid))) {
+          await this.createArtisanPlaceholder(uid);
+        }
         this.logOperation('user-already-exists', { uid });
         return existingUser;
       }
 
-      const emailExists = await this.userRepo.emailExists(email);
+      const emailExists = email ? await this.userRepo.emailExists(email) : false;
       if (emailExists) {
         throw new Error('Email already registered');
       }
@@ -61,7 +86,7 @@ export class AuthService extends BaseService {
         uid,
         first_name: first_name.trim(),
         last_name: last_name.trim(),
-        email: email.trim(),
+        email: email?.trim() || '',
         phone: phone ? phone.trim() : undefined,
         role,
         created_at: new Date()
@@ -98,61 +123,28 @@ export class AuthService extends BaseService {
     } as any);
   }
 
-  async registerAdmin(data: {
-    email: string;
-    password: string;
-    first_name: string;
-    last_name: string;
-  }): Promise<{ uid: string; email: string }> {
-    try {
-      this.validateRequired(data, ['email', 'password', 'first_name', 'last_name']);
-      const { email, password, first_name, last_name } = data;
-
-      const userRecord = await admin.auth().createUser({
-        email,
-        password,
-        displayName: `${first_name} ${last_name}`
-      });
-
-      // Grant artiva_admin custom claim so Firestore rules recognise this user as admin
-      await admin.auth().setCustomUserClaims(userRecord.uid, { artiva_admin: true });
-
-      await this.userRepo.createUser({
-        uid: userRecord.uid,
-        first_name: first_name.trim(),
-        last_name: last_name.trim(),
-        phone: '',
-        role: ROLES.ADMIN,
-        email: email.trim(),
-        created_at: new Date()
-      });
-
-      this.logOperation('admin-registered', { uid: userRecord.uid, email: hashPII(email) });
-
-      return {
-        uid: userRecord.uid,
-        email: userRecord.email!
-      };
-    } catch (error) {
-      this.handleError(error, 'Register admin');
-    }
-  }
-
   async requestPasswordReset(email: string): Promise<{ message: string }> {
     try {
-      await admin.auth().generatePasswordResetLink(email);
+      await axios.post(
+        `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${encodeURIComponent(firebaseWebApiKey.value())}`,
+        { requestType: 'PASSWORD_RESET', email: email.trim().toLowerCase() },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 15_000 }
+      );
       this.logOperation('password-reset-requested', { email: hashPII(email) });
       return { message: 'If this email exists, a reset link has been sent' };
-    } catch (error) {
-      this.logger.warn('Password reset attempted for non-existent email', { email: hashPII(email) });
+    } catch (error: any) {
+      this.logger.warn('Password reset request was not delivered', {
+        email: hashPII(email),
+        providerCode: error?.response?.data?.error?.message || error?.code || 'unknown'
+      });
       return { message: 'If this email exists, a reset link has been sent' };
     }
   }
 
   async createCustomToken(phone: string): Promise<{ customToken: string; uid: string }> {
     try {
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error('Custom tokens not allowed in production');
+      if (process.env.FUNCTIONS_EMULATOR !== 'true' || process.env.ENABLE_DEV_AUTH !== 'true') {
+        throw new Error('Development authentication helpers are disabled');
       }
 
       const existingUser = await this.userRepo.findByPhone(phone);
@@ -176,7 +168,7 @@ export class AuthService extends BaseService {
 
   async verifyToken(idToken: string): Promise<admin.auth.DecodedIdToken> {
     try {
-      return await admin.auth().verifyIdToken(idToken);
+      return await admin.auth().verifyIdToken(idToken, process.env.FUNCTIONS_EMULATOR !== 'true');
     } catch (error) {
       this.handleError(error, 'Verify token');
     }
@@ -184,6 +176,9 @@ export class AuthService extends BaseService {
 
   async sendOTP(phone: string): Promise<{ message: string }> {
     try {
+      if (process.env.FUNCTIONS_EMULATOR !== 'true' || process.env.ENABLE_DEV_AUTH !== 'true') {
+        throw new Error('Development authentication helpers are disabled');
+      }
       this.validateRequired({ phone }, ['phone']);
       const formattedPhone = phone.trim();
 
@@ -192,25 +187,20 @@ export class AuthService extends BaseService {
         throw new Error(rateLimitResult.reason || 'Too many OTP requests. Please try again later.');
       }
 
-      // In development/mock mode, we'll just log the OTP. 
-      // In production, this would integrate with Termii/Twilio.
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = crypto.randomInt(100000, 1000000).toString();
       const expiration = new Date();
       expiration.setMinutes(expiration.getMinutes() + 15);
+      const otpDocumentId = crypto.createHash('sha256').update(formattedPhone).digest('hex');
+      const otpHash = crypto.createHash('sha256').update(`${otp}:${formattedPhone}`).digest('hex');
 
-      await admin.firestore().collection('otps').doc(formattedPhone).set({
-        otp,
+      await admin.firestore().collection('otps').doc(otpDocumentId).set({
+        otpHash,
         expiresAt: admin.firestore.Timestamp.fromDate(expiration),
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
       await recordOTPAttempt(formattedPhone, true);
-      // Log OTP only outside production — never expose codes in production logs
-      if (process.env.NODE_ENV !== 'production') {
-        this.logger.info(`[MOCK SMS] To: ${formattedPhone}, Body: Your Artiva Login Code is ${otp}`);
-      } else {
-        this.logger.info(`OTP sent to ${formattedPhone.slice(0, 6)}****`);
-      }
+      this.logger.info(`[EMULATOR OTP] Phone hash: ${hashPII(formattedPhone)}, code: ${otp}`);
       return { message: 'OTP sent successfully' };
     } catch (error) {
       this.handleError(error, 'Send OTP');
@@ -219,6 +209,9 @@ export class AuthService extends BaseService {
 
   async verifyOTP(phone: string, otp: string, role: string): Promise<{ token: string, user: User }> {
     try {
+      if (process.env.FUNCTIONS_EMULATOR !== 'true' || process.env.ENABLE_DEV_AUTH !== 'true') {
+        throw new Error('Development authentication helpers are disabled');
+      }
       this.validateRequired({ phone, otp, role }, ['phone', 'otp', 'role']);
 
       // PRD §7.1 / security: clamp role to prevent privilege escalation via public OTP endpoint
@@ -233,27 +226,29 @@ export class AuthService extends BaseService {
         throw new Error(rateLimitResult.reason || 'Too many failed attempts. Account temporarily locked.');
       }
 
-      const isTestOtp = otp === '123456';
-      if (!isTestOtp) {
-        const otpDoc = await admin.firestore().collection('otps').doc(formattedPhone).get();
-        if (!otpDoc.exists) {
-          await recordOTPAttempt(formattedPhone, false);
-          throw new Error('Invalid or expired OTP');
-        }
-
-        const otpData = otpDoc.data();
-        if (otpData?.otp !== otp) {
-          await recordOTPAttempt(formattedPhone, false);
-          throw new Error('Invalid OTP');
-        }
-
-        if (otpData?.expiresAt.toDate() < new Date()) {
-          await recordOTPAttempt(formattedPhone, false);
-          throw new Error('OTP has expired');
-        }
-
-        await admin.firestore().collection('otps').doc(formattedPhone).delete();
+      const otpDocumentId = crypto.createHash('sha256').update(formattedPhone).digest('hex');
+      const otpRef = admin.firestore().collection('otps').doc(otpDocumentId);
+      const otpDoc = await otpRef.get();
+      if (!otpDoc.exists) {
+        await recordOTPAttempt(formattedPhone, false);
+        throw new Error('Invalid or expired OTP');
       }
+
+      const otpData = otpDoc.data();
+      const candidateHash = crypto.createHash('sha256').update(`${otp}:${formattedPhone}`).digest();
+      const storedHash = Buffer.from(String(otpData?.otpHash || ''), 'hex');
+      if (storedHash.length !== candidateHash.length || !crypto.timingSafeEqual(storedHash, candidateHash)) {
+        await recordOTPAttempt(formattedPhone, false);
+        throw new Error('Invalid OTP');
+      }
+
+      if (!otpData?.expiresAt || otpData.expiresAt.toDate() < new Date()) {
+        await recordOTPAttempt(formattedPhone, false);
+        await otpRef.delete();
+        throw new Error('OTP has expired');
+      }
+
+      await otpRef.delete();
       await recordOTPAttempt(formattedPhone, true);
 
       let uid: string;
@@ -286,13 +281,7 @@ export class AuthService extends BaseService {
         }
       }
 
-      let token: string = '';
-      try {
-        token = await admin.auth().createCustomToken(uid);
-      } catch (tokenErr) {
-        this.logger.warn('admin.auth().createCustomToken failed (Service Account Token Creator role needed for client-side Firebase Auth sign-in), falling back to session token:', tokenErr);
-        token = `session_${uid}_${Date.now()}`;
-      }
+      const token = await admin.auth().createCustomToken(uid);
       this.logOperation('otp-verified-login', { uid, role: user?.role });
 
       return { token, user: user! };
@@ -301,40 +290,52 @@ export class AuthService extends BaseService {
     }
   }
 
-  async verifyEmailLogin(idToken: string, role: string): Promise<{ token: string, user: User }> {
+  async verifyFirebaseLogin(idToken: string, role: string): Promise<{ token: string, user: User }> {
     try {
       this.validateRequired({ idToken, role }, ['idToken', 'role']);
 
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const uid = decodedToken.uid;
-      const email = decodedToken.email;
-
-      if (!email) {
-        throw new Error('Email is missing from the verified ID token.');
+      if (![ROLES.CLIENT, ROLES.ARTISAN].includes(role as any)) {
+        throw new Error(`Invalid role. Must be "${ROLES.CLIENT}" or "${ROLES.ARTISAN}"`);
       }
 
-      let user = await this.userRepo.findByEmail(email);
+      const decodedToken = await admin.auth().verifyIdToken(
+        idToken,
+        process.env.FUNCTIONS_EMULATOR !== 'true'
+      );
+      const uid = decodedToken.uid;
+      const email = decodedToken.email;
+      const phone = decodedToken.phone_number;
+
+      if (!email && !phone) {
+        throw new Error('The verified Firebase token must contain an email address or phone number.');
+      }
+
+      let user = await this.userRepo.findById(uid);
       if (!user) {
         user = await this.userRepo.createUser({
           uid,
           first_name: decodedToken.name?.split(' ')[0] || '',
           last_name: decodedToken.name?.split(' ').slice(1).join(' ') || '',
-          email: email,
-          role: role as "client" | "artisan" | "admin",
+          email: email || '',
+          phone: phone || '',
+          role: role as 'client' | 'artisan',
           created_at: new Date()
         });
 
         if (role === ROLES.ARTISAN) {
           await this.createArtisanPlaceholder(uid);
         }
+      } else if (user.role !== role) {
+        throw new Error(`This account is registered as ${user.role}`);
+      } else if (role === ROLES.ARTISAN && !(await this.artisanRepo.exists(uid))) {
+        await this.createArtisanPlaceholder(uid);
       }
 
-      const token = await admin.auth().createCustomToken(uid);
-      this.logOperation('email-password-login-verified', { uid, role: user?.role });
+      this.logOperation('firebase-login-verified', { uid, role: user?.role });
 
-      return { token, user: user! };
+      return { token: idToken, user: this.withEffectiveRole(user!) };
     } catch (error) {
-      this.handleError(error, 'Verify Email Login');
+      this.handleError(error, 'Verify Firebase Login');
     }
   }
 }

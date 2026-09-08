@@ -1,13 +1,51 @@
 import { Router, Response } from 'express';
 import * as admin from 'firebase-admin';
-import { authenticate } from '../middleware/auth';
+import { randomBytes } from 'crypto';
+import { z } from 'zod';
+import { authenticate, requireRole } from '../middleware/auth';
+import { validate } from '../middleware/zodValidation';
 import { AuthenticatedRequest } from '../types';
-import { initializePayment } from '../utils/paystack';
+import { initializePayment, listNigerianBanks, resolveBankAccount } from '../utils/paystack';
 import { PaymentController } from '../controllers';
 import { Logger } from '../utils/logger';
 
 const router = Router();
 const paymentController = new PaymentController();
+const initializeSchema = z.object({
+  body: z.object({
+    match_id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
+  }).strict()
+});
+const resolveAccountSchema = z.object({
+  body: z.object({
+    account_number: z.string().regex(/^\d{10}$/),
+    bank_code: z.string().regex(/^\d{3,6}$/)
+  }).strict()
+});
+const verifySchema = z.object({
+  body: z.object({ reference: z.string().regex(/^[a-z0-9_-]{8,64}$/i) }).strict()
+});
+const verifyParamSchema = z.object({
+  params: z.object({ reference: z.string().regex(/^[a-z0-9_-]{8,64}$/i) }).strict()
+});
+
+router.get('/banks', authenticate, requireRole('artisan'), async (_req, res) => {
+  try {
+    const banks = await listNigerianBanks();
+    res.json({ success: true, data: { banks } });
+  } catch {
+    res.status(502).json({ error: 'Unable to load supported banks' });
+  }
+});
+
+router.post('/resolve-account', authenticate, requireRole('artisan'), validate(resolveAccountSchema), async (req, res) => {
+  try {
+    const account = await resolveBankAccount(req.body.account_number, req.body.bank_code);
+    res.json({ success: true, data: account });
+  } catch {
+    res.status(400).json({ error: 'Unable to verify bank account' });
+  }
+});
 
 /**
  * @swagger
@@ -36,24 +74,19 @@ const paymentController = new PaymentController();
  *       403:
  *         description: Forbidden
  */
-router.post(['/initialise', '/initialize'], authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.post(
+  ['/initialise', '/initialize'],
+  authenticate,
+  requireRole('client'),
+  validate(initializeSchema),
+  async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    const { match_id, job_value } = req.body;
-
-    if (!match_id) {
-      res.status(400).json({ error: 'Match ID is required' });
-      return;
-    }
-    
-    if (typeof job_value !== 'number' || job_value <= 0) {
-      res.status(400).json({ error: 'Valid job_value is required' });
-      return;
-    }
+    const { match_id } = req.body;
 
     const db = admin.firestore();
 
@@ -66,10 +99,10 @@ router.post(['/initialise', '/initialize'], authenticate, async (req: Authentica
       return;
     }
 
-    const matchData = matchDoc.data();
+    const matchData = matchDoc.data()!;
 
     // Get job details
-    const jobRef = db.collection('jobs').doc(matchData!.job_id);
+    const jobRef = db.collection('jobs').doc(matchData.job_id);
     const jobDoc = await jobRef.get();
 
     if (!jobDoc.exists) {
@@ -77,64 +110,47 @@ router.post(['/initialise', '/initialize'], authenticate, async (req: Authentica
       return;
     }
 
-    const jobData = jobDoc.data();
+    const jobData = jobDoc.data()!;
 
     // Verify the authenticated user is the client who owns the job
-    if (jobData?.client_uid !== req.user.uid) {
+    if (jobData.client_uid !== req.user.uid) {
       res.status(403).json({ error: 'Forbidden: You do not own this job' });
       return;
     }
 
     // Get user email for Paystack
-    const userRef = db.collection('users').doc(req.user.uid);
-    const userDoc = await userRef.get();
-    const userData = userDoc.data();
+    if (matchData.status !== 'accepted'
+      || jobData.assigned_artisan_uid !== matchData.artisan_uid
+      || jobData.matched_artisan_uid !== matchData.artisan_uid) {
+      res.status(409).json({ error: 'The selected match is not ready for payment' });
+      return;
+    }
 
-    // Use phone as email if no email (Paystack requires email)
-    const email = userData?.email || `${userData?.phone.replace('+', '')}@verifix.app`;
-
-    // Lock the job value at payment initialization
-    // This value is immutable and used for commission calculation
-    const lockedJobValue = job_value;
+    const lockedJobValue = Number(jobData.budget ?? jobData.job_value);
+    if (!Number.isFinite(lockedJobValue) || lockedJobValue <= 0 || lockedJobValue > 100_000_000) {
+      res.status(409).json({ error: 'The job must have a valid server-stored budget before payment' });
+      return;
+    }
 
     // Backend-authoritative amount calculation: JOB VALUE + ₦500 Artiva Fee
     const platformFee = 500;
     const totalAmount = lockedJobValue + platformFee;
     
     // Amount in kobo (Paystack uses smallest currency unit)
-    const amountInKobo = totalAmount * 100;
+    const amountInKobo = Math.round(totalAmount * 100);
 
     // Generate unique reference
-    const reference = `VF-${match_id}-${Date.now()}`;
+    const reference = `vf-${Date.now().toString(36)}-${randomBytes(8).toString('hex')}`;
 
     // Calculate commission (10%)
-    const commissionRetained = Math.round(lockedJobValue * 0.10);
+    const commissionRetained = Math.round(lockedJobValue * 10) / 100;
 
-    // Initialize Paystack payment
-    const paymentResponse = await initializePayment({
-      email,
-      amount: amountInKobo,
-      reference,
-      metadata: {
-        match_id,
-        job_id: jobData!.job_id || matchData!.job_id,
-        client_uid: req.user.uid,
-        artisan_uid: matchData!.artisan_uid,
-        locked_job_value: lockedJobValue
-      }
-    });
-
-    if (!paymentResponse.status) {
-      res.status(500).json({ error: 'Failed to initialize payment with Paystack' });
-      return;
-    }
-
-    // Create transaction record with v1.9 schema
+    const transactionRef = db.collection('transactions').doc(`escrow-${match_id}`);
     const transactionData = {
-      job_id: jobData!.job_id || matchData!.job_id,
+      job_id: matchData.job_id,
       client_uid: req.user.uid,
       match_id,
-      artisan_uid: matchData!.artisan_uid,
+      artisan_uid: matchData.artisan_uid,
       type: 'escrow',
       amounts: {
         job_value: lockedJobValue,
@@ -142,20 +158,128 @@ router.post(['/initialise', '/initialize'], authenticate, async (req: Authentica
         total_charged: totalAmount,
         artisan_net_labor: lockedJobValue - commissionRetained
       },
-      escrow_status: 'PENDING', // Will be updated to 'HELD' by webhook
+      expected_amount_kobo: amountInKobo,
+      currency: 'NGN',
+      escrow_status: 'PENDING',
       paystack_reference: reference,
-      
-      // Legacy fields for backward compatibility
       amount: totalAmount,
       status: 'pending',
       locked_job_value: lockedJobValue,
       commission_retained: commissionRetained,
-      
       released_at: null,
-      created_at: admin.firestore.FieldValue.serverTimestamp()
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+      updated_at: admin.firestore.FieldValue.serverTimestamp()
     };
 
-    const transactionRef = await db.collection('transactions').add(transactionData);
+    const existingIntent: { value?: { authorization_url: string; access_code: string; reference: string } } = {};
+    await db.runTransaction(async transaction => {
+      const [freshMatch, freshJob, existingPayment] = await Promise.all([
+        transaction.get(matchRef),
+        transaction.get(jobRef),
+        transaction.get(transactionRef)
+      ]);
+      const currentMatch = freshMatch.data();
+      const currentJob = freshJob.data();
+      if (!currentMatch || !currentJob
+        || currentJob.client_uid !== req.user!.uid
+        || currentMatch.job_id !== jobRef.id
+        || currentMatch.artisan_uid !== currentJob.assigned_artisan_uid
+        || currentMatch.artisan_uid !== currentJob.matched_artisan_uid
+        || currentJob.status !== 'matched'
+        || Number(currentJob.budget ?? currentJob.job_value) !== lockedJobValue
+        || currentMatch.status !== 'accepted') {
+        throw new Error('Payment resources changed; retry from the job screen');
+      }
+      if (existingPayment.exists) {
+        const existing = existingPayment.data()!;
+        if (existing.escrow_status === 'PENDING'
+          && existing.expected_amount_kobo === amountInKobo
+          && typeof existing.authorization_url === 'string'
+          && typeof existing.access_code === 'string') {
+          existingIntent.value = {
+            authorization_url: existing.authorization_url,
+            access_code: existing.access_code,
+            reference: existing.paystack_reference
+          };
+          return;
+        }
+        if (existing.escrow_status !== 'FAILED') {
+          throw new Error('A payment is already in progress for this match');
+        }
+      }
+
+      transaction.set(transactionRef, transactionData);
+      transaction.update(jobRef, {
+        locked_job_value: lockedJobValue,
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+    });
+
+    if (existingIntent.value) {
+      res.status(200).json({
+        message: 'Payment already initialized',
+        transaction_id: transactionRef.id,
+        ...existingIntent.value
+      });
+      return;
+    }
+
+    const uidFragment = req.user.uid.replace(/[^a-zA-Z0-9]/g, '').slice(0, 40);
+    const email = req.user.email || `payments+${uidFragment}@verifix.app`;
+
+    let paymentResponse: any;
+    try {
+      paymentResponse = await initializePayment({
+        email,
+        amount: amountInKobo,
+        reference,
+        metadata: {
+          match_id,
+          job_id: matchData.job_id,
+          client_uid: req.user.uid,
+          artisan_uid: matchData.artisan_uid,
+          locked_job_value: lockedJobValue
+        }
+      });
+    } catch (error) {
+      await db.runTransaction(async transaction => {
+        const current = await transaction.get(transactionRef);
+        if (current.data()?.paystack_reference === reference
+          && current.data()?.escrow_status === 'PENDING') {
+          transaction.update(transactionRef, {
+            escrow_status: 'PAYMENT_RECONCILIATION_REQUIRED',
+            status: 'reconciliation_required',
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      });
+      throw error;
+    }
+
+    if (!paymentResponse.status
+      || typeof paymentResponse.data?.authorization_url !== 'string'
+      || !paymentResponse.data.authorization_url.startsWith('https://')
+      || typeof paymentResponse.data?.access_code !== 'string') {
+      await db.runTransaction(async transaction => {
+        const current = await transaction.get(transactionRef);
+        if (current.data()?.paystack_reference === reference
+          && current.data()?.escrow_status === 'PENDING') {
+          transaction.update(transactionRef, {
+            escrow_status: 'FAILED',
+            status: 'failed',
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      });
+      throw new Error('Paystack rejected payment initialization');
+    }
+
+    await transactionRef.update({
+      authorization_url: paymentResponse.data.authorization_url.slice(0, 2048),
+      access_code: paymentResponse.data.access_code.slice(0, 256),
+      initialized_at: admin.firestore.FieldValue.serverTimestamp(),
+      updated_at: admin.firestore.FieldValue.serverTimestamp()
+    });
 
     res.status(200).json({
       message: 'Payment initialized successfully',
@@ -167,8 +291,9 @@ router.post(['/initialise', '/initialize'], authenticate, async (req: Authentica
 
   } catch (error: any) {
     Logger.error('Payment initialization error:', error);
-    res.status(500).json({ 
-      error: 'Failed to initialize payment'
+    const conflict = error?.message?.includes('already') || error?.message?.includes('changed');
+    res.status(conflict ? 409 : 500).json({
+      error: conflict ? error.message : 'Failed to initialize payment'
     });
   }
 });
@@ -196,7 +321,7 @@ router.post('/webhook', (req, res) =>
  *     security:
  *       - bearerAuth: []
  */
-router.post('/verify', authenticate, (req, res) => 
+router.post('/verify', authenticate, requireRole('client'), validate(verifySchema), (req, res) =>
   paymentController.verifyPayment(req as any, res)
 );
 
@@ -209,40 +334,8 @@ router.post('/verify', authenticate, (req, res) =>
  *     security:
  *       - bearerAuth: []
  */
-router.get('/verify/:reference', authenticate, (req, res) => 
+router.get('/verify/:reference', authenticate, requireRole('client'), validate(verifyParamSchema), (req, res) =>
   paymentController.verifyPayment(req as any, res)
 );
-
-/**
- * @swagger
- * /api/payments/payout:
- *   post:
- *     summary: Release escrow funds to artisan
- *     tags: [Payments]
- *     security:
- *       - bearerAuth: []
- */
-router.post('/payout', authenticate, (req: any, res) => {
-  const jobId = req.body.job_id || req.body.jobId;
-  req.params = { ...req.params, jobId };
-  return paymentController.releaseEscrow(req, res);
-});
-router.post('/release/:jobId', authenticate, (req, res) => 
-  paymentController.releaseEscrow(req as any, res)
-);
-
-/**
- * @swagger
- * /api/payments/refund:
- *   post:
- *     summary: Initiates refund on no-response trigger (Internal)
- *     tags: [Payments]
- *     security:
- *       - bearerAuth: []
- */
-router.post('/refund', authenticate, async (req, res) => {
-  // PRD §9.4: Platform only (internal). Initiates refund on no-response trigger
-  res.status(501).json({ error: 'Not implemented - handled by scheduler' });
-});
 
 export default router;

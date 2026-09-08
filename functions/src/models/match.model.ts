@@ -12,6 +12,7 @@ export type MatchStatus =
   | 'declined'
   | 'completed'
   | 'cancelled'
+  | 'refund_pending'
   | 'refunded';   // auto-refunded due to no-response
 
 export interface Match {

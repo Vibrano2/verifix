@@ -1,11 +1,35 @@
 import { Router } from 'express';
-import { authenticate } from '../middleware/auth';
+import { z } from 'zod';
+import { authenticate, requireAdmin, requireRole } from '../middleware/auth';
 import { validate } from '../middleware/zodValidation';
 import { CreateProformaSchema } from '../models/proforma.model';
 import { ProformaController } from '../controllers/proforma.controller';
 
 const router = Router();
 const proformaController = new ProformaController();
+const reviewSchema = z.object({
+  params: z.object({ id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/) }).strict(),
+  body: z.object({
+    status: z.enum(['approved', 'rejected']),
+    reason: z.string().trim().max(1000).optional(),
+    notes: z.string().trim().max(1000).optional(),
+    supplier_recipient_code: z.string().regex(/^RCP_[A-Za-z0-9]+$/).optional()
+  }).strict().superRefine((data, context) => {
+    if (data.status === 'approved' && !data.supplier_recipient_code) {
+      context.addIssue({ code: 'custom', path: ['supplier_recipient_code'], message: 'Supplier recipient code is required for approval' });
+    }
+    if (data.status === 'rejected' && !(data.reason || data.notes)) {
+      context.addIssue({ code: 'custom', path: ['reason'], message: 'A rejection reason is required' });
+    }
+  })
+});
+const jobParamsSchema = z.object({
+  params: z.object({ jobId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/) }).strict()
+});
+
+router.post('/upload/:jobId', authenticate, requireRole('artisan'), validate(jobParamsSchema), (req, res) =>
+  proformaController.uploadInvoice(req, res)
+);
 
 /**
  * @swagger
@@ -16,10 +40,10 @@ const proformaController = new ProformaController();
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', authenticate, validate(CreateProformaSchema), (req, res) => 
+router.post('/', authenticate, requireRole('artisan'), validate(CreateProformaSchema), (req, res) =>
   proformaController.submitProforma(req, res)
 );
-router.post('/submit', authenticate, validate(CreateProformaSchema), (req, res) => 
+router.post('/submit', authenticate, requireRole('artisan'), validate(CreateProformaSchema), (req, res) =>
   proformaController.submitProforma(req, res)
 );
 
@@ -32,7 +56,7 @@ router.post('/submit', authenticate, validate(CreateProformaSchema), (req, res) 
  *     security:
  *       - bearerAuth: []
  */
-router.get('/job/:jobId', authenticate, (req, res) => 
+router.get('/job/:jobId', authenticate, validate(jobParamsSchema), (req, res) =>
   proformaController.getJobProformas(req, res)
 );
 
@@ -45,7 +69,7 @@ router.get('/job/:jobId', authenticate, (req, res) =>
  *     security:
  *       - bearerAuth: []
  */
-router.put(['/:id/status', '/:id/review'], authenticate, async (req: any, res) => {
+router.put(['/:id/status', '/:id/review'], authenticate, requireAdmin, validate(reviewSchema), async (req: any, res) => {
   const { status, reason, notes } = req.body;
   const { AdminController } = require('../controllers');
   const adminController = new AdminController();

@@ -106,18 +106,13 @@ export class RatingRepository extends BaseRepository<Rating> {
     review?: string;
   }): Promise<Rating> {
     try {
-      // Check for duplicate rating
-      const exists = await this.ratingExistsForJob(data.job_id);
-      if (exists) {
-        throw new Error('Rating already exists for this job');
-      }
-
       const ratingData = {
         ...data,
         created_at: admin.firestore.FieldValue.serverTimestamp()
       };
 
-      const docRef = await this.getCollection().add(ratingData);
+      const docRef = this.getCollection().doc(data.job_id);
+      await docRef.create(ratingData);
       
       return {
         rating_id: docRef.id,

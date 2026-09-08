@@ -1,0 +1,30 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.artiva_admin == true;
+    }
+
+    // Work photos are intentionally public after server-side content validation.
+    // The Admin SDK is the only writer and bypasses these client rules.
+    match /artisan_photos/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Identity documents are private to the artisan and administrators.
+    // Downloads should normally be mediated by a short-lived signed URL.
+    match /id_documents/{userId}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -24,10 +24,10 @@ export class ChatController extends BaseController {
       const matchDoc = await admin.firestore().collection('matches').doc(matchId).get();
       if (!matchDoc.exists) return this.sendNotFound(res, 'Match not found');
       
-      const jobId = matchDoc.data()?.job_id;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const rawLimit = req.query.limit ? Number.parseInt(String(req.query.limit), 10) : 50;
+      const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 100) : 50;
 
-      const messages = await this.chatService.getMessages(jobId, req.user.uid, limit);
+      const messages = await this.chatService.getMessages(matchId, req.user.uid, limit);
       this.sendSuccess(res, 'Messages fetched successfully', { messages });
     } catch (error: any) {
       if (error.message.includes('Forbidden')) {
@@ -50,10 +50,9 @@ export class ChatController extends BaseController {
       const matchDoc = await admin.firestore().collection('matches').doc(matchId).get();
       if (!matchDoc.exists) return this.sendNotFound(res, 'Match not found');
       
-      const jobId = matchDoc.data()?.job_id;
       const { content } = req.body;
 
-      const message = await this.chatService.sendMessage(jobId, req.user.uid, content);
+      const message = await this.chatService.sendMessage(matchId, req.user.uid, content);
       this.sendCreated(res, 'Message sent successfully', { message });
     } catch (error: any) {
       if (error.message.includes('Forbidden')) {

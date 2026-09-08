@@ -4,6 +4,11 @@ import { AuthenticatedRequest } from '../types';
 import { recordFailedAuth, auditLog } from './security';
 import { Logger } from '../utils/logger';
 
+function configuredAdminUid(): string | undefined {
+  const value = process.env.ADMIN_UID?.trim();
+  return value || undefined;
+}
+
 /**
  * Middleware to verify Firebase ID token and attach user to request
  */
@@ -20,29 +25,35 @@ export const authenticate = async (
       return;
     }
 
-    const token = authHeader.split('Bearer ')[1];
-    
-    if (token && token.startsWith('session_')) {
-      const parts = token.split('_');
-      const uid = parts[1];
-      if (uid) {
-        req.user = {
-          uid,
-          aud: 'artiva-f24a8',
-          auth_time: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + 86400,
-          firebase: { identities: {}, sign_in_provider: 'phone' },
-          iat: Math.floor(Date.now() / 1000),
-          iss: 'https://securetoken.google.com/artiva-f24a8',
-          sub: uid
-        } as any;
-        return next();
-      }
+    const token = authHeader.slice('Bearer '.length).trim();
+    if (!token || token.length > 8192) {
+      res.status(401).json({ error: 'Unauthorized: Invalid token' });
+      return;
     }
 
     try {
-      const decodedToken = await admin.auth().verifyIdToken(token);
-      req.user = decodedToken;
+      const checkRevoked = process.env.FUNCTIONS_EMULATOR !== 'true';
+      const decodedToken = await admin.auth().verifyIdToken(token, checkRevoked);
+
+      // Roles are server-owned. The single configured administrator is
+      // identified by UID; all other roles come from the backend-owned user
+      // document. Custom claims are not accepted as an independent source of
+      // administrative authority.
+      if (decodedToken.uid === configuredAdminUid()) {
+        (decodedToken as any).role = 'admin';
+      } else {
+        try {
+          const userDoc = await admin.firestore().collection('users').doc(decodedToken.uid).get();
+          const persistedRole = userDoc.data()?.role;
+          if (persistedRole === 'client' || persistedRole === 'artisan') {
+            (decodedToken as any).role = persistedRole;
+          }
+        } catch {
+          Logger.warn('Could not load persisted user role', { uid: decodedToken.uid });
+        }
+      }
+
+      req.user = decodedToken as any;
       
       // Audit successful authentication
       const ip = req.ip || req.socket.remoteAddress || 'unknown';
@@ -62,7 +73,7 @@ export const authenticate = async (
       
       // Record failed authentication attempt
       const ip = req.ip || req.socket.remoteAddress || 'unknown';
-      recordFailedAuth(ip);
+      void recordFailedAuth(ip);
       
       // Audit failed authentication
       await auditLog({
@@ -100,7 +111,7 @@ export const requireAdmin = async (
       return;
     }
 
-    const adminUid = process.env.ADMIN_UID;
+    const adminUid = configuredAdminUid();
     
     if (!adminUid) {
       Logger.error('ADMIN_UID environment variable not set');
@@ -119,6 +130,28 @@ export const requireAdmin = async (
     res.status(500).json({ error: 'Internal server error during authorization' });
     return;
   }
+};
+
+/**
+ * Require a server-owned application role. Admins may access role-protected
+ * routes, while ordinary users must have the matching persisted role.
+ */
+export const requireRole = (role: 'client' | 'artisan') => (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized: Authentication required' });
+    return;
+  }
+
+  if (req.user.uid === configuredAdminUid() || req.user.role === role) {
+    next();
+    return;
+  }
+
+  res.status(403).json({ error: `Forbidden: ${role} access required` });
 };
 
 /**

@@ -11,22 +11,27 @@ export type JobStatus =
   | 'in_progress'
   | 'completed'
   | 'cancelled'
+  | 'refund_pending'
   | 'refunded'
-  | 'disputed';
+  | 'disputed'
+  | 'payout_issue';
 
 export type Urgency = 'Today' | 'This Week' | 'Flexible';
 
+const money = z.number().finite().positive().max(100_000_000)
+  .refine(value => Math.abs(Math.round(value * 100) - value * 100) < 1e-8, 'Use at most two decimal places');
+
 // Zod Schemas for Validation
 export const LocationSchema = z.object({
-  city: z.string().min(1),
-  state: z.string().min(1),
-  lga: z.string().min(1),
-  address: z.string().optional(),
+  city: z.string().trim().min(1).max(100),
+  state: z.string().trim().min(1).max(100),
+  lga: z.string().trim().min(1).max(100),
+  address: z.string().trim().max(300).optional(),
   coordinates: z.object({
-    lat: z.number(),
-    lng: z.number()
-  }).optional()
-});
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180)
+  }).strict().optional()
+}).strict();
 
 export const CreateJobSchema = z.object({
   body: z.object({
@@ -34,31 +39,43 @@ export const CreateJobSchema = z.object({
     trade_needed: z.enum(VALID_TRADES as [string, ...string[]]).optional(),
     trade: z.enum(VALID_TRADES as [string, ...string[]]).optional(),
     title: z.string().min(1).max(100).optional(),
-    description: z.string().min(3).max(2000),
-    location: z.union([LocationSchema, z.string()]),
+    description: z.string().trim().min(3).max(2000),
+    location: z.union([LocationSchema, z.string().trim().min(1).max(300)]),
     // Accept urgency or timing (frontend sends timing)
     urgency: z.enum(['Today', 'This Week', 'Flexible']).optional(),
-    timing: z.string().optional(),
-    match_fee: z.number().positive().optional(),
+    timing: z.enum(['Today', 'This Week', 'Flexible', 'ASAP']).optional(),
     // budget is the frontend field name for job_value
-    budget: z.number().nonnegative().optional(),
-    job_value: z.number().nonnegative().optional(),
-    photos: z.array(z.string()).optional(),
-    client_uid: z.string().optional()
-  }).refine(
+    budget: money.optional(),
+    job_value: money.optional(),
+    photos: z.array(z.string().url().max(2048).refine(value => value.startsWith('https://'), 'HTTPS URL required')).max(5).optional(),
+    // Accepted for compatibility, but the controller always derives ownership
+    // from the verified Firebase token.
+    client_uid: z.string().max(128).optional()
+  }).strict().refine(
     data => !!(data.trade_needed || data.trade),
     { message: 'trade or trade_needed is required', path: ['trade_needed'] }
+  ).refine(
+    data => data.budget === undefined || data.job_value === undefined || data.budget === data.job_value,
+    { message: 'budget and job_value must match', path: ['job_value'] }
   )
 });
 
 export const UpdateJobSchema = z.object({
   body: z.object({
-    title: z.string().min(5).max(100).optional(),
-    description: z.string().min(10).max(1000).optional(),
+    title: z.string().trim().min(5).max(100).optional(),
+    description: z.string().trim().min(10).max(2000).optional(),
     location: LocationSchema.optional(),
     urgency: z.enum(['Today', 'This Week', 'Flexible']).optional(),
-    status: z.enum(['open', 'matched', 'in_progress', 'completed', 'cancelled']).optional()
-  })
+    budget: money.optional(),
+    job_value: money.optional(),
+    photos: z.array(z.string().url().max(2048).refine(value => value.startsWith('https://'), 'HTTPS URL required')).max(5).optional()
+  }).strict().refine(
+    data => Object.keys(data).length > 0,
+    { message: 'At least one field must be supplied' }
+  ).refine(
+    data => data.budget === undefined || data.job_value === undefined || data.budget === data.job_value,
+    { message: 'budget and job_value must match', path: ['job_value'] }
+  )
 });
 
 export interface Job {
@@ -72,6 +89,9 @@ export interface Job {
   urgency: Urgency;
   status: JobStatus;
   matched_artisan_uid?: string;
+  assigned_artisan_uid?: string;
+  budget?: number;
+  job_value?: number;
   locked_job_value?: number;
   match_fee?: number;
   tracking_state?: 'en_route' | 'arrived';
