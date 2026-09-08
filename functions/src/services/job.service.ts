@@ -15,48 +15,62 @@ export class JobService extends BaseService {
 
   async createJob(clientUid: string, data: CreateJobDTO): Promise<Job> {
     try {
-      this.validateRequired(data, ['trade_needed', 'title', 'description', 'location', 'urgency']);
+      const normalized = { ...data } as CreateJobDTO & { trade?: string; timing?: string };
+      if (!normalized.trade_needed && normalized.trade) {
+        normalized.trade_needed = normalized.trade as any;
+      }
+      if (!normalized.urgency && normalized.timing) {
+        normalized.urgency = (normalized.timing === 'ASAP' ? 'Today' : normalized.timing) as any;
+      }
+      if (normalized.trade_needed && normalized.trade && normalized.trade !== normalized.trade_needed) {
+        throw new Error('trade and trade_needed must match');
+      }
+      if (normalized.urgency && normalized.timing && normalized.timing !== normalized.urgency && normalized.timing !== 'ASAP') {
+        throw new Error('urgency and timing must match');
+      }
 
-      if (!isValidTrade(data.trade_needed as string)) {
+      this.validateRequired(normalized, ['trade_needed', 'title', 'description', 'location', 'urgency']);
+
+      if (!isValidTrade(normalized.trade_needed as string)) {
         throw new Error('Invalid trade. Must be one of the 24 locked trades.');
       }
 
       const validUrgencies = ['Today', 'This Week', 'Flexible'];
-      if (!data.urgency || !validUrgencies.includes(data.urgency)) {
+      if (!normalized.urgency || !validUrgencies.includes(normalized.urgency)) {
         throw new Error(`Invalid urgency. Must be one of: ${validUrgencies.join(', ')}`);
       }
 
       const jobData: any = {
         client_uid: clientUid,
-        trade_needed: data.trade_needed,
-        title: data.title,
-        description: data.description,
-        location: data.location,
-        urgency: data.urgency,
+        trade_needed: normalized.trade_needed,
+        title: normalized.title,
+        description: normalized.description,
+        location: normalized.location,
+        urgency: normalized.urgency,
         match_fee: 500,
         status: 'open',
         created_at: admin.firestore.FieldValue.serverTimestamp(),
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       };
 
-      const budget = data.budget ?? data.job_value;
+      const budget = normalized.budget ?? normalized.job_value;
       if (budget !== undefined) {
         jobData.budget = budget;
         jobData.job_value = budget;
       }
-      if (data.photos) {
-        jobData.photos = data.photos;
+      if (normalized.photos) {
+        jobData.photos = normalized.photos;
       }
 
       const docRef = await this.db.collection(COLLECTIONS.JOBS).add(jobData);
-      this.logOperation('job-created', { jobId: docRef.id, clientUid, trade: data.trade_needed });
+      this.logOperation('job-created', { jobId: docRef.id, clientUid, trade: normalized.trade_needed });
 
       // PRD §5.1: fire job_posted analytics event (fire-and-forget, non-blocking)
       try {
         new AnalyticsService().trackEvent('job_posted', clientUid, {
           job_id: docRef.id,
-          trade: data.trade_needed,
-          urgency: data.urgency
+          trade: normalized.trade_needed,
+          urgency: normalized.urgency
         }).catch(() => {});
       } catch { /* analytics never blocks the main flow */ }
 
